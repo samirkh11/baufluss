@@ -17,7 +17,13 @@ async function bootstrap() {
   app.enableCors({ origin: corsOrigins, credentials: true });
 
   // Serve uploaded company logos directly; see CompaniesController#uploadLogo.
-  app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
+  // Resolved from the working directory (same base as multer's './uploads/logos'), not __dirname:
+  // the compiled output lives in dist/src, so a __dirname-relative path points to the wrong folder.
+  // The CORP header lets the SPA (different origin/port) embed the images.
+  app.useStaticAssets(join(process.cwd(), 'uploads'), {
+    prefix: '/uploads',
+    setHeaders: (res) => res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin'),
+  });
 
   // API-first: Swagger/OpenAPI docs are the contract the React frontend (and any future client)
   // is built against.
