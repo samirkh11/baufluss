@@ -26,7 +26,7 @@ enum CompanyRole {
 
 // A tenant: one craft business using the platform.
 model Company {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   name      String
   legalForm String? // e.g. "GmbH", "Einzelunternehmen"
 
@@ -34,7 +34,7 @@ model Company {
   street  String?
   zipCode String?
   city    String?
-  country String @default("DE")
+  country String  @default("DE")
 
   // Tax / banking data required on German invoices and letterhead
   taxId String? // Steuernummer
@@ -57,6 +57,8 @@ model Company {
 
   users           User[]
   numberSequences NumberSequence[]
+  contacts        Contact[]
+  catalogItems    CatalogItem[]
 
   @@map("companies")
 }
@@ -99,4 +101,93 @@ model NumberSequence {
 
   @@unique([companyId, documentType])
   @@map("number_sequences")
+}
+
+// Business role(s) a contact plays. One contact may hold several (e.g. a supplier that is also a customer).
+enum ContactType {
+  CUSTOMER // Kunde
+  SUPPLIER // Lieferant
+  SUBCONTRACTOR // Subunternehmer
+}
+
+// Kind of catalog entry: a labour/service position or a physical article.
+enum CatalogItemKind {
+  SERVICE // Leistung
+  ARTICLE // Artikel / Material
+}
+
+// Address book entry (customers, suppliers, subcontractors share one table because their fields
+// are identical; the `types` array distinguishes the roles). Referenced by projects and documents
+// in later blocks, which is why contacts are archived (isActive=false) rather than hard-deleted
+// once documents exist (GoBD).
+model Contact {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  types ContactType[]
+
+  // Optional own customer/supplier number shown on documents.
+  number String?
+
+  // Organisation vs. private person
+  isOrganization   Boolean @default(true)
+  organizationName String? // set when isOrganization
+  salutation       String? // Herr / Frau / Divers ...
+  firstName        String?
+  lastName         String?
+
+  street  String?
+  zipCode String?
+  city    String?
+  country String  @default("DE")
+
+  email   String?
+  phone   String?
+  mobile  String?
+  website String?
+
+  // Tax / payment data (needed for invoices, §13b checks and incoming invoices)
+  vatId           String?
+  taxId           String?
+  iban            String?
+  bic             String?
+  paymentTermDays Int? // default Zahlungsziel in Tagen
+
+  notes    String? @db.Text
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId])
+  @@map("contacts")
+}
+
+// Service and article master data ("Leistungs- und Artikelstamm"). Quote/invoice positions copy
+// values from here at creation time, so later price changes never alter existing documents.
+model CatalogItem {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  kind        CatalogItemKind
+  sku         String? // Artikel-/Leistungsnummer
+  name        String
+  description String?         @db.Text
+  unit        String          @default("Stk") // Einheit: Stk, h, m, m², pauschal ...
+
+  netPrice      Decimal  @db.Decimal(12, 2) // Verkaufspreis netto
+  purchasePrice Decimal? @db.Decimal(12, 2) // Einkaufspreis netto (Kalkulation)
+  vatRate       Decimal  @default(19) @db.Decimal(5, 2) // Prozent
+
+  isActive Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, sku])
+  @@index([companyId, kind])
+  @@map("catalog_items")
 }

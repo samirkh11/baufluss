@@ -64,6 +64,8 @@ meisterwerk/
 │       ├── auth/       Registrierung, Login, JWT
 │       ├── companies/  Firmenprofil, Logo, Nummernkreise
 │       ├── users/      Nutzerverwaltung & Rollen
+│       ├── contacts/   Kunden, Lieferanten, Subunternehmer
+│       ├── catalog/    Leistungs- und Artikelstamm
 │       └── common/     Prisma-Service, Guards, Decorators
 ├── frontend/          React-SPA
 └── docker-compose.yml PostgreSQL + Adminer für die lokale Entwicklung
@@ -75,7 +77,9 @@ meisterwerk/
 - Firmenprofil: Stammdaten, Logo-Upload, Briefpapier-Texte
 - Nummernkreise (Konfiguration je Dokumenttyp, wird von späteren Modulen konsumiert)
 - Nutzerverwaltung mit Rollen (Inhaber/Administrator/Mitarbeiter)
+- Kontakte (Kunden, Lieferanten, Subunternehmer) mit Suche, Filter, Archivierung
+- Leistungs- und Artikelstamm (Preise, USt, Einheiten)
 
-Die restlichen Funktionsblöcke (Kontakte & Stammdaten, Projekte, Angebote, Rechnungen,
-Eingangsrechnungen, E-Rechnung/Compliance) sind in der Roadmap-Memory-Datei geplant und werden
+Die restlichen Funktionsblöcke (Projekte, Angebote, Rechnungen,
+Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.

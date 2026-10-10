@@ -1,5 +1,5 @@
 import { Layout, Menu, Typography } from 'antd';
-import { DashboardOutlined, SettingOutlined, TeamOutlined, LogoutOutlined } from '@ant-design/icons';
+import { ContactsOutlined, DashboardOutlined, SettingOutlined, TeamOutlined, LogoutOutlined, ToolOutlined } from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
@@ -10,6 +10,8 @@ const { Header, Sider, Content } = Layout;
 // /.claude/memory/project_roadmap.md for the planned order.
 const MENU_ITEMS = [
   { key: '/', icon: <DashboardOutlined />, label: <Link to="/">Übersicht</Link> },
+  { key: '/contacts', icon: <ContactsOutlined />, label: <Link to="/contacts">Kontakte</Link> },
+  { key: '/catalog', icon: <ToolOutlined />, label: <Link to="/catalog">Leistungen &amp; Artikel</Link> },
   { key: '/company', icon: <SettingOutlined />, label: <Link to="/company">Firmenprofil</Link> },
   { key: '/users', icon: <TeamOutlined />, label: <Link to="/users">Nutzer &amp; Rollen</Link> },
 ];

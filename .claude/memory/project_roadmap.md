@@ -17,13 +17,20 @@ Firmendaten, Logo-Upload, Briefpapier-Texte, Nummernkreise-Konfiguration, Nutzer
 (Owner/Admin/Member). Backend: `companies/`, `users/`, `auth/`. Frontend:
 `CompanyProfilePage`, `UsersPage`.
 
-### ⬜ Block 2 — Kontakte und Stammdaten
-Kunden, Lieferanten, Subunternehmer, Leistungs- und Artikelstamm.
-**Empfehlung für die Umsetzung:** Ein gemeinsames `Contact`-Modell mit einem Typ-Feld
-(`CUSTOMER` | `SUPPLIER` | `SUBCONTRACTOR`) spart Code-Duplizierung, da Adress-/Kontaktfelder
-identisch sind. Artikelstamm (`Article`: Bezeichnung, Einheit, Preis, Steuersatz) ist ein
-separates Modell, wird aber von Block 4 (Angebote) direkt referenziert — deshalb sollte Block 2
-vor Block 4 kommen.
+### ✅ Block 2 — Kontakte und Stammdaten (fertig, 2026-10-10)
+Backend: `contacts/` und `catalog/`. Frontend: `ContactsPage`, `CatalogPage`.
+- Ein gemeinsames `Contact`-Modell, Rollen als Array `types` (`CUSTOMER`/`SUPPLIER`/`SUBCONTRACTOR`,
+  ein Kontakt kann mehrere Rollen haben). Optionale eigene `number` (unique je Firma, noch nicht an
+  Nummernkreise gekoppelt — kann später über `NumberSequence` automatisch vergeben werden).
+- Leistungs- und Artikelstamm in EINEM Modell `CatalogItem` mit `kind` (`SERVICE`/`ARTICLE`),
+  Netto-VK, optional EK, USt-Satz, Einheit. Preise sind `Decimal(12,2)` → JSON-Strings, Frontend
+  wandelt per `Number()`. Angebotspositionen (Block 4) sollen Werte beim Anlegen KOPIEREN.
+- Archivieren (`isActive=false`) ist der normale Weg; Löschen ist erlaubt, muss aber ab Block 3/4
+  blockiert werden, sobald Projekte/Dokumente auf einen Kontakt/Artikel verweisen (FK Restrict).
+- Listen-Endpunkte: Pagination (`page`,`pageSize`) + `q`-Suche über gemeinsames
+  `PaginationQueryDto`; Antwort `{items,total,page,pageSize}`.
+- Offen/Ideen: Ansprechpartner je Kontakt, mehrere Adressen (Lieferadresse), CSV-Import,
+  Kategorien/Warengruppen im Katalog.
 
 ### ⬜ Block 3 — Projekte
 Projektliste, Projekt anlegen, Projektübersicht mit allen Dokumenten UND Berichten.
@@ -61,15 +68,31 @@ Rechnungs-/Eingangsrechnungs-Datenmodelle in Block 5/6 müssen von Anfang an so 
 XRechnung/ZUGFeRD-Export ohne Nacharbeit möglich ist (alle Pflichtfelder der EN16931-Norm von
 Anfang an im Schema vorsehen). Details siehe [[project_compliance]].
 
+### ⬜ Block 8 — Plattform-Admin / Betreiber-Backoffice (von Volker nachgefordert 2026-10-10)
+Unter der Backend-URL gibt es bisher nur die Swagger-Doku. Es braucht ein echtes
+**Betreiber-Backoffice** (getrennt von der Kunden-App): Mandanten-/Abonnentenverwaltung
+(Firmen ansehen, sperren, Testphase), Abo-Pläne & Abrechnung (Subscriptions, Zahlungsanbieter
+z.B. Stripe, Rechnungen an die Kunden), Nutzungsstatistiken, Support-Zugriffe (Impersonation
+mit Audit-Log), ggf. System-Monitoring.
+**Entwurfshinweise:** Eigene Rolle `PLATFORM_ADMIN` auf Nutzerebene, die NICHT an eine Company
+gebunden ist (heute hängt jeder `User` zwingend an einer `Company` — Schema-Änderung nötig, z.B.
+separate `PlatformAdmin`-Tabelle + eigener Auth-Guard/Token-Audience); eigene API unter
+`/admin/*`, eigene SPA (`admin-frontend/` oder Route-Bereich im Frontend mit separatem Guard).
+Mandanten-Status (`ACTIVE/TRIAL/SUSPENDED`) und Plan-Zuordnung am `Company`-Modell vorsehen; die
+App-Auth muss gesperrte Mandanten ablehnen. Sinnvoll nach Block 3, spätestens vor dem ersten
+zahlenden Kunden.
+
 ## Empfohlene Reihenfolge
 
 1. ~~Firmenprofil & Konto~~ ✅
-2. Kontakte & Stammdaten (Grundlage für alles Folgende)
+2. ~~Kontakte & Stammdaten~~ ✅
 3. Projekte (inkl. Berichte von Anfang an)
 4. Angebote (inkl. GAEB)
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Datenmodell von Anfang an EN16931-kompatibel
 6. Eingangsrechnungen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
+8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
+   vor dem ersten zahlenden Kunden
 
 **Why diese Reihenfolge:** Jeder Block baut auf dem vorherigen auf (Artikelstamm → Angebot →
 Rechnung). E-Rechnung zuletzt, aber mit Vorwirkung auf das Rechnungsschema in Block 5, damit keine

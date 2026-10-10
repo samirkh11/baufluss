@@ -1,0 +1,80 @@
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { PrismaService } from '../common/prisma/prisma.service';
+import { CreateContactDto } from './dto/create-contact.dto';
+import { UpdateContactDto } from './dto/update-contact.dto';
+import { ListContactsQueryDto } from './dto/list-contacts-query.dto';
+
+@Injectable()
+export class ContactsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async findAll(companyId: string, query: ListContactsQueryDto) {
+    const where: Prisma.ContactWhereInput = {
+      companyId,
+      ...(query.includeInactive ? {} : { isActive: true }),
+      ...(query.type ? { types: { has: query.type } } : {}),
+      ...(query.q
+        ? {
+            OR: [
+              { organizationName: { contains: query.q, mode: 'insensitive' } },
+              { firstName: { contains: query.q, mode: 'insensitive' } },
+              { lastName: { contains: query.q, mode: 'insensitive' } },
+              { number: { contains: query.q, mode: 'insensitive' } },
+              { email: { contains: query.q, mode: 'insensitive' } },
+              { city: { contains: query.q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
+    };
+
+    const [items, total] = await this.prisma.$transaction([
+      this.prisma.contact.findMany({
+        where,
+        orderBy: [{ organizationName: 'asc' }, { lastName: 'asc' }],
+        skip: (query.page - 1) * query.pageSize,
+        take: query.pageSize,
+      }),
+      this.prisma.contact.count({ where }),
+    ]);
+    return { items, total, page: query.page, pageSize: query.pageSize };
+  }
+
+  async findOne(companyId: string, id: string) {
+    // Filtering by companyId as well as id is what keeps tenants isolated.
+    const contact = await this.prisma.contact.findFirst({ where: { id, companyId } });
+    if (!contact) {
+      throw new NotFoundException();
+    }
+    return contact;
+  }
+
+  async create(companyId: string, dto: CreateContactDto) {
+    try {
+      return await this.prisma.contact.create({ data: { ...dto, companyId } });
+    } catch (error) {
+      this.rethrowUniqueViolation(error);
+    }
+  }
+
+  async update(companyId: string, id: string, dto: UpdateContactDto) {
+    await this.findOne(companyId, id);
+    try {
+      return await this.prisma.contact.update({ where: { id }, data: dto });
+    } catch (error) {
+      this.rethrowUniqueViolation(error);
+    }
+  }
+
+  async remove(companyId: string, id: string) {
+    await this.findOne(companyId, id);
+    await this.prisma.contact.delete({ where: { id } });
+  }
+
+  private rethrowUniqueViolation(error: unknown): never {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      throw new ConflictException('Diese Nummer wird bereits verwendet.');
+    }
+    throw error;
+  }
+}
