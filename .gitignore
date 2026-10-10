@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment files (contain secrets — only .env.example is committed)
+.env
+.env.local
+
+# Uploaded files (user content, not source)
+backend/uploads/logos/*
+!backend/uploads/logos/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor/OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+
+# Prisma
+backend/prisma/*.db

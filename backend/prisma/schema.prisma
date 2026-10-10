@@ -1,0 +1,102 @@
+// Prisma schema for the Meisterwerk platform.
+//
+// Multi-tenancy model: every tenant is a "Company" (= one Handwerksbetrieb / craft business).
+// All tenant-owned data carries a companyId foreign key. Tenant isolation is enforced in the
+// application layer (every repository/service method is called with the authenticated user's
+// companyId and filters by it) rather than via Postgres Row-Level Security. RLS can be added
+// later as defense-in-depth once the schema for the remaining feature blocks (contacts, projects,
+// quotes, invoices, ...) has landed — see /.claude/memory/project_roadmap.md.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Role a user holds within their company. Kept as a small enum for now; move to a dedicated
+// permissions table only if/when granular per-module permissions are actually needed.
+enum CompanyRole {
+  OWNER // Created the company account, can manage billing and delete the company.
+  ADMIN // Full access to all modules within the company.
+  MEMBER // Day-to-day user; module-level restrictions can be layered on top later.
+}
+
+// A tenant: one craft business using the platform.
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  legalForm String? // e.g. "GmbH", "Einzelunternehmen"
+
+  // Address
+  street  String?
+  zipCode String?
+  city    String?
+  country String @default("DE")
+
+  // Tax / banking data required on German invoices and letterhead
+  taxId String? // Steuernummer
+  vatId String? // USt-IdNr.
+  iban  String?
+  bic   String?
+
+  // Contact details shown on documents
+  email   String?
+  phone   String?
+  website String?
+
+  // Branding
+  logoPath             String? // relative path under /uploads served statically by the API
+  letterheadHeaderText String? @db.Text
+  letterheadFooterText String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users           User[]
+  numberSequences NumberSequence[]
+
+  @@map("companies")
+}
+
+// A person who can log into the platform, scoped to exactly one company.
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         CompanyRole @default(MEMBER)
+  isActive     Boolean     @default(true)
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("users")
+}
+
+// Configurable numbering scheme ("Nummernkreis") for a document type, e.g. quotes or invoices.
+// Only the configuration lives here for now; the counter is consumed once the corresponding
+// document module (Angebote, Rechnungen, ...) is implemented.
+model NumberSequence {
+  id           String  @id @default(uuid())
+  companyId    String
+  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  documentType String // "QUOTE" | "ORDER" | "INVOICE" | "CREDIT_NOTE" | "REPORT" (free-form for now)
+  prefix       String  @default("")
+  nextNumber   Int     @default(1)
+  digits       Int     @default(4) // zero-padding width, e.g. digits=4 -> "0007"
+  resetYearly  Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, documentType])
+  @@map("number_sequences")
+}

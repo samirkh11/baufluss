@@ -1,0 +1,32 @@
+# Local development infrastructure. The backend (NestJS) and frontend (Vite) run natively via
+# `npm run dev` for fast hot-reload; only stateful infrastructure (the database) runs in Docker.
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: meisterwerk
+      POSTGRES_PASSWORD: meisterwerk
+      POSTGRES_DB: meisterwerk
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U meisterwerk']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Lightweight web UI for inspecting the database without installing a psql client locally.
+  # Open http://localhost:8080 and log in with the credentials above (server: postgres).
+  adminer:
+    image: adminer:latest
+    restart: unless-stopped
+    ports:
+      - '8080:8080'
+    depends_on:
+      - postgres
+
+volumes:
+  postgres-data:

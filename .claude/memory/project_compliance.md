@@ -1,0 +1,71 @@
+---
+name: project-compliance
+description: Meisterwerk – GoBD, DSGVO, XRechnung/ZUGFeRD, GAEB, § 13b – rechtliche Eckpunkte
+metadata:
+  type: project
+---
+
+Sammlung der rechtlichen/fachlichen Anforderungen, die beim Bauen der Dokument-Module (Blöcke
+4–7, siehe [[project_roadmap]]) zu beachten sind. Kein Ersatz für Steuerberater-/Rechtsberatung,
+aber die Punkte, die das Datenmodell und die Workflows von Anfang an berücksichtigen sollten.
+
+## GoBD (Grundsätze zur ordnungsmäßigen Führung und Aufbewahrung von Büchern)
+
+- **Unveränderbarkeit:** Einmal gestellte Rechnungen dürfen nicht mehr editiert werden — nur
+  stornieren (Storno-Beleg) und neu erstellen. Das Invoice-Modul braucht einen Status
+  `FINALIZED`/`SENT`, nach dem Felder gesperrt sind.
+- **Nummernkreise müssen lückenlos sein** — passt zur bereits in V1 angelegten
+  `NumberSequence`-Konfiguration (Block 1), die Zähler-Logik (atomar inkrementieren beim
+  Finalisieren eines Dokuments) kommt erst in Block 4/5.
+- **Verfahrensdokumentation & Protokollierung:** Änderungen an rechnungsrelevanten Daten sollten
+  nachvollziehbar sein (Audit-Log). Noch nicht umgesetzt — als eigener Punkt in Block 5/7 planen.
+- **Aufbewahrungsfrist:** 10 Jahre für Rechnungen — relevant für Backup-/Löschkonzept, nicht nur
+  für die App selbst.
+
+## DSGVO
+
+- Auftragsverarbeitungsvertrag (AVV) nötig, sobald ein Hosting-/Cloud-Anbieter feststeht.
+- Löschkonzept für Kontakte (Block 2) — Kundendaten dürfen nicht unbegrenzt gespeichert werden,
+  wenn kein berechtigtes Interesse (laufende Verträge, gesetzliche Aufbewahrungsfristen) mehr
+  besteht.
+- Keine Mandanten-übergreifende Datenverarbeitung — passt zur Multi-Tenancy-Isolation in
+  [[project_architecture]].
+
+## § 13b UStG (Steuerschuldnerschaft des Leistungsempfängers)
+
+Bei Bauleistungen zwischen Unternehmen, die selbst Bauleistungen erbringen, wird die Rechnung
+**ohne** Umsatzsteuer gestellt, mit Pflichthinweis "Steuerschuldnerschaft des
+Leistungsempfängers". Sehr häufiger Fall im Handwerk (Subunternehmer-Ketten) — das
+Rechnungs-Datenmodell (Block 5) braucht ein Flag `reverseCharge: boolean` plus den Pflichttext.
+
+## E-Rechnung: XRechnung & ZUGFeRD
+
+- **Rechtsgrundlage:** Ab 2025 gestufte E-Rechnungspflicht für B2B in Deutschland (Wachstumschancen-
+  gesetz). Ab 2027 generelle Pflicht zum Ausstellen, ab 2028 auch für kleinere Unternehmen ohne
+  Übergangsfristen — Status zum Zeitpunkt der Projekterstellung (2026-10-10), vor Umsetzung von
+  Block 7 unbedingt aktuellen Rechtsstand prüfen.
+- **ZUGFeRD** = PDF/A-3 mit eingebettetem XML (hybrides Format). **XRechnung** = reines XML
+  (EN16931-Profil, in Deutschland für B2G vorgeschrieben).
+- **Für die Umsetzung relevant:** PHP hat mit `horstoeko/zugferd` und `horstoeko/xrechnung` sehr
+  ausgereifte, gepflegte Open-Source-Bibliotheken für Erzeugen UND Validieren. Node.js/TypeScript-
+  Ökosystem ist hier spürbar dünner — das ist ein bewusster Trade-off der NestJS-Entscheidung
+  (siehe [[project_architecture]]). Vor Block 7 konkret prüfen: entweder eine Node-Bibliothek
+  reicht inzwischen aus, oder dieser eine Teil wird als separater Mini-Service in PHP oder über
+  eine externe Validierungs-API (z.B. KoSIT-Validator) gelöst. Noch nicht final entschieden.
+- **EN16931-Pflichtfelder** sollten schon beim Bau des Invoice-Schemas (Block 5) vollständig
+  vorhanden sein (Leistungsdatum, Leitweg-ID für B2G, Zahlungsbedingungen strukturiert statt nur
+  als Freitext, etc.), damit der Export in Block 7 keine Schema-Migration erfordert.
+
+## GAEB (Block 4 — Angebote)
+
+GAEB-Format (DA XML, Standard im Bauwesen für Leistungsverzeichnisse/Angebote) hat keine
+verbreitete, gepflegte npm-Bibliothek. Vor Umsetzung: Format-Spezifikation (GAEB e.V.) besorgen
+und entscheiden, ob Import ODER Export zuerst sinnvoll ist (Import ist für den Start vermutlich
+wichtiger, da Handwerksbetriebe oft GAEB-Leistungsverzeichnisse von Architekten/Bauherren
+*erhalten* und darauf ein Angebot erstellen).
+
+## Export für den Steuerprüfer (Block 7)
+
+Üblich ist ein DATEV-kompatibler Export oder ein GoBD-konformer "Z3"-Datenzugriff (maschinell
+auswertbare Daten, z.B. CSV/XML mit definierter Struktur). Konkretes Format erst festlegen, wenn
+Block 5 (Rechnungsdaten) steht.
