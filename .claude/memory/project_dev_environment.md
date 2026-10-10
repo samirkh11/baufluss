@@ -7,15 +7,17 @@ metadata:
 
 ## Setup-Status (Stand 2026-10-10)
 
-- Docker war beim Projektstart NICHT installiert (Zorin OS 18.1, Ubuntu-„noble"-Basis). Volker
-  wurde gebeten, die Docker-Engine-Installation selbst auszuführen (braucht `sudo`-Passwort, das
-  Claude nicht eingeben kann). Installationsbefehle wurden im Setup-Chat gegeben
-  (offizielles Docker-APT-Repo für Ubuntu noble).
-- **Nach der Docker-Installation:** Ab- und wieder anmelden (Gruppenmitgliedschaft `docker`),
-  dann `docker compose up -d` im Projektverzeichnis `/home/volker/meisterwerk/` prüfen.
-- Danach wurden Backend/Frontend-Code geschrieben, aber `npm install` / `prisma migrate dev` /
-  ein tatsächlicher End-to-End-Test (Login, Firmenprofil speichern) standen zum Zeitpunkt dieses
-  Commits noch aus — siehe README.md im Repo-Root für die Setup-Schritte.
+- Docker (Engine 29, Compose v5) wurde von Volker installiert (Zorin OS 18.1, Ubuntu-„noble"-
+  Basis; Claude kann kein `sudo`-Passwort eingeben). `docker compose up -d` läuft, Postgres 16
+  + Adminer sind aktiv.
+- Backend: `npm install`, Migration `init` angewendet, Seed ausgeführt, API per curl getestet
+  (Login, Firmenprofil PATCH, Nummernkreise, Nutzer anlegen, Mandanten-Isolation, 403 für
+  MEMBER, 401 ohne Token) — alles OK.
+- Frontend: `tsc` + `vite build` sauber, Dev-Server liefert HTTP 200, CORS-Preflight OK.
+  **Noch NICHT im echten Browser durchgeklickt** (kein Browser-Tool in der Session) — Volker
+  sollte Login/Firmenprofil/Logo-Upload/Nutzerliste einmal manuell prüfen.
+- Bekannt: `multer` 1.x (deprecated, Schwachstellen) → bei Gelegenheit auf 2.x heben;
+  `npm audit` meldet Schwachstellen in Dev-Abhängigkeiten.
 
 **Why:** Kein `sudo` ohne Passwort verfügbar, Docker war die vom Nutzer gewählte Option
 (Alternative wäre natives PostgreSQL via apt gewesen).

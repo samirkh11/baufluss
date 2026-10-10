@@ -24,3 +24,8 @@ npm-debug.log*
 
 # Prisma
 backend/prisma/*.db
+
+# TypeScript build artifacts
+*.tsbuildinfo
+frontend/vite.config.js
+frontend/vite.config.d.ts
