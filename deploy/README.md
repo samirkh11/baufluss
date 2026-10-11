@@ -4,7 +4,7 @@ Alles läuft in Docker: **postgres** (Datenbank), **backend** (API) und **web** 
 Die Images baut GitHub Actions und legt sie in der GitHub Container Registry ab; die Diskstation holt sie von dort.
 
 ```
-Internet ──443──▶ Synology Reverse Proxy (HTTPS, Zertifikat) ──▶ web:8085 ──▶ backend ──▶ postgres
+Internet ──Port (z. B. 8085)──▶ web ──▶ backend ──▶ postgres        (optional davor: Synology Reverse Proxy mit HTTPS)
 ```
 
 ## Einmalig: GitHub
@@ -42,15 +42,27 @@ Voraussetzungen: DSM 7.2 oder neuer, Paket **Container Manager** installiert, SS
 
 ## Erreichbarkeit von außen
 
-1. **DNS:** Bei der temporären Domain einen A-Record (z. B. `demo`) auf die feste IP-Adresse des Anschlusses setzen.
-2. **Router:** Port **443** (und **80** für die Zertifikatsausstellung) auf die IP der Diskstation weiterleiten.
-3. **Reverse Proxy** (DSM → Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy → Erstellen):
-   Quelle `HTTPS`, Hostname `demo.deine-domain.de`, Port 443 → Ziel `HTTP`, `localhost`, Port `8085`.
-4. **Zertifikat:** Systemsteuerung → Sicherheit → Zertifikat → Hinzufügen → *Let's Encrypt* für `demo.deine-domain.de`,
-   danach im Reverse-Proxy-Dialog zuweisen (Zertifikat → Konfigurieren).
-5. Test: `https://demo.deine-domain.de` (Kunden-App) und `https://demo.deine-domain.de/admin` (Betreiber-Backoffice).
+### Variante A: freier Port, ohne HTTPS (für die Vorführung empfohlen)
 
-Nach der Vorstellung: Portweiterleitungen im Router wieder entfernen (oder den Reverse-Proxy-Eintrag deaktivieren).
+Wenn 80/443 schon belegt sind, brauchst du weder Reverse Proxy noch Zertifikat:
+
+1. **DNS:** Bei der temporären Domain einen A-Record (z. B. `demo`) auf die feste IP-Adresse des Anschlusses setzen.
+2. **`.env`:** `WEB_PORT=8085` (Port auf der NAS) und `PUBLIC_URL=http://demo.deine-domain.de:8085`.
+3. **Router:** Einen freien externen Port (z. B. 8085) auf `NAS-IP:8085` weiterleiten. Der externe Port darf vom internen abweichen;
+   in Firmen-/Gäste-Netzen kommen Ports wie 8080 oder 8443 oft eher durch.
+4. Aufruf: `http://demo.deine-domain.de:8085` (Kunden-App) und `http://demo.deine-domain.de:8085/admin` (Betreiber-Backoffice).
+5. Hinweis: Ohne HTTPS laufen Passwörter unverschlüsselt. Deshalb nur die eigenen Demo-Passwörter (`SEED_PASSWORD`, `SEED_ADMIN_PASSWORD`)
+   benutzen und keine echten Zugangsdaten eintippen. Optional die Freigabe in Router/DSM-Firewall auf bekannte IP-Adressen beschränken.
+
+Nach der Vorstellung: Portweiterleitung im Router wieder entfernen.
+
+### Variante B: mit HTTPS über den Synology Reverse Proxy (nur wenn 443 frei ist)
+
+1. DNS und Router-Freigabe wie oben, aber Port **443** (und **80** für die Zertifikatsausstellung) auf die NAS.
+2. **Reverse Proxy** (DSM → Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy → Erstellen):
+   Quelle `HTTPS`, Hostname `demo.deine-domain.de`, Port 443 → Ziel `HTTP`, `localhost`, Port `8085`.
+3. **Zertifikat:** Systemsteuerung → Sicherheit → Zertifikat → Hinzufügen → *Let's Encrypt* für `demo.deine-domain.de`,
+   danach im Reverse-Proxy-Dialog zuweisen. `PUBLIC_URL` dann mit `https://`.
 
 ## Aktualisieren („Deploy auf Knopfdruck")
 
