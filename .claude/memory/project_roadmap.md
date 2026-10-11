@@ -112,7 +112,7 @@ Aufgeteilt in drei Teilschritte:
   gruppieren, Zwischensummen, Rabatt auf Gesamtsumme, Versand per E-Mail, PDF-Layout
   konfigurierbar (Briefpapier-PDF als Hintergrund), Angebots-Historie/Revisionen.
 
-### 🟡 Block 5 — Rechnungen (Teilschritte 1+2 von 4 fertig, 2026-10-11)
+### 🟡 Block 5 — Rechnungen (Teilschritte 1–3 von 4 fertig, 2026-10-11)
 Aufgeteilt in vier Teilschritte:
 - ✅ **1. Rechnung ausstellen mit allen Pflichtangaben.** Rechnungen sind `Document`s vom Typ INVOICE
   (Entwurf entsteht per „Rechnung erstellen" aus Angebot/Auftrag oder direkt im Projekt).
@@ -159,9 +159,32 @@ Aufgeteilt in vier Teilschritte:
     bleibt vorbehalten". Listen zeigen Tags Abschlag n / Schluss.
   - Offen/Ideen: Abschlag nach Leistungsstand je Position (Aufmaß), Teilschlussrechnung, VOB/B-Fristen
     (Prüffrist 30 Tage, Schlusszahlung), Abschlag mit Umsatzsteuer nach Vereinnahmung (§ 13 UStG).
-- ⬜ **3. Storno und Zahlungseingang.** `CREDIT_NOTE` freischalten (Stornorechnung referenziert die
-  Originalrechnung, spiegelt Beträge, eigene Nummer), Status PAID/PARTIALLY_PAID/CANCELLED, Tabelle
-  `Payment` (Datum, Betrag, Zahlungsart, Notiz), offene Posten/Fälligkeitsliste, Skonto.
+- ✅ **3. Storno, Zahlungseingang, Offene Posten** (2026-10-11).
+  - **Zahlungen**: Tabelle `Payment` (`PaymentTarget` INVOICE|RETENTION, Datum, Betrag > 0, Art, Verwendungs-
+    zweck). Buchbar nur auf ausgestellte Rechnungen; Betrag darf den offenen Betrag nicht übersteigen
+    (409), Datum nicht in der Zukunft; auf stornierte/Entwurfs-Rechnungen nicht möglich; Löschen = Korrektur
+    (Achtung: hartes Löschen, kein Audit-Log. Für GoBD später Storno-Buchung/Protokoll erwägen).
+  - **Zahlstatus abgeleitet, nicht gespeichert** (`documents/payment-status.ts`, Jest-getestet):
+    UNPAID / PARTIALLY_PAID / PAID / OVERDUE / CANCELLED, offener Betrag, Tage überfällig. Zahlbetrag =
+    Brutto minus Einbehalt; der **Sicherheitseinbehalt ist eine eigene Forderung** (eigenes Fälligkeitsdatum,
+    eigene Zahlungen mit Ziel RETENTION). `DocumentsService.findOne` liefert für Rechnungen
+    `payments` + `paymentSummary`, die Liste je Rechnung `payment{status,open,overdueDays}`.
+  - **Offene Posten** (`GET /receivables`, Tab Offene Posten unter Rechnungen): offene Rechnungsbeträge,
+    Einbehalte, Erstattungen; sortiert nach Fälligkeit; Summen (offen/überfällig/Einbehalt/Erstattungen);
+    Filter nur überfällige; Zahlung direkt aus der Liste buchen. **Das Mahnwesen baut hierauf auf.**
+  - **Storno** (`POST /documents/:id/cancel`, `DocumentsService.cancel`): erzeugt eine **Stornorechnung**
+    (`CREDIT_NOTE`, Nummernkreis GS-) als Entwurf mit allen Positionen in negativer Menge, Bezug zur
+    Rechnung; Positionen gesperrt (Server ignoriert `items`); erst das AUSSTELLEN der Stornorechnung setzt
+    die Rechnung auf `CANCELLED` (neuer Status). Pro Rechnung nur eine Stornorechnung; stornierte
+    Rechnungen sind aus Abrechnung/Abzügen/Offenen Posten ausgeschlossen (Abzüge auf stornierte Abschläge
+    werden als Problem gemeldet, Abhilfe: Abzüge aktualisieren).
+  - **Erstattung**: War die stornierte Rechnung schon (teilweise) bezahlt, schuldet man dem Kunden das
+    Bezahlte zurück: Stornorechnung zeigt zu erstatten / erstattet / offen; die Auszahlung wird als Zahlung
+    auf der Stornorechnung gebucht und erscheint bis dahin als Erstattung in den Offenen Posten.
+  - Stornorechnungen haben eine eigene Liste (Tab) und Route `/credit-notes/:id`; direkt anlegen geht nicht.
+  - Offen/Ideen: **Skonto**, Zahlungsabgleich per Kontoauszug (CAMT/CSV-Import), Teilstorno/Gutschrift mit
+    freien Positionen, Rechnung korrigieren = Storno + neue Rechnung als Ein-Klick-Aktion, Debitorenkonto
+    je Kunde.
 - ⬜ **4. Mahnwesen.** Mahnstufen (Zahlungserinnerung, 1./2./3. Mahnung), Fristen, Verzugszinsen
   (§ 288 BGB: Basiszins + 9 Prozentpunkte B2B, 5 PP Verbraucher) und Pauschale (40 € B2B), Mahn-PDF,
   Mahnvorschlagsliste, Mahnsperre, Protokoll.
@@ -259,7 +282,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 2. ~~Kontakte & Stammdaten~~ ✅
 3. ~~Projekte (inkl. Berichte)~~ ✅
 4. ~~Angebote (Editor, PDF, Übernahme, GAEB)~~ ✅
-5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1+2/4 ✅ (ausstellen, Abschlag/Schluss/Einbehalt), Datenmodell EN16931-kompatibel halten
+5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1–3/4 ✅ (ausstellen, Abschlag/Schluss, Storno/Zahlungen); Mahnwesen offen, Datenmodell EN16931-kompatibel halten
 6. Eingangsrechnungen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens

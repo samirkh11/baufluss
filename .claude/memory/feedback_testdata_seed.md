@@ -21,7 +21,7 @@ können; Block 1+2 wurden deshalb nachträglich befüllt.
   Dateien) und legt sie neu an. Neue Tabellen mit `companyId` brauchen `onDelete: Cascade`;
   neue Upload-Pfade müssen in `removeExistingDemoTenants` mit aufgeräumt werden.
 - Bisher im Seed: Firma+Nutzer+Nummernkreise, Kontakte, Katalog, Projekte+Berichte+Fotos
-  (`projects.ts`), Angebote in allen Status plus daraus abgeleitete Aufträge und Rechnungen inkl. § 13b-Entwurf, Privatkunden-Entwurf, zwei Abschlagsrechnungen (je 30 %) und Schlussrechnungs-Entwurf mit 5 % Einbehalt für die Dachsanierung (`documents.ts`; Rechnungsnummernkreis mit `lastResetYear`, nächste Nr. RE-00004), drei Wochen Arbeitszeiten der Crew mit Freigabe bis 30.9.
+  (`projects.ts`), Angebote in allen Status plus daraus abgeleitete Aufträge und Rechnungen inkl. § 13b-Entwurf, Privatkunden-Entwurf, zwei Abschlagsrechnungen (je 30 %) und Schlussrechnungs-Entwurf mit 5 % Einbehalt für die Dachsanierung (`documents.ts`; Rechnungsnummern RE-00001 bis RE-00004, nächste RE-00005, Stornorechnung GS-00001; Rechnungsnummernkreis mit `lastResetYear`). Zahlungen: RE-00001 bezahlt und storniert (Erstattung offen), RE-00002 bezahlt, RE-00003 überfällig, RE-00004 teilbezahlt, drei Wochen Arbeitszeiten der Crew mit Freigabe bis 30.9.
   (`time-entries.ts`, Stundensätze am Mitarbeiter). Der Seed setzt die Nummernzähler
   (PROJECT/REPORT/QUOTE/ORDER/INVOICE) hinter die vergebenen Nummern.
 - Bilder im Seed: generierte SVGs über `seed/helpers.ts` (`writeSeedImage`), nichts Binäres
