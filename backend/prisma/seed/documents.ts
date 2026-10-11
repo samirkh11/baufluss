@@ -167,6 +167,8 @@ export async function seedDocuments(
 
   await seedDerivedDocuments(prisma, companyId);
   await seedContractInvoices(prisma, companyId);
+  await seedCancelledInvoice(prisma, companyId);
+  await seedPayments(prisma, companyId);
   await seedGaebImport(prisma, companyId);
 
   // Issued documents carry the company data as it was when they were issued.
@@ -179,10 +181,12 @@ export async function seedDocuments(
   // The seed assigns numbers directly, so move the sequences past them.
   await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'QUOTE' }, data: { nextNumber: numbered + 1 } });
   await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'ORDER' }, data: { nextNumber: 3 } });
+  await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'CREDIT_NOTE' }, data: { nextNumber: 2, lastResetYear: new Date().getFullYear() } });
+
   // The invoice range resets yearly, so it must know its current year or it would restart at 1.
   await prisma.numberSequence.updateMany({
     where: { companyId, documentType: 'INVOICE' },
-    data: { nextNumber: 4, lastResetYear: new Date().getFullYear() },
+    data: { nextNumber: 5, lastResetYear: new Date().getFullYear() },
   });
 }
 
@@ -207,7 +211,7 @@ const DERIVED: DerivedSpec[] = [
     introText: 'vielen Dank für Ihren Auftrag. Wir bestätigen Ihnen hiermit die folgenden Leistungen:',
     closingText: 'Wir danken für das entgegengebrachte Vertrauen und freuen uns auf die Zusammenarbeit.' },
   // Issued invoice straight from a quote (no order) for the finished school project.
-  { sourceNumber: 'AN-00001', type: DocumentType.INVOICE, number: 'RE-00001', status: DocumentStatus.SENT, date: '2026-08-18',
+  { sourceNumber: 'AN-00001', type: DocumentType.INVOICE, number: 'RE-00002', status: DocumentStatus.SENT, date: '2026-08-18',
     introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
     closingText: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
     invoice: { paymentTermDays: 30, serviceFrom: '2026-08-03', serviceTo: '2026-08-14', orderReference: 'BA-2026/118' } },
@@ -362,8 +366,8 @@ async function seedContractInvoices(prisma: PrismaClient, companyId: string): Pr
 
   const partials: { id: string; number: string; nets: { vatRate: Prisma.Decimal; net: Prisma.Decimal }[]; date: string; n: number }[] = [];
   for (const [index, spec] of [
-    { number: 'RE-00002', percent: 30, date: '2026-09-20' },
-    { number: 'RE-00003', percent: 30, date: '2026-10-05' },
+    { number: 'RE-00003', percent: 30, date: '2026-09-20' },
+    { number: 'RE-00004', percent: 30, date: '2026-10-05' },
   ].entries()) {
     const n = index + 1;
     const parts = splitPartialAmount(totals.vatGroups, amountFromPercent(totals.net, spec.percent));
@@ -466,5 +470,73 @@ async function seedContractInvoices(prisma: PrismaClient, companyId: string): Pr
         })),
       },
     },
+  });
+}
+
+// An invoice of the finished flat-roof repair that was cancelled again (wrong price): the issued
+// invoice RE-00001 is CANCELLED and the credit note GS-00001 mirrors it with negative quantities.
+async function seedCancelledInvoice(prisma: PrismaClient, companyId: string): Promise<void> {
+  const project = await prisma.project.findFirstOrThrow({ where: { companyId, number: 'P-0005' }, include: { customer: true } });
+  const customer = project.customer!;
+  const rows = [
+    { name: 'Flachdach Garagenhof abdichten (Bitumenbahnen, zweilagig)', quantity: 120, unit: 'm²', unitPrice: 38.5 },
+    { name: 'Material: Bitumenbahnen und Kleber', quantity: 1, unit: 'psch', unitPrice: 640 },
+  ].map((row) => ({
+    kind: DocumentItemKind.POSITION, quantity: new Prisma.Decimal(row.quantity), unit: row.unit, name: row.name,
+    unitPrice: new Prisma.Decimal(row.unitPrice), vatRate: new Prisma.Decimal(19), discountPercent: new Prisma.Decimal(0), isOptional: false,
+  }));
+  const negated = rows.map((row) => ({ ...row, quantity: row.quantity.negated() }));
+  const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
+  const base = {
+    companyId,
+    projectId: project.id,
+    recipientContactId: customer.id,
+    recipientName: customer.organizationName,
+    recipientStreet: customer.street,
+    recipientZipCode: customer.zipCode,
+    recipientCity: customer.city,
+    recipientCountry: customer.country,
+    subject: 'Flachdachreparatur Garagen Wohnbau Ulm',
+    issuerSnapshot: issuerSnapshotOf(company),
+  };
+  const details = { serviceDateFrom: new Date('2026-06-08'), serviceDateTo: new Date('2026-06-12'), paymentTermDays: 14, recipientVatId: customer.vatId };
+
+  const t = calculateTotals(rows);
+  const invoice = await prisma.document.create({
+    data: {
+      ...base, type: DocumentType.INVOICE, status: DocumentStatus.CANCELLED, number: 'RE-00001',
+      introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
+      closingText: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
+      documentDate: new Date('2026-06-15'), finalizedAt: new Date('2026-06-15'),
+      netTotal: t.net, vatTotal: t.vat, grossTotal: t.gross,
+      invoiceDetails: { create: { ...details, dueDate: new Date('2026-06-29') } },
+      items: { create: rows.map((row, i) => ({ ...row, sortOrder: i, lineTotal: lineTotal(row) })) },
+    },
+  });
+  const tn = calculateTotals(negated);
+  await prisma.document.create({
+    data: {
+      ...base, type: DocumentType.CREDIT_NOTE, status: DocumentStatus.SENT, number: 'GS-00001', sourceDocumentId: invoice.id,
+      introText: 'hiermit stornieren wir unsere Rechnung RE-00001 vom 15.06.2026 und schreiben Ihnen den Betrag gut:',
+      closingText: 'Bereits geleistete Zahlungen werden erstattet bzw. mit offenen Forderungen verrechnet.',
+      documentDate: new Date('2026-06-22'), finalizedAt: new Date('2026-06-22'),
+      netTotal: tn.net, vatTotal: tn.vat, grossTotal: tn.gross,
+      invoiceDetails: { create: details },
+      items: { create: negated.map((row, i) => ({ ...row, sortOrder: i, lineTotal: lineTotal(row) })) },
+    },
+  });
+}
+
+// Payments: RE-00001 was paid before it was cancelled (refund still open), RE-00002 is paid, the
+// first partial invoice RE-00003 is overdue and unpaid, the second one RE-00004 is partly paid.
+async function seedPayments(prisma: PrismaClient, companyId: string): Promise<void> {
+  const byNumber = (number: string) => prisma.document.findFirstOrThrow({ where: { companyId, number } });
+  const [cancelled, school, partial2] = await Promise.all([byNumber('RE-00001'), byNumber('RE-00002'), byNumber('RE-00004')]);
+  await prisma.payment.createMany({
+    data: [
+      { companyId, documentId: cancelled.id, paidAt: new Date('2026-06-24'), amount: cancelled.grossTotal, reference: 'RE-00001 Flachdach Garagen' },
+      { companyId, documentId: school.id, paidAt: new Date('2026-09-10'), amount: school.grossTotal, reference: 'RE-00002 Grundschule Blaustein' },
+      { companyId, documentId: partial2.id, paidAt: new Date('2026-10-09'), amount: 5000, reference: 'RE-00004 Abschlag 2, Teilzahlung' },
+    ],
   });
 }

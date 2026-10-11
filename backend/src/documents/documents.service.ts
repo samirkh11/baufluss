@@ -1,6 +1,7 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import {
   Company,
+  PaymentTarget,
   Contact,
   DocumentItemKind,
   DocumentStatus,
@@ -15,6 +16,8 @@ import { ConvertDocumentDto } from './dto/convert-document.dto';
 import { InvoiceDetailsDto } from './dto/invoice-details.dto';
 import { amountFromPercent, splitPartialAmount } from './partial-invoice';
 import { issuerSnapshotOf } from './issuer-snapshot';
+import { summarizePayments, summarizeRefund } from './payment-status';
+import { localNow } from '../time-entries/time-utils';
 import { validateInvoice } from './invoice-validation';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentItemDto } from './dto/document-item.dto';
@@ -26,7 +29,12 @@ const SUPPORTED_TYPES: DocumentType[] = [DocumentType.QUOTE, DocumentType.ORDER,
 
 // Quotes, orders and invoices can be issued. Invoices must pass validateInvoice() first (mandatory
 // details under § 14 UStG); credit notes follow with the cancellation step.
-const ISSUABLE_TYPES: DocumentType[] = [DocumentType.QUOTE, DocumentType.ORDER, DocumentType.INVOICE];
+const ISSUABLE_TYPES: DocumentType[] = [
+  DocumentType.QUOTE,
+  DocumentType.ORDER,
+  DocumentType.INVOICE,
+  DocumentType.CREDIT_NOTE,
+];
 
 // Allowed conversions: quote -> order, quote -> invoice (without order), order -> invoice.
 const CONVERSIONS: Partial<Record<DocumentType, DocumentType[]>> = {
@@ -59,6 +67,7 @@ const DOCUMENT_INCLUDE = {
   project: { select: { id: true, number: true, name: true } },
   items: { orderBy: { sortOrder: 'asc' as const } },
   invoiceDetails: true,
+  payments: { orderBy: [{ paidAt: 'asc' as const }, { createdAt: 'asc' as const }] },
   // Document this one was created from, and the documents created from it (conversion chain).
   sourceDocument: { select: { id: true, type: true, number: true, status: true } },
   derivedDocuments: {
@@ -201,16 +210,40 @@ export class DocumentsService {
     const [items, total] = await this.prisma.$transaction([
       this.prisma.document.findMany({
         where,
-        include: { project: DOCUMENT_INCLUDE.project, invoiceDetails: { select: { kind: true, partialNumber: true } } },
+        include: {
+          project: DOCUMENT_INCLUDE.project,
+          invoiceDetails: true,
+          payments: { select: { target: true, amount: true } },
+        },
         orderBy: [{ documentDate: 'desc' }, { createdAt: 'desc' }],
         skip: (query.page - 1) * query.pageSize,
         take: query.pageSize,
       }),
       this.prisma.document.count({ where }),
     ]);
-    return { items, total, page: query.page, pageSize: query.pageSize };
+    // Invoices carry their payment state (status, open amount, days overdue) for the list.
+    const withPayment = items.map(({ payments, ...document }) => {
+      const summary =
+        document.type === DocumentType.INVOICE && document.status !== DocumentStatus.DRAFT
+          ? summarizePayments({
+              status: document.status,
+              grossTotal: document.grossTotal,
+              retentionAmount: document.invoiceDetails?.retentionAmount,
+              dueDate: document.invoiceDetails?.dueDate,
+              retentionDueDate: document.invoiceDetails?.retentionDueDate,
+              payments,
+              today: new Date(localNow().date),
+            })
+          : null;
+      return {
+        ...document,
+        payment: summary && { status: summary.status, open: summary.open, overdueDays: summary.overdueDays },
+      };
+    });
+    return { items: withPayment, total, page: query.page, pageSize: query.pageSize };
   }
 
+  // Loads a document. Invoices and credit notes come with their payments and a payment summary.
   async findOne(companyId: string, id: string) {
     const document = await this.prisma.document.findFirst({
       where: { id, companyId },
@@ -219,7 +252,49 @@ export class DocumentsService {
     if (!document) {
       throw new NotFoundException();
     }
-    return document;
+    return { ...document, paymentSummary: await this.paymentSummaryOf(document) };
+  }
+
+  // Payment state of an invoice (what is paid/open/overdue) or the refund state of a credit note.
+  private async paymentSummaryOf(document: {
+    type: DocumentType;
+    status: DocumentStatus;
+    grossTotal: Prisma.Decimal;
+    sourceDocumentId: string | null;
+    invoiceDetails: {
+      retentionAmount: Prisma.Decimal | null;
+      dueDate: Date | null;
+      retentionDueDate: Date | null;
+    } | null;
+    payments: { target: PaymentTarget; amount: Prisma.Decimal }[];
+  }) {
+    const today = new Date(localNow().date);
+    if (document.type === DocumentType.INVOICE && document.status !== DocumentStatus.DRAFT) {
+      return summarizePayments({
+        status: document.status,
+        grossTotal: document.grossTotal,
+        retentionAmount: document.invoiceDetails?.retentionAmount,
+        dueDate: document.invoiceDetails?.dueDate,
+        retentionDueDate: document.invoiceDetails?.retentionDueDate,
+        payments: document.payments,
+        today,
+      });
+    }
+    if (
+      document.type === DocumentType.CREDIT_NOTE &&
+      document.status === DocumentStatus.SENT &&
+      document.sourceDocumentId
+    ) {
+      const original = await this.prisma.payment.findMany({
+        where: { documentId: document.sourceDocumentId },
+      });
+      const paid = original.reduce((sum, payment) => sum.plus(payment.amount), new Prisma.Decimal(0));
+      return summarizeRefund(
+        paid,
+        document.payments.reduce((sum, payment) => sum.plus(payment.amount), new Prisma.Decimal(0)),
+      );
+    }
+    return null;
   }
 
   async create(companyId: string, projectId: string, dto: CreateDocumentDto) {
@@ -286,7 +361,9 @@ export class DocumentsService {
     const existing = await this.findOne(companyId, id);
     this.assertDraft(existing.status);
 
-    const { items, recipientContactId, documentDate, validUntil, invoice, ...fields } = dto;
+    // The lines of a credit note mirror the cancelled invoice and cannot be changed.
+    const { items: sentItems, recipientContactId, documentDate, validUntil, invoice, ...fields } = dto;
+    const items = existing.type === DocumentType.CREDIT_NOTE ? undefined : sentItems;
     let recipient: Partial<RecipientFields> & { recipientContactId?: string | null } = {};
     // The recipient's VAT id is part of an invoice and follows the chosen contact.
     let recipientVatId: string | null | undefined;
@@ -391,6 +468,13 @@ export class DocumentsService {
           ...(contact ? recipientSnapshot(contact) : {}),
         },
       });
+      if (document.type === DocumentType.CREDIT_NOTE && document.sourceDocumentId) {
+        // Issuing the credit note cancels the invoice it refers to.
+        await tx.document.update({
+          where: { id: document.sourceDocumentId },
+          data: { status: DocumentStatus.CANCELLED },
+        });
+      }
       if (document.type === DocumentType.INVOICE) {
         // The due date is fixed at issue time: invoice date + payment term.
         const dueDate = new Date(
@@ -448,6 +532,7 @@ export class DocumentsService {
         reverseCharge: details?.reverseCharge ?? false,
         recipientVatId: contact?.vatId ?? details?.recipientVatId,
         kind: details?.kind,
+        isCreditNote: document.type === DocumentType.CREDIT_NOTE,
         retentionPercent: details?.retentionPercent?.toNumber() ?? null,
         retentionDueDate: details?.retentionDueDate,
       },
@@ -465,9 +550,49 @@ export class DocumentsService {
     return this.findOne(companyId, id);
   }
 
+  // Cancels an issued invoice (Storno): creates the credit note with all lines at negative
+  // quantity. The invoice only becomes CANCELLED once the credit note is issued, so the draft can
+  // still be deleted if cancelling was a mistake.
+  async cancel(companyId: string, id: string) {
+    const invoice = await this.findOne(companyId, id);
+    if (invoice.type !== DocumentType.INVOICE) {
+      throw new BadRequestException('Nur Rechnungen können storniert werden.');
+    }
+    if (invoice.status === DocumentStatus.CANCELLED) {
+      throw new ConflictException('Die Rechnung ist bereits storniert.');
+    }
+    if (invoice.status !== DocumentStatus.SENT) {
+      throw new ConflictException(
+        'Nur ausgestellte Rechnungen können storniert werden (Entwürfe einfach löschen).',
+      );
+    }
+    if (invoice.derivedDocuments.some((derived) => derived.type === DocumentType.CREDIT_NOTE)) {
+      throw new ConflictException('Zu dieser Rechnung existiert bereits eine Stornorechnung.');
+    }
+    const date = invoice.documentDate.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' });
+    const copyId = await this.copyToNewDraft(companyId, invoice, DocumentType.CREDIT_NOTE, {
+      sourceDocumentId: invoice.id,
+      introText: `hiermit stornieren wir unsere Rechnung ${invoice.number} vom ${date} und schreiben Ihnen den Betrag gut:`,
+      closingText: 'Bereits geleistete Zahlungen werden erstattet bzw. mit offenen Forderungen verrechnet.',
+      items: invoice.items.map((item) => {
+        const dto = itemToDto(item);
+        return {
+          ...dto,
+          deductsDocumentId: undefined,
+          quantity: item.kind === DocumentItemKind.POSITION ? -(dto.quantity ?? 1) : dto.quantity,
+        };
+      }),
+      invoice: { kind: InvoiceKind.STANDARD },
+    });
+    return this.findOne(companyId, copyId);
+  }
+
   // New draft with the same content (e.g. to revise a sent quote).
   async duplicate(companyId: string, id: string) {
     const source = await this.findOne(companyId, id);
+    if (source.type === DocumentType.CREDIT_NOTE) {
+      throw new BadRequestException('Eine Stornorechnung kann nicht dupliziert werden.');
+    }
     const copyId = await this.copyToNewDraft(companyId, source, source.type, {});
     return this.findOne(companyId, copyId);
   }
@@ -564,7 +689,9 @@ export class DocumentsService {
     if (
       invoices.some(
         (invoice) =>
-          invoice.invoiceDetails?.kind === InvoiceKind.FINAL && invoice.status !== DocumentStatus.DRAFT,
+          invoice.invoiceDetails?.kind === InvoiceKind.FINAL &&
+          invoice.status !== DocumentStatus.DRAFT &&
+          invoice.status !== DocumentStatus.CANCELLED,
       )
     ) {
       throw new ConflictException('Es wurde bereits eine Schlussrechnung ausgestellt.');
@@ -598,7 +725,8 @@ export class DocumentsService {
       }
 
       // Highest number + 1 (not the count), so numbers stay unique even if a draft was deleted.
-      const number = partials.reduce((max, invoice) => Math.max(max, invoice.invoiceDetails?.partialNumber ?? 0), 0) + 1;
+      const number =
+        partials.reduce((max, invoice) => Math.max(max, invoice.invoiceDetails?.partialNumber ?? 0), 0) + 1;
       const share = percentFormat.format(dto.percent ?? target.div(totals.net).mul(100).toNumber());
       const parts = splitPartialAmount(totals.vatGroups, target).filter((part) => !part.net.isZero());
       const items: DocumentItemDto[] = parts.map((part) => ({
@@ -624,7 +752,7 @@ export class DocumentsService {
     // Final invoice: all services of the contract, minus the partial invoices already issued.
     const items = [
       ...source.items.map(itemToDto),
-      ...this.deductionLines(partials.filter((invoice) => invoice.status !== DocumentStatus.DRAFT)),
+      ...this.deductionLines(partials.filter((invoice) => invoice.status === DocumentStatus.SENT)),
     ];
     return this.copyToNewDraft(companyId, source, DocumentType.INVOICE, {
       sourceDocumentId: source.id,
@@ -686,7 +814,7 @@ export class DocumentsService {
     const ids = source ? this.contractIds(source) : [];
     const partials = (await this.invoicesOfContract(companyId, ids)).filter(
       (invoice) =>
-        invoice.invoiceDetails?.kind === InvoiceKind.PARTIAL && invoice.status !== DocumentStatus.DRAFT,
+        invoice.invoiceDetails?.kind === InvoiceKind.PARTIAL && invoice.status === DocumentStatus.SENT,
     );
     const kept = document.items.filter(
       (item) =>
@@ -710,7 +838,7 @@ export class DocumentsService {
     // Drafts are planned, not billed yet. The final invoice adds only its remainder because the
     // partial invoices it deducts are counted on their own.
     const billedNet = invoices
-      .filter((invoice) => invoice.status !== DocumentStatus.DRAFT)
+      .filter((invoice) => invoice.status === DocumentStatus.SENT)
       .reduce((sum, invoice) => sum.plus(invoice.netTotal), new Prisma.Decimal(0));
     const openNet = contract.netTotal.minus(billedNet);
     return {
@@ -757,19 +885,26 @@ export class DocumentsService {
         continue;
       }
       const details = invoice.invoiceDetails;
-      if (details?.kind === InvoiceKind.FINAL && invoice.status !== DocumentStatus.DRAFT) {
+      if (details?.kind === InvoiceKind.FINAL && invoice.status === DocumentStatus.SENT) {
         problems.push('Es wurde bereits eine Schlussrechnung ausgestellt.');
       }
       if (details?.kind === InvoiceKind.PARTIAL) {
         const name = `Abschlagsrechnung Nr. ${details.partialNumber ?? ''}`.trim();
         if (invoice.status === DocumentStatus.DRAFT) {
           problems.push(`${name} ist noch ein Entwurf: bitte zuerst ausstellen oder löschen.`);
-        } else if (!deducted.has(invoice.id)) {
+        } else if (invoice.status === DocumentStatus.SENT && !deducted.has(invoice.id)) {
           problems.push(
             `${name} (${invoice.number}) ist nicht abgezogen: bitte „Abzüge aktualisieren" wählen.`,
           );
         }
       }
+    }
+    // A deduction that points to a cancelled (or deleted) partial invoice is outdated.
+    const validPartials = new Set(
+      invoices.filter((invoice) => invoice.invoiceDetails?.kind === InvoiceKind.PARTIAL && invoice.status === DocumentStatus.SENT).map((invoice) => invoice.id),
+    );
+    if ([...deducted].some((deductedId) => deductedId && !validPartials.has(deductedId))) {
+      problems.push('Ein abgezogener Abschlag ist storniert oder nicht mehr gültig: bitte „Abzüge aktualisieren" wählen.');
     }
     return problems;
   }
@@ -810,7 +945,7 @@ export class DocumentsService {
         },
       });
       await this.replaceItems(tx, copy.id, overrides.items ?? source.items.map(itemToDto));
-      if (type === DocumentType.INVOICE) {
+      if (type === DocumentType.INVOICE || type === DocumentType.CREDIT_NOTE) {
         // A copied invoice keeps its invoice data (the due date is set again when it is issued);
         // a new invoice gets the defaults from the project and the customer.
         const old = source.invoiceDetails;
@@ -830,8 +965,10 @@ export class DocumentsService {
                   serviceDateTo: old.serviceDateTo,
                   paymentTermDays: old.paymentTermDays,
                   reverseCharge: old.reverseCharge,
-                  retentionPercent: old.retentionPercent,
-                  retentionDueDate: old.retentionDueDate,
+                  // a credit note carries no retention of its own
+                  ...(type === DocumentType.INVOICE
+                    ? { retentionPercent: old.retentionPercent, retentionDueDate: old.retentionDueDate }
+                    : {}),
                   orderReference: old.orderReference,
                   buyerReference: old.buyerReference,
                 }

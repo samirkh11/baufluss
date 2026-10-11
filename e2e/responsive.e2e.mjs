@@ -85,6 +85,11 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
   await visit(page, 'quotes', '/quotes', tag, 'tbody tr.ant-table-row');
   await visit(page, 'orders', '/orders', tag, 'tbody tr.ant-table-row');
   await visit(page, 'invoices', '/invoices', tag, 'tbody tr.ant-table-row');
+  await page.getByRole('tab', { name: 'Offene Posten' }).click();
+  await page.waitForSelector('text=Offen gesamt');
+  await page.waitForTimeout(500);
+  check(`${tag} open items: fits the screen width`, await fitsWidth(page));
+  await page.screenshot({ path: shots + `r-${tag}-open-items.png` });
   await visit(page, 'contacts', '/contacts', tag, 'tbody tr.ant-table-row');
   await visit(page, 'catalog', '/catalog', tag, 'tbody tr.ant-table-row');
   await visit(page, 'time', '/time?week=2026-10-05', tag, '[data-testid=week-total]');

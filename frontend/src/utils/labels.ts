@@ -1,4 +1,12 @@
-import { DocumentStatus, DocumentType, Project, ProjectStatus, ReportType } from '../types';
+import {
+  DocumentStatus,
+  DocumentType,
+  PaymentMethod,
+  PaymentStatus,
+  Project,
+  ProjectStatus,
+  ReportType,
+} from '../types';
 
 export const PROJECT_STATUS: Record<ProjectStatus, { label: string; color: string }> = {
   PLANNING: { label: 'In Planung', color: 'blue' },
@@ -53,13 +61,29 @@ export const DOCUMENT_STATUS: Record<DocumentStatus, { label: string; color: str
   SENT: { label: 'Ausgestellt', color: 'blue' },
   ACCEPTED: { label: 'Angenommen', color: 'green' },
   REJECTED: { label: 'Abgelehnt', color: 'red' },
+  CANCELLED: { label: 'Storniert', color: 'default' },
+};
+
+export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; color: string }> = {
+  UNPAID: { label: 'Offen', color: 'blue' },
+  PARTIALLY_PAID: { label: 'Teilweise bezahlt', color: 'gold' },
+  PAID: { label: 'Bezahlt', color: 'green' },
+  OVERDUE: { label: 'Überfällig', color: 'red' },
+  CANCELLED: { label: 'Storniert', color: 'default' },
+};
+
+export const PAYMENT_METHOD: Record<PaymentMethod, { label: string }> = {
+  BANK_TRANSFER: { label: 'Überweisung' },
+  CASH: { label: 'Bar' },
+  CARD: { label: 'Karte' },
+  OTHER: { label: 'Sonstiges' },
 };
 
 export const DOCUMENT_TYPE: Record<DocumentType, string> = {
   QUOTE: 'Angebot',
   ORDER: 'Auftragsbestätigung',
   INVOICE: 'Rechnung',
-  CREDIT_NOTE: 'Gutschrift',
+  CREDIT_NOTE: 'Stornorechnung',
 };
 
 // Plural names (menu, tabs) and list route per document type. The editor lives under the same
@@ -68,14 +92,14 @@ export const DOCUMENT_TYPE_PLURAL: Record<DocumentType, string> = {
   QUOTE: 'Angebote',
   ORDER: 'Aufträge',
   INVOICE: 'Rechnungen',
-  CREDIT_NOTE: 'Gutschriften',
+  CREDIT_NOTE: 'Stornorechnungen',
 };
 
 export const DOCUMENT_NEW_LABEL: Record<DocumentType, string> = {
   QUOTE: 'Neues Angebot',
   ORDER: 'Neue Auftragsbestätigung',
   INVOICE: 'Neue Rechnung',
-  CREDIT_NOTE: 'Neue Gutschrift',
+  CREDIT_NOTE: 'Neue Stornorechnung',
 };
 
 export const DOCUMENT_ROUTE: Record<DocumentType, string> = {

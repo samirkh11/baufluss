@@ -20,7 +20,7 @@ const TITLES: Record<DocumentType, string> = {
   QUOTE: 'Angebot',
   ORDER: 'Auftragsbestätigung',
   INVOICE: 'Rechnung',
-  CREDIT_NOTE: 'Gutschrift',
+  CREDIT_NOTE: 'Stornorechnung',
 };
 
 // Short names for the reference line (the column is narrow).
@@ -36,7 +36,7 @@ const NUMBER_LABELS: Record<DocumentType, string> = {
   QUOTE: 'Angebots-Nr.:',
   ORDER: 'Auftrags-Nr.:',
   INVOICE: 'Rechnungs-Nr.:',
-  CREDIT_NOTE: 'Gutschrift-Nr.:',
+  CREDIT_NOTE: 'Storno-Nr.:',
 };
 
 const money = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });

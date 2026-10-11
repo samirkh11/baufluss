@@ -174,6 +174,62 @@ await modal.getByRole('button', { name: 'OK' }).click();
 await page.waitForSelector('text=Dennis Vogel-E2E');
 check('user edited via dialog', true);
 
+// ---- payments, open items and cancellation (Block 5, step 3)
+await page.goto(BASE + '/invoices');
+await page.getByRole('tab', { name: 'Offene Posten' }).click();
+await page.waitForSelector('text=Offen gesamt');
+await page.waitForSelector('.ant-tabs-tabpane-active tbody tr.ant-table-row');
+check('open items: 3 rows (overdue invoice, partly paid invoice, refund)', (await page.locator('.ant-tabs-tabpane-active tbody tr.ant-table-row').count()) === 3);
+check('open items total 20.383,56 €', (await page.getByText(/20\.383,56/).count()) > 0);
+await page.screenshot({ path: shots + '21-open-items.png' });
+await page.getByLabel('Nur überfällige').check();
+await page.waitForFunction(() => document.querySelectorAll('.ant-tabs-tabpane-active tbody tr.ant-table-row').length === 1);
+check('"only overdue" filter shows RE-00003', (await page.locator('.ant-tabs-tabpane-active tbody tr.ant-table-row').innerText()).includes('RE-00003'));
+await page.getByLabel('Nur überfällige').uncheck();
+await page.waitForFunction(() => document.querySelectorAll('.ant-tabs-tabpane-active tbody tr.ant-table-row').length === 3);
+// book the overdue invoice from the list
+await page.locator('.ant-tabs-tabpane-active tr', { hasText: 'RE-00003' }).getByRole('button', { name: 'Zahlung buchen' }).click();
+await page.locator('.ant-modal:visible').getByRole('button', { name: 'Buchen' }).click();
+await page.waitForSelector('.ant-message-success:has-text("Zahlung gebucht")');
+await page.waitForFunction(() => document.querySelectorAll('.ant-tabs-tabpane-active tbody tr.ant-table-row').length === 2);
+check('payment booked from the list: RE-00003 is settled and leaves the open items', true);
+// partly paid invoice: book and delete a payment in the editor
+await page.getByRole('link', { name: 'RE-00004' }).click();
+await page.waitForSelector('text=Teilweise bezahlt');
+check('invoice RE-00004 shows 7.691,78 € open', (await page.getByTestId('payment-open').innerText()).includes('7.691,78'));
+await page.getByRole('button', { name: 'Zahlung erfassen' }).click();
+await page.locator('.ant-modal:visible').getByLabel('Betrag (€)').fill('1000');
+await page.locator('.ant-modal:visible').getByRole('button', { name: 'Buchen' }).click();
+await page.waitForSelector('.ant-message-success:has-text("Zahlung gebucht")');
+await page.waitForFunction(() => document.querySelector('[data-testid=payment-open]')?.textContent?.includes('6.691,78'));
+check('payment of 1.000 € reduces the open amount to 6.691,78 €', true);
+await page.screenshot({ path: shots + '22-invoice-payments.png' });
+await page.locator('.ant-card:has-text("Zahlungen") tbody tr', { hasText: '1.000,00' }).getByRole('button', { name: 'Zahlung löschen' }).click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'OK' }).click();
+await page.waitForFunction(() => document.querySelector('[data-testid=payment-open]')?.textContent?.includes('7.691,78'));
+check('the payment can be deleted again', true);
+// cancel the paid school invoice RE-00002 -> credit note -> issue
+await page.goto(BASE + '/invoices');
+await page.waitForSelector('tbody tr.ant-table-row');
+await page.getByRole('link', { name: 'RE-00002' }).click();
+await page.waitForSelector('text=Zahlungen');
+await page.getByRole('button', { name: 'Stornieren' }).click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'Stornieren' }).click();
+await page.waitForURL(/\/credit-notes\/.+/);
+await page.waitForSelector('h3:has-text("Stornorechnung")');
+check('credit note draft with negative amounts, lines locked', (await page.locator('input[value*="Dachrinne montieren"]').first().isDisabled()) && (await page.getByText(/-4\.389,91/).count()) > 0);
+await page.screenshot({ path: shots + '23-credit-note.png' });
+await page.getByRole('button', { name: 'Ausstellen' }).first().click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
+await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
+check('credit note issued as GS-00002 and shows the refund due', (await page.locator('h3', { hasText: 'GS-00002' }).isVisible()) && (await page.getByText('Zu erstatten').count()) > 0);
+await page.goto(BASE + '/invoices');
+await page.waitForSelector('tbody tr.ant-table-row');
+check('cancelled invoice RE-00002 is shown as "Storniert"', (await page.locator('tr', { hasText: 'RE-00002' }).first().innerText()).includes('Storniert'));
+await page.getByRole('tab', { name: 'Stornorechnungen' }).click();
+await page.waitForFunction(() => document.querySelectorAll('.ant-tabs-tabpane-active tbody tr.ant-table-row').length === 2);
+check('credit note list shows GS-00001 and GS-00002 (no "new" button)', (await page.getByRole('button', { name: /Neue Stornorechnung/ }).count()) === 0);
+
 // ---- quotes (Block 4)
 await page.getByRole('menuitem', { name: 'Angebote' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
@@ -251,7 +307,7 @@ check('after removing the optional line the invoice is ready to issue', true);
 await page.getByRole('button', { name: 'Ausstellen' }).first().click();
 await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
 await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
-check('invoice issued with the next gap-free number RE-00004', await page.locator('h3', { hasText: 'RE-00004' }).isVisible());
+check('invoice issued with the next gap-free number RE-00005', await page.locator('h3', { hasText: 'RE-00005' }).isVisible());
 const [invoicePdf] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'PDF' }).click()]);
 check('invoice PDF opens', true, invoicePdf.url());
 await invoicePdf.close();
@@ -260,7 +316,7 @@ await page.waitForSelector('tbody tr.ant-table-row');
 check('orders list shows 3 orders', (await page.locator('tbody tr.ant-table-row').count()) === 3);
 await page.getByRole('menuitem', { name: 'Rechnungen' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
-check('invoices list shows 7 invoices', (await page.locator('tbody tr.ant-table-row').count()) === 7);
+check('invoices list shows 8 invoices', (await page.locator('tbody tr.ant-table-row').count()) === 8);
 // an order cannot be created twice from the same quote
 await page.goto(BASE + '/quotes');
 await page.waitForSelector('tbody tr.ant-table-row');
@@ -332,7 +388,7 @@ check('partial invoice draft: 30 % of the order as one lump-sum line', (await pa
 await page.getByRole('button', { name: 'Ausstellen' }).first().click();
 await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
 await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
-check('partial invoice issued (RE-00005)', await page.locator('h3', { hasText: 'RE-00005' }).isVisible());
+check('partial invoice issued (RE-00006)', await page.locator('h3', { hasText: 'RE-00006' }).isVisible());
 await page.getByRole('link', { name: /Auftragsbestätigung AB-00002/ }).click();
 await page.waitForSelector('text=Abrechnung');
 check('order shows the billing overview (30 % billed)', (await page.getByText('Abschlagsrechnung Nr. 1').count()) > 0 && (await page.locator('.ant-progress-text').first().innerText()).includes('30'));
@@ -351,7 +407,7 @@ await page.screenshot({ path: shots + '20-final-invoice.png' });
 await page.getByRole('button', { name: 'Ausstellen' }).first().click();
 await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
 await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
-check('final invoice issued (RE-00006)', await page.locator('h3', { hasText: 'Schlussrechnung RE-00006' }).isVisible());
+check('final invoice issued (RE-00007)', await page.locator('h3', { hasText: 'Schlussrechnung RE-00007' }).isVisible());
 
 // ---- time tracking (Block 10), office view
 await page.getByRole('menuitem', { name: 'Zeiten' }).click();

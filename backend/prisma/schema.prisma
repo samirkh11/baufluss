@@ -62,6 +62,7 @@ model Company {
   projects        Project[]
   reports         Report[]
   documents       Document[]
+  payments        Payment[]
   timeEntries     TimeEntry[]
 
   @@map("companies")
@@ -358,6 +359,7 @@ enum DocumentStatus {
   SENT // finalized: number assigned, content locked
   ACCEPTED
   REJECTED
+  CANCELLED // invoices only: cancelled by a credit note (Storno); kept as a record
 }
 
 enum DocumentItemKind {
@@ -418,6 +420,7 @@ model Document {
 
   items          DocumentItem[]  @relation("DocumentItems")
   invoiceDetails InvoiceDetails?
+  payments       Payment[]
   deductedIn     DocumentItem[]  @relation("DeductedBy")
 
   createdAt DateTime @default(now())
@@ -553,4 +556,45 @@ model InvoiceDetails {
   buyerReference String? // Leitweg-ID (XRechnung, public bodies)
 
   @@map("invoice_details")
+}
+
+// What a payment settles: the payable amount of the invoice (gross minus retention) or the
+// retention (Sicherheitseinbehalt), which is a separate receivable with its own due date.
+enum PaymentTarget {
+  INVOICE
+  RETENTION
+}
+
+enum PaymentMethod {
+  BANK_TRANSFER
+  CASH
+  CARD
+  OTHER
+}
+
+// An incoming payment on an issued invoice. On a credit note (Storno) a payment records the
+// refund paid back to the customer.
+model Payment {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Documents with payments cannot be deleted (and issued ones never can anyway).
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  target PaymentTarget @default(INVOICE)
+  paidAt DateTime      @db.Date
+  amount Decimal       @db.Decimal(14, 2) // always positive
+  method PaymentMethod @default(BANK_TRANSFER)
+
+  reference String? // Verwendungszweck / bank reference
+  note      String?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  @@index([documentId])
+  @@index([companyId, paidAt])
+  @@map("payments")
 }

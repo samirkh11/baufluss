@@ -6,6 +6,7 @@ import {
   Card,
   Checkbox,
   Col,
+  ConfigProvider,
   Descriptions,
   Radio,
   Progress,
@@ -47,13 +48,24 @@ import {
   setDocumentStatus,
   updateDocument,
 } from '../api/documents';
-import { BusinessDocument, CatalogItem, DocumentItemKind, InvoiceKind } from '../types';
+import {
+  BusinessDocument,
+  CatalogItem,
+  DocumentItemKind,
+  InvoiceKind,
+  PaymentSummary,
+  RefundSummary,
+} from '../types';
+import { cancelInvoice, deletePayment } from '../api/payments';
+import { PaymentModal } from '../components/PaymentModal';
 import { useIsPhone } from '../hooks/useMediaQuery';
 import { apiErrorMessage } from '../utils/assets';
 import { buildOrdinals, calculateTotals, lineTotal } from '../utils/documentCalc';
 import {
   DOCUMENT_STATUS,
   DOCUMENT_TYPE,
+  PAYMENT_METHOD,
+  PAYMENT_STATUS,
   customerName,
   documentPath,
   formatDate,
@@ -197,7 +209,10 @@ export function DocumentEditorPage() {
   const { data: issues } = useQuery({
     queryKey: ['documents', 'issues', id, document?.updatedAt],
     queryFn: () => getDocumentIssues(id),
-    enabled: !!document && document.type === 'INVOICE' && document.status === 'DRAFT',
+    enabled:
+      !!document &&
+      (document.type === 'INVOICE' || document.type === 'CREDIT_NOTE') &&
+      document.status === 'DRAFT',
   });
 
   // Load server data into the form/lines only when the stored document actually changed, so a
@@ -351,6 +366,29 @@ export function DocumentEditorPage() {
     onError,
   });
 
+  // Payments (invoices) / refunds (credit notes)
+  const [payOpen, setPayOpen] = useState<null | { target: 'INVOICE' | 'RETENTION' }>(null);
+
+  const deletePaymentMutation = useMutation({
+    mutationFn: deletePayment,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['receivables'] });
+    },
+    onError,
+  });
+
+  // Cancelling an issued invoice creates the credit note (Stornorechnung) as a draft.
+  const cancelMutation = useMutation({
+    mutationFn: () => cancelInvoice(id),
+    onSuccess: (creditNote) => {
+      message.success('Stornorechnung als Entwurf angelegt.');
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      navigate(documentPath(creditNote.type, creditNote.id));
+    },
+    onError,
+  });
+
   // Takes the document over into the next stage (quote -> order -> invoice) as a new draft.
   const convertMutation = useMutation({
     mutationFn: (options: ConvertOptions) => convertDocument(id, options),
@@ -420,6 +458,10 @@ export function DocumentEditorPage() {
   }
 
   const status = DOCUMENT_STATUS[document.status];
+  const isCreditNote = document.type === 'CREDIT_NOTE';
+  const invoiceSummary =
+    document.type === 'INVOICE' ? (document.paymentSummary as PaymentSummary | null | undefined) : null;
+  const refundSummary = isCreditNote ? (document.paymentSummary as RefundSummary | null | undefined) : null;
   const numberLabel = document.number ?? 'Entwurf';
   const invoiceKind: InvoiceKind | undefined =
     document.type === 'INVOICE' ? document.invoiceDetails?.kind : undefined;
@@ -641,6 +683,40 @@ export function DocumentEditorPage() {
     </Card>
   ));
 
+  const renderPaymentsTable = () => (
+    <Table
+      size="small"
+      rowKey="id"
+      pagination={false}
+      scroll={{ x: 'max-content' }}
+      dataSource={document.payments ?? []}
+      locale={{ emptyText: 'Noch keine Zahlungen gebucht' }}
+      columns={[
+        { title: 'Datum', render: (_: unknown, payment) => formatDate(payment.paidAt) },
+        {
+          title: 'Betrag',
+          align: 'right' as const,
+          render: (_: unknown, payment) => formatMoney(payment.amount),
+        },
+        {
+          title: 'Art',
+          responsive: ['md' as const],
+          render: (_: unknown, payment) =>
+            PAYMENT_METHOD[payment.method].label + (payment.target === 'RETENTION' ? ' (Einbehalt)' : ''),
+        },
+        { title: 'Verwendungszweck', responsive: ['md' as const], dataIndex: 'reference' },
+        {
+          title: '',
+          render: (_: unknown, payment) => (
+            <Popconfirm title="Zahlung löschen?" onConfirm={() => deletePaymentMutation.mutate(payment.id)}>
+              <Button size="small" danger aria-label="Zahlung löschen" icon={<DeleteOutlined />} />
+            </Popconfirm>
+          ),
+        },
+      ]}
+    />
+  );
+
   return (
     <div>
       <style>{'.document-heading-row td { background: #fafafa; }'}</style>
@@ -660,9 +736,23 @@ export function DocumentEditorPage() {
               GAEB-Export
             </Button>
           )}
-          <Button loading={duplicateMutation.isPending} onClick={() => duplicateMutation.mutate()}>
-            Duplizieren
-          </Button>
+          {!isCreditNote && (
+            <Button loading={duplicateMutation.isPending} onClick={() => duplicateMutation.mutate()}>
+              Duplizieren
+            </Button>
+          )}
+          {document.type === 'INVOICE' && document.status === 'SENT' && (
+            <Popconfirm
+              title="Rechnung stornieren?"
+              description="Es wird eine Stornorechnung als Entwurf angelegt. Erst mit deren Ausstellen gilt die Rechnung als storniert."
+              okText="Stornieren"
+              onConfirm={() => cancelMutation.mutate()}
+            >
+              <Button danger loading={cancelMutation.isPending}>
+                Stornieren
+              </Button>
+            </Popconfirm>
+          )}
           {canConvertToOrder && (
             <Button
               loading={convertMutation.isPending}
@@ -748,14 +838,16 @@ export function DocumentEditorPage() {
         </Space>
       </Space>
 
-      {document.type === 'INVOICE' && isDraft && issues && (
+      {(document.type === 'INVOICE' || document.type === 'CREDIT_NOTE') && isDraft && issues && (
         <Alert
           type={issues.length === 0 ? 'success' : 'warning'}
           showIcon
           style={{ marginBottom: 16 }}
           message={
             issues.length === 0
-              ? 'Die Rechnung ist vollständig und kann ausgestellt werden.'
+              ? document.type === 'CREDIT_NOTE'
+                ? 'Die Stornorechnung kann ausgestellt werden.'
+                : 'Die Rechnung ist vollständig und kann ausgestellt werden.'
               : 'Vor dem Ausstellen noch zu klären (gespeicherter Stand):'
           }
           description={
@@ -768,6 +860,83 @@ export function DocumentEditorPage() {
             ) : undefined
           }
         />
+      )}
+
+      {invoiceSummary && (
+        <Card title="Zahlungen" size="small" style={{ marginBottom: 16 }}>
+          <Space wrap size="large" style={{ marginBottom: 12, display: 'flex' }}>
+            <span>
+              Status:{' '}
+              <Tag color={PAYMENT_STATUS[invoiceSummary.status].color}>
+                {PAYMENT_STATUS[invoiceSummary.status].label}
+                {invoiceSummary.status === 'OVERDUE' ? ` (${invoiceSummary.overdueDays} Tage)` : ''}
+              </Tag>
+            </span>
+            <span>
+              Zahlbetrag: <strong>{formatMoney(invoiceSummary.payable)}</strong>
+            </span>
+            <span>
+              bezahlt: <strong>{formatMoney(invoiceSummary.paid)}</strong>
+            </span>
+            <span>
+              offen: <strong data-testid="payment-open">{formatMoney(invoiceSummary.open)}</strong>
+            </span>
+            {Number(invoiceSummary.retention) > 0 && (
+              <span>
+                Einbehalt: <strong>{formatMoney(invoiceSummary.retention)}</strong> (offen{' '}
+                {formatMoney(invoiceSummary.retentionOpen)}
+                {document.invoiceDetails?.retentionDueDate
+                  ? `, fällig ${formatDate(document.invoiceDetails.retentionDueDate)}`
+                  : ''}
+                )
+              </span>
+            )}
+          </Space>
+          {document.status === 'SENT' && (
+            <Space wrap style={{ marginBottom: 12 }}>
+              <Button
+                type="primary"
+                disabled={Number(invoiceSummary.open) <= 0}
+                onClick={() => setPayOpen({ target: 'INVOICE' })}
+              >
+                Zahlung erfassen
+              </Button>
+              {Number(invoiceSummary.retentionOpen) > 0 && (
+                <Button onClick={() => setPayOpen({ target: 'RETENTION' })}>
+                  Einbehalt-Zahlung erfassen
+                </Button>
+              )}
+            </Space>
+          )}
+          {renderPaymentsTable()}
+        </Card>
+      )}
+
+      {refundSummary && (
+        <Card title="Erstattung" size="small" style={{ marginBottom: 16 }}>
+          <Space wrap size="large" style={{ marginBottom: 12, display: 'flex' }}>
+            <span>
+              Zu erstatten (bezahlter Rechnungsbetrag):{' '}
+              <strong>{formatMoney(refundSummary.refundDue)}</strong>
+            </span>
+            <span>
+              erstattet: <strong>{formatMoney(refundSummary.refunded)}</strong>
+            </span>
+            <span>
+              offen: <strong data-testid="payment-open">{formatMoney(refundSummary.open)}</strong>
+            </span>
+          </Space>
+          {Number(refundSummary.open) > 0 && (
+            <Button
+              type="primary"
+              style={{ marginBottom: 12 }}
+              onClick={() => setPayOpen({ target: 'INVOICE' })}
+            >
+              Erstattung buchen
+            </Button>
+          )}
+          {renderPaymentsTable()}
+        </Card>
       )}
 
       {billing && billing.invoices.length > 0 && (
@@ -993,85 +1162,87 @@ export function DocumentEditorPage() {
           </Card>
         )}
 
-        <Card title="Positionen" style={{ marginBottom: 16 }}>
-          {isDraft && (
-            <Space style={{ marginBottom: 12 }} wrap>
-              <Select
-                showSearch
-                filterOption={false}
-                value={null}
-                placeholder="Position aus Leistungs-/Artikelstamm hinzufügen …"
-                style={{ width: 380, maxWidth: '100%' }}
-                loading={searchingCatalog}
-                onSearch={setCatalogSearch}
-                onChange={(value) => value && addFromCatalog(value)}
-                options={(catalogResults?.items ?? []).map((item) => ({
-                  value: item.id,
-                  label: `${item.sku ? item.sku + ' · ' : ''}${item.name} (${formatMoney(item.netPrice)} / ${item.unit})`,
-                }))}
+        <ConfigProvider componentDisabled={isCreditNote ? true : undefined}>
+          <Card title="Positionen" style={{ marginBottom: 16 }}>
+            {isDraft && !isCreditNote && (
+              <Space style={{ marginBottom: 12 }} wrap>
+                <Select
+                  showSearch
+                  filterOption={false}
+                  value={null}
+                  placeholder="Position aus Leistungs-/Artikelstamm hinzufügen …"
+                  style={{ width: 380, maxWidth: '100%' }}
+                  loading={searchingCatalog}
+                  onSearch={setCatalogSearch}
+                  onChange={(value) => value && addFromCatalog(value)}
+                  options={(catalogResults?.items ?? []).map((item) => ({
+                    value: item.id,
+                    label: `${item.sku ? item.sku + ' · ' : ''}${item.name} (${formatMoney(item.netPrice)} / ${item.unit})`,
+                  }))}
+                />
+                <Button onClick={() => addLine(blankLine('POSITION'))}>Freie Position</Button>
+                <Button onClick={() => addLine(blankLine('HEADING'))}>Titel</Button>
+                <Button onClick={() => addLine(blankLine('TEXT'))}>Textzeile</Button>
+              </Space>
+            )}
+            {phone ? (
+              <div>{lines.length === 0 ? <Empty description="Noch keine Positionen" /> : lineCards}</div>
+            ) : (
+              <Table
+                rowKey="key"
+                size="small"
+                pagination={false}
+                dataSource={lines}
+                columns={lineColumns}
+                scroll={{ x: 1100 }}
+                locale={{ emptyText: 'Noch keine Positionen' }}
+                rowClassName={(line) => (line.kind === 'HEADING' ? 'document-heading-row' : '')}
               />
-              <Button onClick={() => addLine(blankLine('POSITION'))}>Freie Position</Button>
-              <Button onClick={() => addLine(blankLine('HEADING'))}>Titel</Button>
-              <Button onClick={() => addLine(blankLine('TEXT'))}>Textzeile</Button>
-            </Space>
-          )}
-          {phone ? (
-            <div>{lines.length === 0 ? <Empty description="Noch keine Positionen" /> : lineCards}</div>
-          ) : (
-            <Table
-              rowKey="key"
-              size="small"
-              pagination={false}
-              dataSource={lines}
-              columns={lineColumns}
-              scroll={{ x: 1100 }}
-              locale={{ emptyText: 'Noch keine Positionen' }}
-              rowClassName={(line) => (line.kind === 'HEADING' ? 'document-heading-row' : '')}
-            />
-          )}
+            )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
-            <table style={{ minWidth: 300 }}>
-              <tbody>
-                <tr>
-                  <td>Nettosumme</td>
-                  <td style={{ textAlign: 'right' }}>{formatMoney(totals.net)}</td>
-                </tr>
-                {totals.vatGroups.map((group) => (
-                  <tr key={group.vatRate}>
-                    <td>zzgl. {group.vatRate} % USt</td>
-                    <td style={{ textAlign: 'right' }}>{formatMoney(group.vat)}</td>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <table style={{ minWidth: 300 }}>
+                <tbody>
+                  <tr>
+                    <td>Nettosumme</td>
+                    <td style={{ textAlign: 'right' }}>{formatMoney(totals.net)}</td>
                   </tr>
-                ))}
-                <tr style={{ fontWeight: 'bold', fontSize: 16 }}>
-                  <td style={{ borderTop: '1px solid #999', paddingTop: 4 }}>Gesamtsumme</td>
-                  <td style={{ borderTop: '1px solid #999', paddingTop: 4, textAlign: 'right' }}>
-                    {formatMoney(totals.gross)}
-                  </td>
-                </tr>
-                {document.type === 'INVOICE' && !!retentionPercent && retentionPercent > 0 && (
-                  <>
-                    <tr>
-                      <td>abzgl. Sicherheitseinbehalt ({retentionPercent} %)</td>
-                      <td style={{ textAlign: 'right' }}>{formatMoney(-retentionAmountPreview)}</td>
+                  {totals.vatGroups.map((group) => (
+                    <tr key={group.vatRate}>
+                      <td>zzgl. {group.vatRate} % USt</td>
+                      <td style={{ textAlign: 'right' }}>{formatMoney(group.vat)}</td>
                     </tr>
-                    <tr style={{ fontWeight: 'bold' }}>
-                      <td>Zahlbetrag</td>
-                      <td style={{ textAlign: 'right' }}>
-                        {formatMoney(totals.gross - retentionAmountPreview)}
-                      </td>
-                    </tr>
-                  </>
-                )}
-              </tbody>
-            </table>
-          </div>
-          {dirty && (
-            <Typography.Text type="secondary">
-              Vorschau – die Summen werden beim Speichern serverseitig berechnet.
-            </Typography.Text>
-          )}
-        </Card>
+                  ))}
+                  <tr style={{ fontWeight: 'bold', fontSize: 16 }}>
+                    <td style={{ borderTop: '1px solid #999', paddingTop: 4 }}>Gesamtsumme</td>
+                    <td style={{ borderTop: '1px solid #999', paddingTop: 4, textAlign: 'right' }}>
+                      {formatMoney(totals.gross)}
+                    </td>
+                  </tr>
+                  {document.type === 'INVOICE' && !!retentionPercent && retentionPercent > 0 && (
+                    <>
+                      <tr>
+                        <td>abzgl. Sicherheitseinbehalt ({retentionPercent} %)</td>
+                        <td style={{ textAlign: 'right' }}>{formatMoney(-retentionAmountPreview)}</td>
+                      </tr>
+                      <tr style={{ fontWeight: 'bold' }}>
+                        <td>Zahlbetrag</td>
+                        <td style={{ textAlign: 'right' }}>
+                          {formatMoney(totals.gross - retentionAmountPreview)}
+                        </td>
+                      </tr>
+                    </>
+                  )}
+                </tbody>
+              </table>
+            </div>
+            {dirty && (
+              <Typography.Text type="secondary">
+                Vorschau – die Summen werden beim Speichern serverseitig berechnet.
+              </Typography.Text>
+            )}
+          </Card>
+        </ConfigProvider>
 
         <Card style={{ marginBottom: 16 }}>
           <Form.Item name="closingText" label="Schlusstext" style={{ marginBottom: 0 }}>
@@ -1079,6 +1250,34 @@ export function DocumentEditorPage() {
           </Form.Item>
         </Card>
       </Form>
+
+      <PaymentModal
+        open={!!payOpen}
+        documentId={document.id}
+        title={
+          isCreditNote
+            ? `Erstattung zu ${document.number}`
+            : payOpen?.target === 'RETENTION'
+              ? `Einbehalt-Zahlung zu ${document.number}`
+              : `Zahlung zu ${document.number}`
+        }
+        target={payOpen?.target}
+        defaultAmount={
+          isCreditNote
+            ? Number(refundSummary?.open ?? 0)
+            : payOpen?.target === 'RETENTION'
+              ? Number(invoiceSummary?.retentionOpen ?? 0)
+              : Number(invoiceSummary?.open ?? 0)
+        }
+        defaultReference={document.number ?? undefined}
+        refund={isCreditNote}
+        onClose={() => setPayOpen(null)}
+        onSaved={() => {
+          setPayOpen(null);
+          queryClient.invalidateQueries({ queryKey: ['documents'] });
+          queryClient.invalidateQueries({ queryKey: ['receivables'] });
+        }}
+      />
 
       <Modal
         title="Abschlagsrechnung erstellen"

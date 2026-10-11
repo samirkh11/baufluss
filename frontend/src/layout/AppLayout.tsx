@@ -55,7 +55,8 @@ export function AppLayout() {
 
   const isOffice = user?.role === 'OWNER' || user?.role === 'ADMIN';
   const menuItems = MENU_ITEMS.filter((item) => !item.officeOnly || isOffice);
-  const path = location.pathname;
+  // Credit notes (Stornorechnungen) live under the invoices menu entry.
+  const path = location.pathname.startsWith('/credit-notes') ? '/invoices' : location.pathname;
   const selectedKey =
     menuItems
       .map((item) => item.key)

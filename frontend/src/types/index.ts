@@ -170,7 +170,7 @@ export interface Report {
 }
 
 export type DocumentType = 'QUOTE' | 'ORDER' | 'INVOICE' | 'CREDIT_NOTE';
-export type DocumentStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED';
+export type DocumentStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED' | 'CANCELLED';
 export type DocumentItemKind = 'POSITION' | 'HEADING' | 'TEXT';
 
 // Decimal columns arrive as strings (see CatalogItem).
@@ -217,6 +217,9 @@ export interface BusinessDocument {
   updatedAt: string;
   items: DocumentItem[];
   invoiceDetails: InvoiceDetails | null; // invoices only
+  payments?: Payment[]; // invoices / credit notes
+  paymentSummary?: PaymentSummary | RefundSummary | null;
+  payment?: { status: PaymentStatus; open: string; overdueDays: number } | null; // list rows of invoices
   // conversion chain (quote -> order -> invoice)
   sourceDocument: DocumentRef | null;
   derivedDocuments: DocumentRef[];
@@ -303,4 +306,58 @@ export interface ContractBilling {
     netTotal: string;
     grossTotal: string;
   }[];
+}
+
+export type PaymentStatus = 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'OVERDUE' | 'CANCELLED';
+export type PaymentTarget = 'INVOICE' | 'RETENTION';
+export type PaymentMethod = 'BANK_TRANSFER' | 'CASH' | 'CARD' | 'OTHER';
+
+export interface Payment {
+  id: string;
+  target: PaymentTarget;
+  paidAt: string;
+  amount: string;
+  method: PaymentMethod;
+  reference: string | null;
+  note: string | null;
+}
+
+// Amounts arrive as decimal strings.
+export interface PaymentSummary {
+  payable: string;
+  paid: string;
+  open: string;
+  retention: string;
+  retentionPaid: string;
+  retentionOpen: string;
+  status: PaymentStatus;
+  overdueDays: number;
+  retentionOverdueDays: number;
+}
+
+// Credit note: money owed back to the customer for an invoice that was already (partly) paid.
+export interface RefundSummary {
+  refundDue: string;
+  refunded: string;
+  open: string;
+}
+
+export interface Receivable {
+  kind: 'INVOICE' | 'RETENTION' | 'REFUND';
+  documentId: string;
+  documentType: DocumentType;
+  number: string | null;
+  invoiceKind: InvoiceKind | null;
+  recipientName: string | null;
+  project: { id: string; number: string; name: string };
+  documentDate: string;
+  dueDate: string | null;
+  amount: string;
+  open: string; // negative for refunds
+  overdueDays: number;
+}
+
+export interface Receivables {
+  items: Receivable[];
+  totals: { open: string; overdue: string; retention: string; refunds: string };
 }

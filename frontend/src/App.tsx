@@ -34,6 +34,7 @@ export function App() {
           <Route path="/orders/:id" element={<DocumentEditorPage />} />
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/invoices/:id" element={<DocumentEditorPage />} />
+          <Route path="/credit-notes/:id" element={<DocumentEditorPage />} />
           <Route path="/time" element={<TimePage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/contacts" element={<ContactsPage />} />

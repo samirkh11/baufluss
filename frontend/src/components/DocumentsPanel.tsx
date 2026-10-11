@@ -11,6 +11,7 @@ import { apiErrorMessage } from '../utils/assets';
 import {
   DOCUMENT_NEW_LABEL,
   DOCUMENT_STATUS,
+  PAYMENT_STATUS,
   documentPath,
   formatDate,
   formatMoney,
@@ -19,6 +20,8 @@ import {
 
 interface DocumentsPanelProps {
   type: DocumentType;
+  // Credit notes are only created by cancelling an invoice, so their list has no "new" button.
+  allowCreate?: boolean;
   // Fixed project (project detail page). Without it all documents of the type are listed and the
   // project is chosen when creating a new one.
   projectId?: string;
@@ -26,7 +29,7 @@ interface DocumentsPanelProps {
 
 // List of business documents of one type (quotes for now) with a "new" button that creates a
 // draft and opens the editor.
-export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
+export function DocumentsPanel({ type, projectId, allowCreate = true }: DocumentsPanelProps) {
   const navigate = useNavigate();
   const [status, setStatus] = useState<DocumentStatus | undefined>();
   const [search, setSearch] = useState('');
@@ -63,9 +66,16 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
   return (
     <div>
       <Space style={{ marginBottom: 16 }} wrap>
-        <Button type="primary" icon={<PlusOutlined />} loading={createMutation.isPending} onClick={handleNew}>
-          {DOCUMENT_NEW_LABEL[type]}
-        </Button>
+        {allowCreate && (
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            loading={createMutation.isPending}
+            onClick={handleNew}
+          >
+            {DOCUMENT_NEW_LABEL[type]}
+          </Button>
+        )}
         {type === 'QUOTE' && <GaebImportButton projectId={projectId} />}
         <Select
           allowClear
@@ -137,9 +147,19 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
           {
             title: 'Status',
             dataIndex: 'status',
-            render: (value: DocumentStatus) => (
-              <Tag color={DOCUMENT_STATUS[value].color}>{DOCUMENT_STATUS[value].label}</Tag>
-            ),
+            render: (value: DocumentStatus, document: BusinessDocument) => {
+              // Issued invoices show their payment state (open, overdue, paid ...), not just "issued".
+              if (document.payment) {
+                const payment = PAYMENT_STATUS[document.payment.status];
+                return (
+                  <Tag color={payment.color}>
+                    {payment.label}
+                    {document.payment.status === 'OVERDUE' ? ` (${document.payment.overdueDays} T.)` : ''}
+                  </Tag>
+                );
+              }
+              return <Tag color={DOCUMENT_STATUS[value].color}>{DOCUMENT_STATUS[value].label}</Tag>;
+            },
           },
           { title: 'Netto', responsive: ['md'], dataIndex: 'netTotal', align: 'right', render: formatMoney },
           { title: 'Brutto', dataIndex: 'grossTotal', align: 'right', render: formatMoney },

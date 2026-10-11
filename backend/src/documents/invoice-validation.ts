@@ -19,6 +19,7 @@ export interface InvoiceCheckInput {
     reverseCharge: boolean;
     recipientVatId?: string | null;
     kind?: InvoiceKind;
+    isCreditNote?: boolean; // Stornorechnung: negative amounts, no payment term
     retentionPercent?: number | null;
     retentionDueDate?: Date | null;
   };
@@ -49,7 +50,7 @@ export function validateInvoice(input: InvoiceCheckInput): string[] {
   } else if (details.serviceDateTo && details.serviceDateTo < details.serviceDateFrom) {
     problems.push('Leistungszeitraum: Das Ende liegt vor dem Beginn.');
   }
-  if (details.paymentTermDays === null || details.paymentTermDays === undefined || details.paymentTermDays < 0) {
+  if (!details.isCreditNote && (details.paymentTermDays === null || details.paymentTermDays === undefined || details.paymentTermDays < 0)) {
     problems.push('Zahlungsziel fehlt.');
   }
 
@@ -65,7 +66,11 @@ export function validateInvoice(input: InvoiceCheckInput): string[] {
   }
   if (positions.some((item) => !item.isOptional)) {
     const net = calculateTotals(items).net;
-    if (details.kind === InvoiceKind.FINAL) {
+    if (details.isCreditNote) {
+      if (net.gte(0)) {
+        problems.push('Die Stornorechnung muss einen negativen Betrag haben.');
+      }
+    } else if (details.kind === InvoiceKind.FINAL) {
       // A final invoice may end at 0 € (everything paid in advance) but never below.
       if (net.lt(0)) {
         problems.push('Die abgezogenen Abschlagszahlungen übersteigen den Rechnungswert (ggf. Gutschrift nötig).');

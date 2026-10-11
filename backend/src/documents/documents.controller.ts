@@ -23,6 +23,9 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { GaebService } from './gaeb/gaeb.service';
+import { CreatePaymentDto } from './dto/create-payment.dto';
+import { ListReceivablesQueryDto } from './dto/list-receivables-query.dto';
+import { PaymentsService } from './payments.service';
 import { DocumentPdfService } from './document-pdf.service';
 import { DocumentsService } from './documents.service';
 import { ConvertDocumentDto } from './dto/convert-document.dto';
@@ -43,6 +46,7 @@ export class DocumentsController {
     private readonly documentsService: DocumentsService,
     private readonly pdfService: DocumentPdfService,
     private readonly gaebService: GaebService,
+    private readonly paymentsService: PaymentsService,
   ) {}
 
   @Get('documents')
@@ -96,6 +100,30 @@ export class DocumentsController {
   @Post('documents/:id/refresh-deductions')
   refreshDeductions(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.documentsService.refreshDeductions(user.companyId, id);
+  }
+
+  // Cancels an issued invoice: creates the credit note (Stornorechnung) as a draft; issuing it
+  // marks the invoice as cancelled.
+  @Post('documents/:id/cancel')
+  cancel(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.documentsService.cancel(user.companyId, id);
+  }
+
+  // Incoming payment on an issued invoice (or refund on a credit note).
+  @Post('documents/:id/payments')
+  addPayment(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: CreatePaymentDto) {
+    return this.paymentsService.create(user, id, dto);
+  }
+
+  @Delete('payments/:paymentId')
+  removePayment(@CurrentUser() user: AuthenticatedUser, @Param('paymentId') paymentId: string) {
+    return this.paymentsService.remove(user.companyId, paymentId);
+  }
+
+  // Open items (Offene Posten): unpaid amounts, retentions and refunds, oldest due date first.
+  @Get('receivables')
+  receivables(@CurrentUser() user: AuthenticatedUser, @Query() query: ListReceivablesQueryDto) {
+    return this.paymentsService.receivables(user.companyId, query);
   }
 
   @Post('documents/:id/duplicate')
