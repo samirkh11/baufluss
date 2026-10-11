@@ -1,4 +1,4 @@
-import { DocumentItemKind } from '@prisma/client';
+import { DocumentItemKind, InvoiceKind } from '@prisma/client';
 import { calculateTotals, CalcItem } from './calculations';
 
 // Everything the pre-issue check needs; plain data so the rules can be unit-tested.
@@ -18,6 +18,9 @@ export interface InvoiceCheckInput {
     paymentTermDays?: number | null;
     reverseCharge: boolean;
     recipientVatId?: string | null;
+    kind?: InvoiceKind;
+    retentionPercent?: number | null;
+    retentionDueDate?: Date | null;
   };
   items: (CalcItem & { name: string })[];
 }
@@ -60,8 +63,20 @@ export function validateInvoice(input: InvoiceCheckInput): string[] {
   if (items.some((item) => blank(item.name))) {
     problems.push('Mindestens eine Zeile hat keine Bezeichnung.');
   }
-  if (positions.some((item) => !item.isOptional) && calculateTotals(items).net.lte(0)) {
-    problems.push('Die Rechnungssumme muss größer als 0 € sein.');
+  if (positions.some((item) => !item.isOptional)) {
+    const net = calculateTotals(items).net;
+    if (details.kind === InvoiceKind.FINAL) {
+      // A final invoice may end at 0 € (everything paid in advance) but never below.
+      if (net.lt(0)) {
+        problems.push('Die abgezogenen Abschlagszahlungen übersteigen den Rechnungswert (ggf. Gutschrift nötig).');
+      }
+    } else if (net.lte(0)) {
+      problems.push('Die Rechnungssumme muss größer als 0 € sein.');
+    }
+  }
+
+  if (details.retentionPercent && details.retentionPercent > 0 && !details.retentionDueDate) {
+    problems.push('Sicherheitseinbehalt: Bitte angeben, wann der Einbehalt fällig wird (Ende der Gewährleistung).');
   }
 
   if (details.reverseCharge) {

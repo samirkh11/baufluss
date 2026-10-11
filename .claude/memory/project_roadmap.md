@@ -112,7 +112,7 @@ Aufgeteilt in drei Teilschritte:
   gruppieren, Zwischensummen, Rabatt auf Gesamtsumme, Versand per E-Mail, PDF-Layout
   konfigurierbar (Briefpapier-PDF als Hintergrund), Angebots-Historie/Revisionen.
 
-### 🟡 Block 5 — Rechnungen (Teilschritt 1/4 fertig, 2026-10-11)
+### 🟡 Block 5 — Rechnungen (Teilschritte 1+2 von 4 fertig, 2026-10-11)
 Aufgeteilt in vier Teilschritte:
 - ✅ **1. Rechnung ausstellen mit allen Pflichtangaben.** Rechnungen sind `Document`s vom Typ INVOICE
   (Entwurf entsteht per „Rechnung erstellen" aus Angebot/Auftrag oder direkt im Projekt).
@@ -135,11 +135,30 @@ Aufgeteilt in vier Teilschritte:
     enthält keine Zahlungsfrist mehr (kommt strukturiert aus den Rechnungsdaten).
   - Nummer `INVOICE` lückenlos, Jahreswechsel-Reset: Der Seed MUSS `lastResetYear` setzen (sonst
     Kollision mit seeded RE-00001, so geschehen).
-- ⬜ **2. Abschlags- und Schlussrechnung, Sicherheitseinbehalt.** Rechnungsart (normal/Abschlag/Schluss)
-  an `InvoiceDetails`; Schlussrechnung rechnet bereits gestellte Abschläge ab (netto je Steuersatz,
-  Abzug sichtbar); Sicherheitseinbehalt (Prozent, Betrag, Freigabe/Auszahlung später); Abschlags-
-  prozent/-betrag vom Auftragswert, Übersicht „Auftragswert – abgerechnet – offen" im Projekt.
-  Hinweis: bei Abschlägen nach § 14 Abs. 5 UStG Steuerausweis beachten.
+- ✅ **2. Abschlags- und Schlussrechnung, Sicherheitseinbehalt** (2026-10-11).
+  - `InvoiceDetails.kind` (STANDARD/PARTIAL/FINAL), `partialNumber`, `retentionPercent/Amount/DueDate`;
+    `DocumentItem.deductsDocumentId` (Abzugszeile → Abschlagsrechnung). Menü im Editor (Angebot/
+    Auftrag): „Rechnung erstellen" → Gesamtrechnung / Abschlagsrechnung … / Schlussrechnung.
+  - **Abschlag** (`DocumentsService.createContractInvoice`): Prozent ODER Nettobetrag vom Auftragswert,
+    aufgeteilt auf die Steuersätze des Auftrags (`partial-invoice.ts`, Rest in die letzte Gruppe →
+    Summe exakt, Jest-getestet), je Satz eine Pauschalzeile „Abschlagszahlung Nr. n"; Summe aller
+    Abschläge darf den Auftragswert nicht übersteigen (409); Nummer = höchste + 1.
+  - **Schluss**: alle Positionen des Auftrags + Überschrift „Bereits berechnete Abschlagszahlungen" +
+    negative Zeilen je ausgestellter Abschlagsrechnung und Steuersatz (netto). Prüfliste meldet
+    nicht abgezogene Abschläge und Abschläge im Entwurf; Button „Abzüge aktualisieren"
+    (`POST /documents/:id/refresh-deductions`). Nach einer ausgestellten Schlussrechnung keine weiteren
+    Abschläge/Schlussrechnungen (409). Saldo 0 € erlaubt, negativ nicht.
+  - Hat ein Angebot eine Auftragsbestätigung, wird Abschlag/Schluss nur noch vom Auftrag aus erzeugt.
+  - **Sicherheitseinbehalt**: Prozent vom Brutto der Rechnung + Fälligkeitsdatum (Ende Gewährleistung),
+    Betrag wird beim Ausstellen fixiert; PDF zeigt Einbehalt + „Zahlbetrag" und den Fälligkeitshinweis.
+    ⚠ Der Einbehalt ist noch KEINE offene Forderung mit eigener Fälligkeit — das kommt mit Zahlungen
+    (Teilschritt 3: Einbehalt als eigener offener Posten, Auszahlung/Bürgschaftsablösung).
+  - **Abrechnungsübersicht** (`GET /documents/:id/billing`, Karte „Abrechnung" im Auftrag/Angebot):
+    Auftragswert, abgerechnet (ausgestellte Rechnungen), offen, Fortschrittsbalken, Rechnungsliste.
+  - PDF: Titel nach Art („Abschlagsrechnung Nr. 1", „Schlussrechnung"), Hinweis „Schlussabrechnung
+    bleibt vorbehalten". Listen zeigen Tags Abschlag n / Schluss.
+  - Offen/Ideen: Abschlag nach Leistungsstand je Position (Aufmaß), Teilschlussrechnung, VOB/B-Fristen
+    (Prüffrist 30 Tage, Schlusszahlung), Abschlag mit Umsatzsteuer nach Vereinnahmung (§ 13 UStG).
 - ⬜ **3. Storno und Zahlungseingang.** `CREDIT_NOTE` freischalten (Stornorechnung referenziert die
   Originalrechnung, spiegelt Beträge, eigene Nummer), Status PAID/PARTIALLY_PAID/CANCELLED, Tabelle
   `Payment` (Datum, Betrag, Zahlungsart, Notiz), offene Posten/Fälligkeitsliste, Skonto.
@@ -240,7 +259,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 2. ~~Kontakte & Stammdaten~~ ✅
 3. ~~Projekte (inkl. Berichte)~~ ✅
 4. ~~Angebote (Editor, PDF, Übernahme, GAEB)~~ ✅
-5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritt 1/4 ✅ (ausstellen), Datenmodell EN16931-kompatibel halten
+5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1+2/4 ✅ (ausstellen, Abschlag/Schluss/Einbehalt), Datenmodell EN16931-kompatibel halten
 6. Eingangsrechnungen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens

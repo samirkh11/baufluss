@@ -106,7 +106,17 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
             title: 'Nr.',
             width: 110,
             render: (_, document: BusinessDocument) => (
-              <Link to={documentPath(document.type, document.id)}>{document.number ?? 'Entwurf'}</Link>
+              <>
+                <Link to={documentPath(document.type, document.id)}>{document.number ?? 'Entwurf'}</Link>
+                {document.invoiceDetails?.kind === 'PARTIAL' && (
+                  <Tag style={{ marginLeft: 4 }}>Abschlag {document.invoiceDetails.partialNumber}</Tag>
+                )}
+                {document.invoiceDetails?.kind === 'FINAL' && (
+                  <Tag color="purple" style={{ marginLeft: 4 }}>
+                    Schluss
+                  </Tag>
+                )}
+              </>
             ),
           },
           { title: 'Datum', responsive: ['md'], dataIndex: 'documentDate', width: 100, render: formatDate },

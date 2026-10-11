@@ -230,6 +230,7 @@ await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstell
 await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
 check('order issued with number AB-00003', await page.locator('h3', { hasText: 'AB-00003' }).isVisible());
 await page.getByRole('button', { name: 'Rechnung erstellen' }).click();
+await page.getByRole('menuitem', { name: 'Gesamtrechnung' }).click();
 await page.waitForURL(/\/invoices\/.+/);
 await page.waitForSelector('h3:has-text("Rechnung")');
 check('invoice draft created from the order, with the invoice details card', (await page.getByText('Rechnungsangaben').count()) > 0 && (await page.getByText('AB-00003').count()) > 0);
@@ -250,7 +251,7 @@ check('after removing the optional line the invoice is ready to issue', true);
 await page.getByRole('button', { name: 'Ausstellen' }).first().click();
 await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
 await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
-check('invoice issued with the next gap-free number RE-00002', await page.locator('h3', { hasText: 'RE-00002' }).isVisible());
+check('invoice issued with the next gap-free number RE-00004', await page.locator('h3', { hasText: 'RE-00004' }).isVisible());
 const [invoicePdf] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'PDF' }).click()]);
 check('invoice PDF opens', true, invoicePdf.url());
 await invoicePdf.close();
@@ -259,7 +260,7 @@ await page.waitForSelector('tbody tr.ant-table-row');
 check('orders list shows 3 orders', (await page.locator('tbody tr.ant-table-row').count()) === 3);
 await page.getByRole('menuitem', { name: 'Rechnungen' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
-check('invoices list shows 5 invoices', (await page.locator('tbody tr.ant-table-row').count()) === 5);
+check('invoices list shows 7 invoices', (await page.locator('tbody tr.ant-table-row').count()) === 7);
 // an order cannot be created twice from the same quote
 await page.goto(BASE + '/quotes');
 await page.waitForSelector('tbody tr.ant-table-row');
@@ -314,6 +315,43 @@ await page.waitForSelector('.ant-tabs-tabpane-active input[type=file]', { state:
 await page.locator('.ant-tabs-tabpane-active input[type=file]').setInputFiles(badFile);
 await page.waitForSelector('.ant-message-error');
 check('invalid GAEB file shows an error and stays on the page', (await page.locator('.ant-message-error').innerText()).includes('GAEB') && /\/projects\//.test(page.url()));
+
+// ---- partial and final invoice (Block 5, step 2) on order AB-00002
+await page.goto(BASE + '/orders');
+await page.waitForSelector('tbody tr.ant-table-row');
+await page.getByRole('link', { name: 'AB-00002' }).click();
+await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
+await page.getByRole('button', { name: 'Rechnung erstellen' }).click();
+await page.getByRole('menuitem', { name: /Abschlagsrechnung/ }).click();
+await page.waitForSelector('.ant-modal:visible');
+await page.screenshot({ path: shots + '18-partial-dialog.png' });
+await page.locator('.ant-modal:visible').getByRole('button', { name: 'Erstellen' }).click();
+await page.waitForURL(/\/invoices\/.+/);
+await page.waitForSelector('h3:has-text("Abschlagsrechnung Nr. 1")');
+check('partial invoice draft: 30 % of the order as one lump-sum line', (await page.locator('tbody tr.ant-table-row').count()) === 1 && (await page.locator('input[value="Abschlagszahlung Nr. 1"]').count()) > 0);
+await page.getByRole('button', { name: 'Ausstellen' }).first().click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
+await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
+check('partial invoice issued (RE-00005)', await page.locator('h3', { hasText: 'RE-00005' }).isVisible());
+await page.getByRole('link', { name: /Auftragsbestätigung AB-00002/ }).click();
+await page.waitForSelector('text=Abrechnung');
+check('order shows the billing overview (30 % billed)', (await page.getByText('Abschlagsrechnung Nr. 1').count()) > 0 && (await page.locator('.ant-progress-text').first().innerText()).includes('30'));
+await page.screenshot({ path: shots + '19-order-billing.png' });
+await page.getByRole('button', { name: 'Rechnung erstellen' }).click();
+await page.getByRole('menuitem', { name: 'Schlussrechnung' }).click();
+await page.waitForURL(/\/invoices\/.+/);
+await page.waitForSelector('h3:has-text("Schlussrechnung")');
+check('final invoice deducts the partial invoice (line marked "Abzug")', (await page.getByText('Abzug', { exact: true }).count()) > 0);
+await page.getByLabel('Sicherheitseinbehalt (%)').fill('5');
+await page.getByLabel('Einbehalt fällig am').fill('2031-11-13');
+await page.getByRole('button', { name: 'Speichern' }).click();
+await page.waitForSelector('text=Die Rechnung ist vollständig und kann ausgestellt werden.');
+check('final invoice with retention shows the payable amount', (await page.getByText('Zahlbetrag').count()) > 0);
+await page.screenshot({ path: shots + '20-final-invoice.png' });
+await page.getByRole('button', { name: 'Ausstellen' }).first().click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
+await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
+check('final invoice issued (RE-00006)', await page.locator('h3', { hasText: 'Schlussrechnung RE-00006' }).isVisible());
 
 // ---- time tracking (Block 10), office view
 await page.getByRole('menuitem', { name: 'Zeiten' }).click();

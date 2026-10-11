@@ -20,6 +20,11 @@ export class DocumentItemDto {
   @IsString()
   oz?: string;
 
+  @ApiPropertyOptional({ description: 'Final invoice: the partial invoice this (negative) line deducts' })
+  @IsOptional()
+  @IsUUID()
+  deductsDocumentId?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

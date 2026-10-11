@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsDateString, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { IsBoolean, IsDateString, IsInt, IsNumber, IsOptional, IsString, Max, Min } from 'class-validator';
 
 // Invoice-only data of a draft invoice (PATCH semantics; send null to clear dates/references).
 export class InvoiceDetailsDto {
@@ -24,6 +24,18 @@ export class InvoiceDetailsDto {
   @IsOptional()
   @IsBoolean()
   reverseCharge?: boolean;
+
+  @ApiPropertyOptional({ example: 5, description: 'Sicherheitseinbehalt in percent of this invoice (gross)' })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  @Max(30)
+  retentionPercent?: number;
+
+  @ApiPropertyOptional({ example: '2031-10-12', description: 'When the retention becomes payable (end of the warranty period)' })
+  @IsOptional()
+  @IsDateString()
+  retentionDueDate?: string;
 
   @ApiPropertyOptional({ description: "Customer's order number" })
   @IsOptional()

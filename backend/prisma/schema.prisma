@@ -416,8 +416,9 @@ model Document {
   // issued, so changing the company profile later never alters an issued document (GoBD).
   issuerSnapshot Json?
 
-  items          DocumentItem[]
+  items          DocumentItem[]  @relation("DocumentItems")
   invoiceDetails InvoiceDetails?
+  deductedIn     DocumentItem[]  @relation("DeductedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -433,7 +434,7 @@ model Document {
 model DocumentItem {
   id         String   @id @default(uuid())
   documentId String
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  document   Document @relation("DocumentItems", fields: [documentId], references: [id], onDelete: Cascade)
   sortOrder  Int
 
   kind DocumentItemKind @default(POSITION)
@@ -456,6 +457,10 @@ model DocumentItem {
   discountPercent Decimal @default(0) @db.Decimal(5, 2)
   // Optional (Alternativ-/Bedarfsposition): shown on the document but not part of the totals.
   isOptional      Boolean @default(false)
+
+  // Final invoice only: this (negative) line deducts the partial invoice it points to.
+  deductsDocumentId String?
+  deductsDocument   Document? @relation("DeductedBy", fields: [deductsDocumentId], references: [id], onDelete: SetNull)
 
   lineTotal Decimal @default(0) @db.Decimal(14, 2) // net, after discount; 0 for non-positions
 
@@ -509,9 +514,27 @@ model TimeEntry {
 
 // Data that only invoices have (1:1 with Document). Kept out of Document so the quote/order paths
 // stay simple; payments, dunning and partial-invoice data follow in their own tables.
+// How an invoice relates to the contract (quote/order): a complete invoice, a partial invoice
+// (Abschlagsrechnung, a share of the contract value) or the final invoice (Schlussrechnung), which
+// bills the whole contract and deducts the partial invoices already issued.
+enum InvoiceKind {
+  STANDARD
+  PARTIAL
+  FINAL
+}
+
 model InvoiceDetails {
   documentId String   @id
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  kind          InvoiceKind @default(STANDARD)
+  partialNumber Int? // running number of the partial invoice within its contract (1, 2, ...)
+
+  // Sicherheitseinbehalt: the customer withholds a share of this invoice's gross amount until the
+  // warranty period ends. The amount is fixed when the invoice is issued.
+  retentionPercent Decimal?  @db.Decimal(5, 2)
+  retentionAmount  Decimal?  @db.Decimal(14, 2)
+  retentionDueDate DateTime? @db.Date // when the retention becomes payable (end of warranty)
 
   // Leistungsdatum / Leistungszeitraum (mandatory on every invoice, § 14 Abs. 4 Nr. 6 UStG)
   serviceDateFrom DateTime? @db.Date

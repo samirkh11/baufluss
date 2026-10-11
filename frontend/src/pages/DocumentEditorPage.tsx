@@ -7,6 +7,10 @@ import {
   Checkbox,
   Col,
   Descriptions,
+  Radio,
+  Progress,
+  Modal,
+  Dropdown,
   Empty,
   Form,
   Input,
@@ -27,6 +31,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { listCatalogItems } from '../api/catalog';
 import { listContacts } from '../api/contacts';
 import {
+  ConvertOptions,
   convertDocument,
   deleteDocument,
   DocumentItemPayload,
@@ -34,13 +39,15 @@ import {
   duplicateDocument,
   finalizeDocument,
   getDocument,
+  getBilling,
   getDocumentIssues,
+  refreshDeductions,
   downloadGaeb,
   openDocumentPdf,
   setDocumentStatus,
   updateDocument,
 } from '../api/documents';
-import { BusinessDocument, CatalogItem, DocumentItemKind } from '../types';
+import { BusinessDocument, CatalogItem, DocumentItemKind, InvoiceKind } from '../types';
 import { useIsPhone } from '../hooks/useMediaQuery';
 import { apiErrorMessage } from '../utils/assets';
 import { buildOrdinals, calculateTotals, lineTotal } from '../utils/documentCalc';
@@ -60,6 +67,7 @@ interface EditorLine {
   kind: DocumentItemKind;
   catalogItemId?: string;
   oz?: string; // original GAEB Ordnungszahl (imported lines only)
+  deductsDocumentId?: string; // final invoice: deducts this partial invoice
   sku?: string;
   name: string;
   description: string;
@@ -77,6 +85,8 @@ interface HeaderValues {
   serviceDateTo?: string;
   paymentTermDays?: number;
   reverseCharge?: boolean;
+  retentionPercent?: number;
+  retentionDueDate?: string;
   orderReference?: string;
   buyerReference?: string;
   recipientContactId?: string;
@@ -111,6 +121,7 @@ function toEditorLines(document: BusinessDocument): EditorLine[] {
     kind: item.kind,
     catalogItemId: item.catalogItemId ?? undefined,
     oz: item.oz ?? undefined,
+    deductsDocumentId: item.deductsDocumentId ?? undefined,
     sku: item.sku ?? undefined,
     name: item.name,
     description: item.description ?? '',
@@ -128,6 +139,7 @@ function toPayload(line: EditorLine): DocumentItemPayload {
     kind: line.kind,
     catalogItemId: line.catalogItemId,
     oz: line.oz,
+    deductsDocumentId: line.deductsDocumentId,
     sku: line.sku,
     name: line.name,
     description: line.description || undefined,
@@ -168,6 +180,19 @@ export function DocumentEditorPage() {
     queryFn: () => listCatalogItems({ q: catalogSearch || undefined, pageSize: 20 }),
   });
 
+  // Partial invoice dialog (Abschlagsrechnung from a quote/order)
+  const [partialOpen, setPartialOpen] = useState(false);
+  const [partialMode, setPartialMode] = useState<'percent' | 'amount'>('percent');
+  const [partialValue, setPartialValue] = useState<number | null>(30);
+
+  // Billing overview of a contract: invoices so far, billed vs. open.
+  const { data: billing } = useQuery({
+    queryKey: ['documents', 'billing', id, document?.updatedAt],
+    queryFn: () => getBilling(id),
+    enabled:
+      !!document && (document.type === 'QUOTE' || document.type === 'ORDER') && document.status !== 'DRAFT',
+  });
+
   // Pre-issue check of the saved invoice (missing service date, tax ids, optional lines ...).
   const { data: issues } = useQuery({
     queryKey: ['documents', 'issues', id, document?.updatedAt],
@@ -192,6 +217,10 @@ export function DocumentEditorPage() {
       serviceDateTo: toDateInput(document.invoiceDetails?.serviceDateTo),
       paymentTermDays: document.invoiceDetails?.paymentTermDays ?? 14,
       reverseCharge: document.invoiceDetails?.reverseCharge ?? false,
+      retentionPercent: document.invoiceDetails?.retentionPercent
+        ? Number(document.invoiceDetails.retentionPercent)
+        : undefined,
+      retentionDueDate: toDateInput(document.invoiceDetails?.retentionDueDate),
       orderReference: document.invoiceDetails?.orderReference ?? '',
       buyerReference: document.invoiceDetails?.buyerReference ?? '',
     });
@@ -202,6 +231,8 @@ export function DocumentEditorPage() {
   const isDraft = document?.status === 'DRAFT';
   const ordinals = useMemo(() => buildOrdinals(lines.map((line) => line.kind)), [lines]);
   const totals = useMemo(() => calculateTotals(lines), [lines]);
+  const retentionPercent = Form.useWatch('retentionPercent', form) as number | undefined;
+  const retentionAmountPreview = Math.round(totals.gross * (retentionPercent ?? 0)) / 100;
 
   function patchLine(key: string, patch: Partial<EditorLine>) {
     setLines((current) => current.map((line) => (line.key === key ? { ...line, ...patch } : line)));
@@ -263,6 +294,8 @@ export function DocumentEditorPage() {
               serviceDateTo: values.serviceDateTo || null,
               paymentTermDays: values.paymentTermDays ?? 14,
               reverseCharge: !!values.reverseCharge,
+              retentionPercent: values.retentionPercent ?? null,
+              retentionDueDate: values.retentionDueDate || null,
               orderReference: values.orderReference || null,
               buyerReference: values.buyerReference || null,
             },
@@ -320,12 +353,21 @@ export function DocumentEditorPage() {
 
   // Takes the document over into the next stage (quote -> order -> invoice) as a new draft.
   const convertMutation = useMutation({
-    mutationFn: (targetType: 'ORDER' | 'INVOICE') => convertDocument(id, targetType),
+    mutationFn: (options: ConvertOptions) => convertDocument(id, options),
     onSuccess: (created) => {
       message.success(`${DOCUMENT_TYPE[created.type]} als Entwurf angelegt.`);
       queryClient.invalidateQueries({ queryKey: ['documents'] });
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       navigate(documentPath(created.type, created.id));
+    },
+    onError,
+  });
+
+  const refreshDeductionsMutation = useMutation({
+    mutationFn: () => refreshDeductions(id),
+    onSuccess: (saved) => {
+      message.success('Abzüge aktualisiert.');
+      refreshCache(saved);
     },
     onError,
   });
@@ -379,6 +421,15 @@ export function DocumentEditorPage() {
 
   const status = DOCUMENT_STATUS[document.status];
   const numberLabel = document.number ?? 'Entwurf';
+  const invoiceKind: InvoiceKind | undefined =
+    document.type === 'INVOICE' ? document.invoiceDetails?.kind : undefined;
+  // Invoices are titled by kind: Abschlagsrechnung Nr. n / Schlussrechnung / Rechnung.
+  const typeLabel =
+    invoiceKind === 'PARTIAL'
+      ? `Abschlagsrechnung${document.invoiceDetails?.partialNumber ? ` Nr. ${document.invoiceDetails.partialNumber}` : ''}`
+      : invoiceKind === 'FINAL'
+        ? 'Schlussrechnung'
+        : DOCUMENT_TYPE[document.type];
   const isQuote = document.type === 'QUOTE';
   const canIssue = true;
   const issued = document.status === 'SENT' || document.status === 'ACCEPTED';
@@ -395,6 +446,7 @@ export function DocumentEditorPage() {
         <div>
           {ordinals[index] ?? ''}
           {line.oz && <div style={{ fontSize: 11, color: '#888' }}>OZ {line.oz}</div>}
+          {line.deductsDocumentId && <Tag color="purple">Abzug</Tag>}
         </div>
       ),
     },
@@ -594,7 +646,7 @@ export function DocumentEditorPage() {
       <style>{'.document-heading-row td { background: #fafafa; }'}</style>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
         <Typography.Title level={3} style={{ margin: 0 }}>
-          {DOCUMENT_TYPE[document.type]} {numberLabel} <Tag color={status.color}>{status.label}</Tag>
+          {typeLabel} {numberLabel} <Tag color={status.color}>{status.label}</Tag>
         </Typography.Title>
         <Space wrap>
           <Link to={`/projects/${document.projectId}`}>
@@ -612,18 +664,44 @@ export function DocumentEditorPage() {
             Duplizieren
           </Button>
           {canConvertToOrder && (
-            <Button loading={convertMutation.isPending} onClick={() => convertMutation.mutate('ORDER')}>
+            <Button
+              loading={convertMutation.isPending}
+              onClick={() => convertMutation.mutate({ targetType: 'ORDER' })}
+            >
               Auftragsbestätigung erstellen
             </Button>
           )}
           {canConvertToInvoice && (
-            <Button
-              type="primary"
-              ghost
-              loading={convertMutation.isPending}
-              onClick={() => convertMutation.mutate('INVOICE')}
+            <Dropdown
+              menu={{
+                items: [
+                  { key: 'standard', label: 'Gesamtrechnung' },
+                  { key: 'partial', label: 'Abschlagsrechnung …' },
+                  { key: 'final', label: 'Schlussrechnung' },
+                ],
+                onClick: ({ key }) => {
+                  if (key === 'partial') {
+                    setPartialOpen(true);
+                  } else {
+                    convertMutation.mutate({
+                      targetType: 'INVOICE',
+                      invoiceKind: key === 'final' ? 'FINAL' : 'STANDARD',
+                    });
+                  }
+                },
+              }}
             >
-              Rechnung erstellen
+              <Button type="primary" ghost loading={convertMutation.isPending}>
+                Rechnung erstellen
+              </Button>
+            </Dropdown>
+          )}
+          {invoiceKind === 'FINAL' && isDraft && (
+            <Button
+              loading={refreshDeductionsMutation.isPending}
+              onClick={() => refreshDeductionsMutation.mutate()}
+            >
+              Abzüge aktualisieren
             </Button>
           )}
           {isDraft && (
@@ -690,6 +768,38 @@ export function DocumentEditorPage() {
             ) : undefined
           }
         />
+      )}
+
+      {billing && billing.invoices.length > 0 && (
+        <Card title="Abrechnung" size="small" style={{ marginBottom: 16 }}>
+          <Space wrap size="large" style={{ marginBottom: 8, display: 'flex' }}>
+            <span>
+              Auftragswert (netto): <strong>{formatMoney(billing.contractNet)}</strong>
+            </span>
+            <span>
+              abgerechnet: <strong>{formatMoney(billing.billedNet)}</strong>
+            </span>
+            <span>
+              offen: <strong>{formatMoney(billing.openNet)}</strong>
+            </span>
+          </Space>
+          <Progress percent={Math.round(billing.percentBilled)} style={{ maxWidth: 480 }} />
+          <Space direction="vertical" size={2} style={{ marginTop: 8 }}>
+            {billing.invoices.map((invoice) => (
+              <Link key={invoice.id} to={documentPath('INVOICE', invoice.id)}>
+                {invoice.kind === 'PARTIAL'
+                  ? `Abschlagsrechnung Nr. ${invoice.partialNumber ?? ''}`
+                  : invoice.kind === 'FINAL'
+                    ? 'Schlussrechnung'
+                    : 'Rechnung'}{' '}
+                {invoice.number ?? '(Entwurf)'} · {formatMoney(invoice.netTotal)} netto{' '}
+                <Tag color={DOCUMENT_STATUS[invoice.status].color}>
+                  {DOCUMENT_STATUS[invoice.status].label}
+                </Tag>
+              </Link>
+            ))}
+          </Space>
+        </Card>
       )}
 
       {(document.sourceDocument || document.derivedDocuments.length > 0) && (
@@ -844,6 +954,26 @@ export function DocumentEditorPage() {
                   <Switch checkedChildren="Reverse Charge" unCheckedChildren="aus" />
                 </Form.Item>
               </Col>
+              <Col xs={12} md={6}>
+                <Form.Item
+                  name="retentionPercent"
+                  label="Sicherheitseinbehalt (%)"
+                  tooltip="Der Kunde behält diesen Anteil des Bruttobetrags bis zum Ende der Gewährleistung ein."
+                >
+                  <InputNumber
+                    min={0}
+                    max={30}
+                    precision={2}
+                    decimalSeparator=","
+                    style={{ width: '100%' }}
+                  />
+                </Form.Item>
+              </Col>
+              <Col xs={12} md={6}>
+                <Form.Item name="retentionDueDate" label="Einbehalt fällig am">
+                  <Input type="date" />
+                </Form.Item>
+              </Col>
               <Col xs={24} md={12}>
                 <Form.Item name="orderReference" label="Bestellnummer des Kunden (optional)">
                   <Input />
@@ -919,6 +1049,20 @@ export function DocumentEditorPage() {
                     {formatMoney(totals.gross)}
                   </td>
                 </tr>
+                {document.type === 'INVOICE' && !!retentionPercent && retentionPercent > 0 && (
+                  <>
+                    <tr>
+                      <td>abzgl. Sicherheitseinbehalt ({retentionPercent} %)</td>
+                      <td style={{ textAlign: 'right' }}>{formatMoney(-retentionAmountPreview)}</td>
+                    </tr>
+                    <tr style={{ fontWeight: 'bold' }}>
+                      <td>Zahlbetrag</td>
+                      <td style={{ textAlign: 'right' }}>
+                        {formatMoney(totals.gross - retentionAmountPreview)}
+                      </td>
+                    </tr>
+                  </>
+                )}
               </tbody>
             </table>
           </div>
@@ -935,6 +1079,65 @@ export function DocumentEditorPage() {
           </Form.Item>
         </Card>
       </Form>
+
+      <Modal
+        title="Abschlagsrechnung erstellen"
+        open={partialOpen}
+        onCancel={() => setPartialOpen(false)}
+        okText="Erstellen"
+        confirmLoading={convertMutation.isPending}
+        okButtonProps={{ disabled: !partialValue }}
+        onOk={() => {
+          if (!partialValue) {
+            return;
+          }
+          convertMutation.mutate(
+            {
+              targetType: 'INVOICE',
+              invoiceKind: 'PARTIAL',
+              ...(partialMode === 'percent' ? { percent: partialValue } : { netAmount: partialValue }),
+            },
+            { onSuccess: () => setPartialOpen(false) },
+          );
+        }}
+      >
+        <Typography.Paragraph type="secondary">
+          Die Abschlagszahlung wird als Teil des Auftragswerts berechnet (netto, anteilig je Steuersatz). Die
+          Schlussrechnung zieht sie später wieder ab.
+        </Typography.Paragraph>
+        <Radio.Group
+          value={partialMode}
+          onChange={(event) => {
+            setPartialMode(event.target.value);
+            setPartialValue(event.target.value === 'percent' ? 30 : null);
+          }}
+          style={{ marginBottom: 12 }}
+        >
+          <Radio.Button value="percent">in Prozent</Radio.Button>
+          <Radio.Button value="amount">als Betrag</Radio.Button>
+        </Radio.Group>
+        <div>
+          <Space>
+            <InputNumber
+              aria-label="Abschlag"
+              min={0.01}
+              max={partialMode === 'percent' ? 100 : undefined}
+              precision={2}
+              decimalSeparator=","
+              value={partialValue}
+              onChange={setPartialValue}
+              style={{ width: 160 }}
+            />
+            <span>{partialMode === 'percent' ? '% des Auftragswerts' : '€ netto'}</span>
+          </Space>
+        </div>
+        {billing && (
+          <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
+            Auftragswert netto {formatMoney(billing.contractNet)} · bisher abgerechnet{' '}
+            {formatMoney(billing.billedNet)}.
+          </Typography.Paragraph>
+        )}
+      </Modal>
     </div>
   );
 }

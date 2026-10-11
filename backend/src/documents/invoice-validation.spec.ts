@@ -1,4 +1,4 @@
-import { DocumentItemKind } from '@prisma/client';
+import { DocumentItemKind, InvoiceKind } from '@prisma/client';
 import { InvoiceCheckInput, validateInvoice } from './invoice-validation';
 
 const valid = (): InvoiceCheckInput => ({
@@ -71,6 +71,32 @@ describe('validateInvoice', () => {
     const input = valid();
     input.items[1].name = '';
     expect(validateInvoice(input)).toContain('Mindestens eine Zeile hat keine Bezeichnung.');
+  });
+
+  describe('partial and final invoices, retention', () => {
+    it('allows a final invoice with a 0 € balance but not a negative one', () => {
+      const input = valid();
+      input.details.kind = InvoiceKind.FINAL;
+      input.items.push({ kind: DocumentItemKind.POSITION, name: 'Abzug', quantity: 1, unitPrice: -950, vatRate: 19, discountPercent: 0, isOptional: false });
+      expect(validateInvoice(input)).toEqual([]);
+      input.items[2].unitPrice = -1000;
+      expect(validateInvoice(input)).toEqual([expect.stringContaining('übersteigen den Rechnungswert')]);
+    });
+
+    it('still requires a positive total for standard and partial invoices', () => {
+      const input = valid();
+      input.details.kind = InvoiceKind.PARTIAL;
+      input.items[1].unitPrice = 0;
+      expect(validateInvoice(input)).toEqual(['Die Rechnungssumme muss größer als 0 € sein.']);
+    });
+
+    it('needs a due date for the retention', () => {
+      const input = valid();
+      input.details.retentionPercent = 5;
+      expect(validateInvoice(input)).toEqual([expect.stringContaining('Sicherheitseinbehalt')]);
+      input.details.retentionDueDate = new Date('2031-10-12');
+      expect(validateInvoice(input)).toEqual([]);
+    });
   });
 
   describe('reverse charge (§ 13b)', () => {

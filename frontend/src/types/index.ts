@@ -178,6 +178,7 @@ export interface DocumentItem {
   id: string;
   kind: DocumentItemKind;
   catalogItemId: string | null;
+  deductsDocumentId: string | null; // final invoice: the partial invoice this line deducts
   oz: string | null; // original GAEB Ordnungszahl of imported lines
   sku: string | null;
   name: string;
@@ -221,7 +222,14 @@ export interface BusinessDocument {
   derivedDocuments: DocumentRef[];
 }
 
+export type InvoiceKind = 'STANDARD' | 'PARTIAL' | 'FINAL';
+
 export interface InvoiceDetails {
+  kind: InvoiceKind;
+  partialNumber: number | null;
+  retentionPercent: string | null; // Sicherheitseinbehalt in percent
+  retentionAmount: string | null; // fixed when issued
+  retentionDueDate: string | null;
   serviceDateFrom: string | null;
   serviceDateTo: string | null;
   paymentTermDays: number;
@@ -277,4 +285,22 @@ export interface TimeSummary {
     byUser: TimeSummaryUser[];
   }[];
   byUser: TimeSummaryUser[];
+}
+
+export interface ContractBilling {
+  contractNet: string;
+  contractGross: string;
+  billedNet: string;
+  openNet: string;
+  percentBilled: number;
+  invoices: {
+    id: string;
+    number: string | null;
+    status: DocumentStatus;
+    kind: InvoiceKind;
+    partialNumber: number | null;
+    documentDate: string;
+    netTotal: string;
+    grossTotal: string;
+  }[];
 }

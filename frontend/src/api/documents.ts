@@ -1,5 +1,13 @@
 import { apiClient } from './client';
-import { BusinessDocument, DocumentItemKind, DocumentStatus, DocumentType, Paginated } from '../types';
+import {
+  BusinessDocument,
+  ContractBilling,
+  DocumentItemKind,
+  DocumentStatus,
+  DocumentType,
+  InvoiceKind,
+  Paginated,
+} from '../types';
 
 export interface ListDocumentsParams {
   q?: string;
@@ -13,6 +21,7 @@ export interface ListDocumentsParams {
 export interface DocumentItemPayload {
   kind: DocumentItemKind;
   catalogItemId?: string;
+  deductsDocumentId?: string;
   oz?: string;
   sku?: string;
   name: string;
@@ -40,6 +49,8 @@ export interface DocumentPayload {
     serviceDateTo?: string | null;
     paymentTermDays?: number;
     reverseCharge?: boolean;
+    retentionPercent?: number | null;
+    retentionDueDate?: string | null;
     orderReference?: string | null;
     buyerReference?: string | null;
   };
@@ -96,11 +107,28 @@ export async function setDocumentStatus(
 }
 
 // Creates the next document of the chain as a draft: quote -> order, quote -> invoice, order -> invoice.
-export async function convertDocument(
-  id: string,
-  targetType: 'ORDER' | 'INVOICE',
-): Promise<BusinessDocument> {
-  const { data } = await apiClient.post<BusinessDocument>(`/documents/${id}/convert`, { targetType });
+export interface ConvertOptions {
+  targetType: 'ORDER' | 'INVOICE';
+  // Invoices: complete (default), partial (Abschlag, needs percent or netAmount) or final (Schluss)
+  invoiceKind?: InvoiceKind;
+  percent?: number;
+  netAmount?: number;
+}
+
+export async function convertDocument(id: string, options: ConvertOptions): Promise<BusinessDocument> {
+  const { data } = await apiClient.post<BusinessDocument>(`/documents/${id}/convert`, options);
+  return data;
+}
+
+// Billing overview of a quote/order: invoices so far, billed vs. open amount.
+export async function getBilling(id: string): Promise<ContractBilling> {
+  const { data } = await apiClient.get<ContractBilling>(`/documents/${id}/billing`);
+  return data;
+}
+
+// Final invoice draft: rebuilds the deduction lines from the partial invoices issued so far.
+export async function refreshDeductions(id: string): Promise<BusinessDocument> {
+  const { data } = await apiClient.post<BusinessDocument>(`/documents/${id}/refresh-deductions`);
   return data;
 }
 

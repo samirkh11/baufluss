@@ -46,8 +46,8 @@ eigene Shell — PID über `ss -ltnp | grep :3000` ermitteln.
 ## UI-Tests im Browser (E2E)
 
 `e2e/` im Repo (Playwright, Chromium liegt in `~/.cache/ms-playwright`). Ablauf: Stack läuft →
-`cd backend && npm run seed` → `cd e2e && npm test` (`smoke.e2e.mjs` 73 Checks: Login, Projekte,
-Berichte+Fotos, Kontakte, Katalog, Nutzer, Angebote/Editor/PDF/Übernahme/GAEB, Rechnung ausstellen, Zeiterfassung, Arbeiter-Rechte; danach
+`cd backend && npm run seed` → `cd e2e && npm test` (`smoke.e2e.mjs` 79 Checks: Login, Projekte,
+Berichte+Fotos, Kontakte, Katalog, Nutzer, Angebote/Editor/PDF/Übernahme/GAEB, Rechnung ausstellen, Abschlag/Schluss, Zeiterfassung, Arbeiter-Rechte; danach
 `responsive.e2e.mjs` 49 Checks auf Phone 390 px/Tablet 820 px: Drawer-Menü, kein Seiten-Überlauf,
 Dialoge, Arbeiter-Bericht mit Foto). Einzeln: `npm run test:smoke` / `npm run test:responsive`.
 Falls der Vite-Dev-Server leere Module liefert (Cache nach vielen Änderungen): Prozess auf :5173
@@ -75,6 +75,8 @@ PDFs prüfen: per curl holen, `pdftoppm -png` rendern und ansehen (poppler-utils
   2026-10-11 überall behoben).
 - Nach dem Löschen eines Datensatzes auf dessen Detailseite darf die Detail-Query nicht neu laden
   (404): Query per `enabled: !deleted` abschalten, bevor navigiert/invalidiert wird.
+- antd `InputNumber` `addonAfter` ist deprecated → Text daneben setzen. Zeilentexte im Angebots-/Rechnungseditor
+  sind Input-Werte (nicht Textinhalt): in Playwright mit `input[value="…"]` suchen, nicht mit `getByText`.
 - Fehler-Toast kann das „×" eines Dialogs verdecken → in E2E „Abbrechen" klicken.
 
 ## Push-Workflow

@@ -86,6 +86,18 @@ export class DocumentsController {
     return this.documentsService.setStatus(user.companyId, id, dto.status);
   }
 
+  // Billing overview of a contract (quote/order): invoices issued so far, billed vs. open amount.
+  @Get('documents/:id/billing')
+  billing(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.documentsService.billing(user.companyId, id);
+  }
+
+  // Final invoice draft: rebuilds the deduction lines from the partial invoices issued so far.
+  @Post('documents/:id/refresh-deductions')
+  refreshDeductions(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.documentsService.refreshDeductions(user.companyId, id);
+  }
+
   @Post('documents/:id/duplicate')
   duplicate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.documentsService.duplicate(user.companyId, id);
@@ -94,7 +106,7 @@ export class DocumentsController {
   // Creates the next document of the chain (quote -> order -> invoice) as a draft.
   @Post('documents/:id/convert')
   convert(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: ConvertDocumentDto) {
-    return this.documentsService.convert(user.companyId, id, dto.targetType);
+    return this.documentsService.convert(user.companyId, id, dto);
   }
 
   @Get('documents/:id/pdf')

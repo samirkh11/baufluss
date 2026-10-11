@@ -1,10 +1,11 @@
 // Block 4 test data: quotes of the roofing company in every status (draft, sent, accepted, rejected).
-import { DocumentItemKind, DocumentStatus, DocumentType, Prisma, PrismaClient } from '@prisma/client';
+import { DocumentItemKind, DocumentStatus, DocumentType, InvoiceKind, Prisma, PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { calculateTotals, lineTotal } from '../../src/documents/calculations';
 import { parseGaeb } from '../../src/documents/gaeb/gaeb-parser';
 import { issuerSnapshotOf } from '../../src/documents/issuer-snapshot';
+import { amountFromPercent, splitPartialAmount } from '../../src/documents/partial-invoice';
 import { SeededCatalogItem } from './catalog';
 
 const { POSITION, HEADING, TEXT } = DocumentItemKind;
@@ -165,6 +166,7 @@ export async function seedDocuments(
   }
 
   await seedDerivedDocuments(prisma, companyId);
+  await seedContractInvoices(prisma, companyId);
   await seedGaebImport(prisma, companyId);
 
   // Issued documents carry the company data as it was when they were issued.
@@ -180,7 +182,7 @@ export async function seedDocuments(
   // The invoice range resets yearly, so it must know its current year or it would restart at 1.
   await prisma.numberSequence.updateMany({
     where: { companyId, documentType: 'INVOICE' },
-    data: { nextNumber: 2, lastResetYear: new Date().getFullYear() },
+    data: { nextNumber: 4, lastResetYear: new Date().getFullYear() },
   });
 }
 
@@ -209,11 +211,6 @@ const DERIVED: DerivedSpec[] = [
     introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
     closingText: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
     invoice: { paymentTermDays: 30, serviceFrom: '2026-08-03', serviceTo: '2026-08-14', orderReference: 'BA-2026/118' } },
-  // Invoice draft prepared from the order of the running project.
-  { sourceNumber: 'AB-00001', type: DocumentType.INVOICE, number: null, status: DocumentStatus.DRAFT, date: '2026-10-11', dropOptional: true,
-    introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
-    closingText: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
-    invoice: { paymentTermDays: 14, serviceFrom: '2026-09-14', serviceTo: '2026-10-09' } },
   // Draft for a private customer (the PDF then carries the retention notice for the customer).
   { sourceNumber: 'AB-00002', type: DocumentType.INVOICE, number: null, status: DocumentStatus.DRAFT, date: '2026-10-11', dropOptional: true,
     introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
@@ -334,6 +331,138 @@ async function seedGaebImport(prisma: PrismaClient, companyId: string): Promise<
           vatRate: 19,
           isOptional: item.isOptional,
           lineTotal: 0,
+        })),
+      },
+    },
+  });
+}
+
+// Contract billing of the running roof renovation (order AB-00001): two issued partial invoices of
+// 30 % each and the final invoice as a draft that deducts both and withholds 5 % as security.
+async function seedContractInvoices(prisma: PrismaClient, companyId: string): Promise<void> {
+  const order = await prisma.document.findFirstOrThrow({
+    where: { companyId, number: 'AB-00001' },
+    include: { items: { orderBy: { sortOrder: 'asc' } }, project: true },
+  });
+  const totals = calculateTotals(order.items);
+  const base = {
+    companyId,
+    projectId: order.projectId,
+    type: DocumentType.INVOICE,
+    sourceDocumentId: order.id,
+    recipientContactId: order.recipientContactId,
+    recipientName: order.recipientName,
+    recipientStreet: order.recipientStreet,
+    recipientZipCode: order.recipientZipCode,
+    recipientCity: order.recipientCity,
+    recipientCountry: order.recipientCountry,
+    subject: order.subject,
+  };
+  const customer = await prisma.contact.findUniqueOrThrow({ where: { id: order.recipientContactId! } });
+
+  const partials: { id: string; number: string; nets: { vatRate: Prisma.Decimal; net: Prisma.Decimal }[]; date: string; n: number }[] = [];
+  for (const [index, spec] of [
+    { number: 'RE-00002', percent: 30, date: '2026-09-20' },
+    { number: 'RE-00003', percent: 30, date: '2026-10-05' },
+  ].entries()) {
+    const n = index + 1;
+    const parts = splitPartialAmount(totals.vatGroups, amountFromPercent(totals.net, spec.percent));
+    const rows = parts.map((part) => ({
+      sortOrder: 0,
+      kind: DocumentItemKind.POSITION,
+      name: `Abschlagszahlung Nr. ${n}`,
+      description: `${spec.percent} % der Auftragssumme von ${totals.net.toFixed(2).replace('.', ',')} € (netto) gemäß Auftragsbestätigung AB-00001`,
+      quantity: new Prisma.Decimal(1),
+      unit: 'psch',
+      unitPrice: part.net,
+      vatRate: part.vatRate,
+      discountPercent: new Prisma.Decimal(0),
+      isOptional: false,
+    }));
+    const t = calculateTotals(rows);
+    const created = await prisma.document.create({
+      data: {
+        ...base,
+        status: DocumentStatus.SENT,
+        number: spec.number,
+        introText: 'für die vertraglich vereinbarte Abschlagszahlung berechnen wir Ihnen:',
+        closingText: 'Dies ist eine Abschlagsrechnung. Die Schlussabrechnung bleibt vorbehalten.',
+        documentDate: new Date(spec.date),
+        finalizedAt: new Date(spec.date),
+        netTotal: t.net,
+        vatTotal: t.vat,
+        grossTotal: t.gross,
+        invoiceDetails: {
+          create: {
+            kind: InvoiceKind.PARTIAL,
+            partialNumber: n,
+            serviceDateFrom: order.project.startDate,
+            serviceDateTo: new Date(spec.date),
+            paymentTermDays: 14,
+            dueDate: new Date(new Date(spec.date).getTime() + 14 * 24 * 60 * 60 * 1000),
+            recipientVatId: customer.vatId,
+          },
+        },
+        items: { create: rows.map((row, i) => ({ ...row, sortOrder: i, lineTotal: lineTotal(row) })) },
+      },
+    });
+    partials.push({ id: created.id, number: spec.number, nets: t.vatGroups, date: spec.date, n });
+  }
+
+  // Final invoice (draft): all positions of the order, minus the issued partial invoices.
+  const orderRows = order.items.filter((item) => !item.isOptional).map((item) => ({
+    kind: item.kind, oz: item.oz, catalogItemId: item.catalogItemId, name: item.name, description: item.description,
+    quantity: item.quantity, unit: item.unit, unitPrice: item.unitPrice, vatRate: item.vatRate,
+    discountPercent: item.discountPercent, isOptional: false, deductsDocumentId: null as string | null,
+  }));
+  const deductionRows = partials.flatMap((partial) =>
+    partial.nets.map((group) => ({
+      kind: DocumentItemKind.POSITION,
+      oz: null as string | null,
+      catalogItemId: null as string | null,
+      name: `abzüglich Abschlagsrechnung Nr. ${partial.n} (${partial.number} vom ${partial.date.split('-').reverse().join('.')})`,
+      description: null as string | null,
+      quantity: new Prisma.Decimal(1),
+      unit: 'psch',
+      unitPrice: group.net.negated(),
+      vatRate: group.vatRate,
+      discountPercent: new Prisma.Decimal(0),
+      isOptional: false,
+      deductsDocumentId: partial.id,
+    })),
+  );
+  const finalRows = [
+    ...orderRows,
+    { ...orderRows[0], kind: DocumentItemKind.HEADING, oz: null, catalogItemId: null, name: 'Bereits berechnete Abschlagszahlungen (netto)', description: null, quantity: new Prisma.Decimal(1), unit: 'Stk', unitPrice: new Prisma.Decimal(0), deductsDocumentId: null },
+    ...deductionRows,
+  ];
+  const finalTotals = calculateTotals(finalRows);
+  await prisma.document.create({
+    data: {
+      ...base,
+      status: DocumentStatus.DRAFT,
+      introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen abschließend:',
+      closingText: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
+      documentDate: new Date('2026-10-11'),
+      netTotal: finalTotals.net,
+      vatTotal: finalTotals.vat,
+      grossTotal: finalTotals.gross,
+      invoiceDetails: {
+        create: {
+          kind: InvoiceKind.FINAL,
+          serviceDateFrom: order.project.startDate,
+          serviceDateTo: order.project.endDate,
+          paymentTermDays: 14,
+          recipientVatId: customer.vatId,
+          retentionPercent: 5,
+          retentionDueDate: new Date('2031-10-12'),
+        },
+      },
+      items: {
+        create: finalRows.map((row, i) => ({
+          sortOrder: i, kind: row.kind, oz: row.oz, catalogItemId: row.catalogItemId, name: row.name, description: row.description,
+          quantity: row.quantity, unit: row.unit, unitPrice: row.unitPrice, vatRate: row.vatRate, discountPercent: row.discountPercent,
+          isOptional: false, deductsDocumentId: row.deductsDocumentId, lineTotal: lineTotal(row),
         })),
       },
     },

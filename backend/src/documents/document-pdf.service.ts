@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Company, DocumentItemKind, DocumentStatus, DocumentType } from '@prisma/client';
+import { Company, DocumentItemKind, DocumentStatus, DocumentType, InvoiceKind } from '@prisma/client';
 import { readFile } from 'fs/promises';
 import { extname, resolve, sep } from 'path';
 import PDFDocument from 'pdfkit';
@@ -24,7 +24,12 @@ const TITLES: Record<DocumentType, string> = {
 };
 
 // Short names for the reference line (the column is narrow).
-const SHORT_TITLES: Record<DocumentType, string> = { QUOTE: 'Angebot', ORDER: 'Auftrag', INVOICE: 'Rechnung', CREDIT_NOTE: 'Gutschrift' };
+const SHORT_TITLES: Record<DocumentType, string> = {
+  QUOTE: 'Angebot',
+  ORDER: 'Auftrag',
+  INVOICE: 'Rechnung',
+  CREDIT_NOTE: 'Gutschrift',
+};
 
 // Label of the number field in the reference block (the full title would not fit).
 const NUMBER_LABELS: Record<DocumentType, string> = {
@@ -37,7 +42,9 @@ const NUMBER_LABELS: Record<DocumentType, string> = {
 const money = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 const quantityFormat = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 });
 const formatDate = (date: Date | null) =>
-  date ? date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }) : '';
+  date
+    ? date.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' })
+    : '';
 
 @Injectable()
 export class DocumentPdfService {
@@ -70,19 +77,40 @@ export class DocumentPdfService {
     });
     const chunks: Buffer[] = [];
     pdf.on('data', (chunk: Buffer) => chunks.push(chunk));
-    const finished = new Promise<Buffer>((resolveBuffer) => pdf.on('end', () => resolveBuffer(Buffer.concat(chunks))));
+    const finished = new Promise<Buffer>((resolveBuffer) =>
+      pdf.on('end', () => resolveBuffer(Buffer.concat(chunks))),
+    );
 
     const isDraft = document.status === DocumentStatus.DRAFT;
-    const title = `${TITLES[document.type]} ${document.number ?? '(Entwurf)'}`;
+    // Invoices are titled by kind: Abschlagsrechnung Nr. n / Schlussrechnung / Rechnung.
+    const invoiceKind = document.type === DocumentType.INVOICE ? document.invoiceDetails?.kind : undefined;
+    const documentTitle =
+      invoiceKind === InvoiceKind.PARTIAL
+        ? `Abschlagsrechnung${document.invoiceDetails?.partialNumber ? ` Nr. ${document.invoiceDetails.partialNumber}` : ''}`
+        : invoiceKind === InvoiceKind.FINAL
+          ? 'Schlussrechnung'
+          : TITLES[document.type];
+    const title = `${documentTitle} ${document.number ?? '(Entwurf)'}`;
 
     await this.drawLetterhead(pdf, company);
 
     // Sender line above the recipient window + recipient address.
     pdf.font('Helvetica').fontSize(7).fillColor(COLORS.muted);
-    pdf.text([company.name, company.street, [company.zipCode, company.city].filter(Boolean).join(' ')].filter(Boolean).join(' · '), PAGE.left, 150, { width: 250, underline: true });
+    pdf.text(
+      [company.name, company.street, [company.zipCode, company.city].filter(Boolean).join(' ')]
+        .filter(Boolean)
+        .join(' · '),
+      PAGE.left,
+      150,
+      { width: 250, underline: true },
+    );
     pdf.font('Helvetica').fontSize(10).fillColor(COLORS.text);
     pdf.text(
-      [document.recipientName, document.recipientStreet, [document.recipientZipCode, document.recipientCity].filter(Boolean).join(' ')]
+      [
+        document.recipientName,
+        document.recipientStreet,
+        [document.recipientZipCode, document.recipientCity].filter(Boolean).join(' '),
+      ]
         .filter(Boolean)
         .join('\n'),
       PAGE.left,
@@ -102,13 +130,21 @@ export class DocumentPdfService {
       ['Datum:', formatDate(document.documentDate)],
       ...(servicePeriod ? ([['Leistung:', servicePeriod]] as [string, string][]) : []),
       ...(invoice?.dueDate ? ([['Fällig am:', formatDate(invoice.dueDate)]] as [string, string][]) : []),
-      ...(document.validUntil ? ([['Gültig bis:', formatDate(document.validUntil)]] as [string, string][]) : []),
+      ...(document.validUntil
+        ? ([['Gültig bis:', formatDate(document.validUntil)]] as [string, string][])
+        : []),
       ['Projekt:', `${document.project.number}`],
-      ...(document.recipientContact?.number ? ([['Kunden-Nr.:', document.recipientContact.number]] as [string, string][]) : []),
-      ...(invoice?.orderReference ? ([['Ihre Bestell-Nr.:', invoice.orderReference]] as [string, string][]) : []),
+      ...(document.recipientContact?.number
+        ? ([['Kunden-Nr.:', document.recipientContact.number]] as [string, string][])
+        : []),
+      ...(invoice?.orderReference
+        ? ([['Ihre Bestell-Nr.:', invoice.orderReference]] as [string, string][])
+        : []),
       ...(invoice?.buyerReference ? ([['Leitweg-ID:', invoice.buyerReference]] as [string, string][]) : []),
       ...(document.sourceDocument?.number
-        ? ([['Bezug:', `${SHORT_TITLES[document.sourceDocument.type]} ${document.sourceDocument.number}`]] as [string, string][])
+        ? ([
+            ['Bezug:', `${SHORT_TITLES[document.sourceDocument.type]} ${document.sourceDocument.number}`],
+          ] as [string, string][])
         : []),
     ];
     let infoY = 150;
@@ -121,18 +157,31 @@ export class DocumentPdfService {
     }
 
     // Many reference lines (invoices) push the title down.
-    pdf.font('Helvetica-Bold').fontSize(15).fillColor(COLORS.accent).text(title, PAGE.left, Math.max(260, infoY + 12), { width: CONTENT_WIDTH });
+    pdf
+      .font('Helvetica-Bold')
+      .fontSize(15)
+      .fillColor(COLORS.accent)
+      .text(title, PAGE.left, Math.max(260, infoY + 12), { width: CONTENT_WIDTH });
     pdf.moveDown(0.4);
     if (document.subject) {
-      pdf.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.text).text(document.subject, { width: CONTENT_WIDTH });
+      pdf
+        .font('Helvetica-Bold')
+        .fontSize(11)
+        .fillColor(COLORS.text)
+        .text(document.subject, { width: CONTENT_WIDTH });
     }
     if (document.introText) {
-      pdf.moveDown(0.5).font('Helvetica').fontSize(10).fillColor(COLORS.text).text(document.introText, { width: CONTENT_WIDTH });
+      pdf
+        .moveDown(0.5)
+        .font('Helvetica')
+        .fontSize(10)
+        .fillColor(COLORS.text)
+        .text(document.introText, { width: CONTENT_WIDTH });
     }
     pdf.moveDown(1);
 
     this.drawItems(pdf, document.items);
-    this.drawTotals(pdf, document.items);
+    this.drawTotals(pdf, document.items, invoice);
 
     if (document.type === DocumentType.INVOICE) {
       this.drawInvoiceNotes(pdf, document, company);
@@ -142,26 +191,53 @@ export class DocumentPdfService {
     // really doesn't fit.
     const hasValidity = document.type === DocumentType.QUOTE && !!document.validUntil;
     pdf.font('Helvetica').fontSize(10);
-    const closingHeight = document.closingText ? pdf.heightOfString(document.closingText, { width: CONTENT_WIDTH }) + 18 : 0;
+    const closingHeight = document.closingText
+      ? pdf.heightOfString(document.closingText, { width: CONTENT_WIDTH }) + 18
+      : 0;
     this.ensureSpace(pdf, closingHeight + (hasValidity ? 24 : 0));
     if (document.closingText) {
-      pdf.moveDown(1.2).fillColor(COLORS.text).text(document.closingText, PAGE.left, undefined, { width: CONTENT_WIDTH });
+      pdf
+        .moveDown(1.2)
+        .fillColor(COLORS.text)
+        .text(document.closingText, PAGE.left, undefined, { width: CONTENT_WIDTH });
     }
     if (hasValidity) {
-      pdf.moveDown(0.6).fontSize(9).fillColor(COLORS.muted).text(`Dieses Angebot ist gültig bis ${formatDate(document.validUntil)}.`, PAGE.left, undefined, { width: CONTENT_WIDTH });
+      pdf
+        .moveDown(0.6)
+        .fontSize(9)
+        .fillColor(COLORS.muted)
+        .text(`Dieses Angebot ist gültig bis ${formatDate(document.validUntil)}.`, PAGE.left, undefined, {
+          width: CONTENT_WIDTH,
+        });
     }
 
     this.decoratePages(pdf, company, isDraft);
     pdf.end();
 
     const safeNumber = (document.number ?? 'Entwurf').replace(/[^A-Za-z0-9_-]/g, '_');
-    return { buffer: await finished, filename: `${TITLES[document.type]}_${safeNumber}.pdf` };
+    return {
+      buffer: await finished,
+      filename: `${documentTitle.replace(/[^A-Za-z0-9_-]/g, '_')}_${safeNumber}.pdf`,
+    };
   }
 
   // Legally required notes and payment information below the totals of an invoice.
   private drawInvoiceNotes(
     pdf: PDFKit.PDFDocument,
-    document: { documentDate: Date; number: string | null; invoiceDetails: { paymentTermDays: number; dueDate: Date | null; reverseCharge: boolean; recipientVatId: string | null } | null; recipientContact: { isOrganization: boolean } | null },
+    document: {
+      documentDate: Date;
+      number: string | null;
+      invoiceDetails: {
+        paymentTermDays: number;
+        dueDate: Date | null;
+        reverseCharge: boolean;
+        recipientVatId: string | null;
+        retentionPercent: { toNumber(): number } | null;
+        retentionAmount: { toNumber(): number } | null;
+        retentionDueDate: Date | null;
+      } | null;
+      recipientContact: { isOrganization: boolean } | null;
+    },
     company: Company,
   ) {
     const details = document.invoiceDetails;
@@ -178,11 +254,27 @@ export class DocumentPdfService {
     }
 
     const termDays = details?.paymentTermDays ?? 14;
-    const due = details?.dueDate ?? new Date(document.documentDate.getTime() + termDays * 24 * 60 * 60 * 1000);
-    lines.push({ text: `Zahlungsbedingungen: Zahlbar innerhalb von ${termDays} Tagen ohne Abzug, fällig am ${formatDate(due)}.` });
+    const due =
+      details?.dueDate ?? new Date(document.documentDate.getTime() + termDays * 24 * 60 * 60 * 1000);
+    lines.push({
+      text: `Zahlungsbedingungen: Zahlbar innerhalb von ${termDays} Tagen ohne Abzug, fällig am ${formatDate(due)}.`,
+    });
     if (company.iban) {
-      const bank = [`IBAN ${company.iban}`, company.bic ? `BIC ${company.bic}` : null].filter(Boolean).join(', ');
-      lines.push({ text: `Bitte überweisen Sie auf: ${bank}. Verwendungszweck: Rechnung ${document.number ?? ''}`.trim() });
+      const bank = [`IBAN ${company.iban}`, company.bic ? `BIC ${company.bic}` : null]
+        .filter(Boolean)
+        .join(', ');
+      lines.push({
+        text: `Bitte überweisen Sie auf: ${bank}. Verwendungszweck: Rechnung ${document.number ?? ''}`.trim(),
+      });
+    }
+
+    if (details?.retentionPercent && details.retentionPercent.toNumber() > 0 && details.retentionDueDate) {
+      const amount = details.retentionAmount
+        ? ` von ${money.format(details.retentionAmount.toNumber())}`
+        : '';
+      lines.push({
+        text: `Sicherheitseinbehalt (${quantityFormat.format(details.retentionPercent.toNumber())} %)${amount}: fällig nach Ablauf der Gewährleistungsfrist am ${formatDate(details.retentionDueDate)}.`,
+      });
     }
 
     // Private customers must be told about their retention duty for construction services (§ 14b UStG).
@@ -193,11 +285,18 @@ export class DocumentPdfService {
     }
 
     pdf.fontSize(9);
-    const height = lines.reduce((sum, line) => sum + pdf.heightOfString(line.text, { width: CONTENT_WIDTH }) + 4, 0);
+    const height = lines.reduce(
+      (sum, line) => sum + pdf.heightOfString(line.text, { width: CONTENT_WIDTH }) + 4,
+      0,
+    );
     this.ensureSpace(pdf, height + 16);
     pdf.moveDown(1);
     for (const line of lines) {
-      pdf.font(line.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(9).fillColor(COLORS.text).text(line.text, PAGE.left, undefined, { width: CONTENT_WIDTH });
+      pdf
+        .font(line.bold ? 'Helvetica-Bold' : 'Helvetica')
+        .fontSize(9)
+        .fillColor(COLORS.text)
+        .text(line.text, PAGE.left, undefined, { width: CONTENT_WIDTH });
       pdf.moveDown(0.3);
     }
   }
@@ -210,7 +309,11 @@ export class DocumentPdfService {
         try {
           const data = await readFile(file);
           if (extname(file).toLowerCase() === '.svg') {
-            SVGtoPDF(pdf, data.toString('utf8'), PAGE.left, PAGE.top, { width: 190, height: 60, preserveAspectRatio: 'xMinYMin meet' });
+            SVGtoPDF(pdf, data.toString('utf8'), PAGE.left, PAGE.top, {
+              width: 190,
+              height: 60,
+              preserveAspectRatio: 'xMinYMin meet',
+            });
           } else {
             pdf.image(data, PAGE.left, PAGE.top, { fit: [190, 60] });
           }
@@ -220,7 +323,9 @@ export class DocumentPdfService {
       }
     }
     pdf.font('Helvetica').fontSize(8).fillColor(COLORS.muted);
-    const contact = [company.phone && `Tel. ${company.phone}`, company.email, company.website].filter(Boolean).join('\n');
+    const contact = [company.phone && `Tel. ${company.phone}`, company.email, company.website]
+      .filter(Boolean)
+      .join('\n');
     pdf.text(contact, 370, PAGE.top + 4, { width: PAGE.width - PAGE.right - 370, align: 'right' });
   }
 
@@ -256,7 +361,10 @@ export class DocumentPdfService {
     return { ordinal, name, quantity, unit, price, total };
   }
 
-  private drawItems(pdf: PDFKit.PDFDocument, items: Awaited<ReturnType<PrismaService['documentItem']['findMany']>>) {
+  private drawItems(
+    pdf: PDFKit.PDFDocument,
+    items: Awaited<ReturnType<PrismaService['documentItem']['findMany']>>,
+  ) {
     const ordinals = buildOrdinals(items.map((item) => item.kind));
     const x = this.columnXs();
     this.ensureSpace(pdf, 60);
@@ -265,11 +373,15 @@ export class DocumentPdfService {
     items.forEach((item, index) => {
       const ordinal = ordinals[index] ?? '';
       const description = item.description ?? '';
-      const label = item.name + (item.isOptional && item.kind === DocumentItemKind.POSITION ? ' (optional)' : '');
+      const label =
+        item.name + (item.isOptional && item.kind === DocumentItemKind.POSITION ? ' (optional)' : '');
 
       // Row height from the texts, so we can break the page before drawing instead of mid-row.
       pdf.font(item.kind === DocumentItemKind.HEADING ? 'Helvetica-Bold' : 'Helvetica').fontSize(9);
-      const nameWidth = item.kind === DocumentItemKind.POSITION ? COLUMNS.name : COLUMNS.name + COLUMNS.quantity + COLUMNS.unit + COLUMNS.price + COLUMNS.total;
+      const nameWidth =
+        item.kind === DocumentItemKind.POSITION
+          ? COLUMNS.name
+          : COLUMNS.name + COLUMNS.quantity + COLUMNS.unit + COLUMNS.price + COLUMNS.total;
       const nameHeight = pdf.heightOfString(label, { width: nameWidth });
       pdf.font('Helvetica').fontSize(8);
       const descriptionHeight = description ? pdf.heightOfString(description, { width: nameWidth }) + 2 : 0;
@@ -286,40 +398,88 @@ export class DocumentPdfService {
         pdf.text(ordinal, x.ordinal + 2, y + 1, { width: COLUMNS.ordinal });
         pdf.text(item.name, x.name, y + 1, { width: nameWidth });
       } else if (item.kind === DocumentItemKind.TEXT) {
-        pdf.fillColor(COLORS.text).font('Helvetica-Oblique').fontSize(9).text(item.name, x.name, y + 1, { width: nameWidth });
+        pdf
+          .fillColor(COLORS.text)
+          .font('Helvetica-Oblique')
+          .fontSize(9)
+          .text(item.name, x.name, y + 1, { width: nameWidth });
       } else {
-        pdf.fillColor(item.isOptional ? COLORS.muted : COLORS.text).font('Helvetica').fontSize(9);
+        pdf
+          .fillColor(item.isOptional ? COLORS.muted : COLORS.text)
+          .font('Helvetica')
+          .fontSize(9);
         pdf.text(ordinal, x.ordinal + 2, y + 1, { width: COLUMNS.ordinal });
         pdf.text(label, x.name, y + 1, { width: COLUMNS.name });
-        pdf.text(quantityFormat.format(item.quantity.toNumber()), x.quantity, y + 1, { width: COLUMNS.quantity, align: 'right' });
+        pdf.text(quantityFormat.format(item.quantity.toNumber()), x.quantity, y + 1, {
+          width: COLUMNS.quantity,
+          align: 'right',
+        });
         pdf.text(item.unit, x.unit + 6, y + 1, { width: COLUMNS.unit - 6 });
-        pdf.text(money.format(item.unitPrice.toNumber()), x.price, y + 1, { width: COLUMNS.price, align: 'right' });
+        pdf.text(money.format(item.unitPrice.toNumber()), x.price, y + 1, {
+          width: COLUMNS.price,
+          align: 'right',
+        });
         const discount = item.discountPercent.toNumber();
-        pdf.text(item.isOptional ? '—' : money.format(item.lineTotal.toNumber()), x.total, y + 1, { width: COLUMNS.total, align: 'right' });
+        pdf.text(item.isOptional ? '—' : money.format(item.lineTotal.toNumber()), x.total, y + 1, {
+          width: COLUMNS.total,
+          align: 'right',
+        });
         if (discount > 0) {
-          pdf.fontSize(7).fillColor(COLORS.muted).text(`abzgl. ${quantityFormat.format(discount)} % Rabatt`, x.price - 20, y + 11, { width: COLUMNS.price + COLUMNS.total + 20, align: 'right' });
+          pdf
+            .fontSize(7)
+            .fillColor(COLORS.muted)
+            .text(`abzgl. ${quantityFormat.format(discount)} % Rabatt`, x.price - 20, y + 11, {
+              width: COLUMNS.price + COLUMNS.total + 20,
+              align: 'right',
+            });
         }
       }
       if (description) {
-        pdf.fillColor(COLORS.muted).font('Helvetica').fontSize(8).text(description, x.name, y + nameHeight + 2, { width: nameWidth });
+        pdf
+          .fillColor(COLORS.muted)
+          .font('Helvetica')
+          .fontSize(8)
+          .text(description, x.name, y + nameHeight + 2, { width: nameWidth });
       }
       pdf.y = y + rowHeight;
-      pdf.moveTo(PAGE.left, pdf.y - 3).lineTo(PAGE.width - PAGE.right, pdf.y - 3).lineWidth(0.3).strokeColor(COLORS.line).stroke();
+      pdf
+        .moveTo(PAGE.left, pdf.y - 3)
+        .lineTo(PAGE.width - PAGE.right, pdf.y - 3)
+        .lineWidth(0.3)
+        .strokeColor(COLORS.line)
+        .stroke();
     });
   }
 
-  private drawTotals(pdf: PDFKit.PDFDocument, items: Awaited<ReturnType<PrismaService['documentItem']['findMany']>>) {
+  private drawTotals(
+    pdf: PDFKit.PDFDocument,
+    items: Awaited<ReturnType<PrismaService['documentItem']['findMany']>>,
+    invoice: {
+      retentionPercent: { toNumber(): number } | null;
+      retentionAmount: { toNumber(): number } | null;
+    } | null,
+  ) {
     const totals = calculateTotals(items);
-    this.ensureSpace(pdf, 30 + (totals.vatGroups.length + 2) * 15);
+    // Sicherheitseinbehalt: fixed amount once issued, otherwise calculated from the current total.
+    const retentionPercent = invoice?.retentionPercent?.toNumber() ?? 0;
+    const retention =
+      retentionPercent > 0
+        ? (invoice?.retentionAmount?.toNumber() ??
+          Math.round(totals.gross.toNumber() * retentionPercent) / 100)
+        : 0;
+    this.ensureSpace(pdf, 30 + (totals.vatGroups.length + (retention > 0 ? 4 : 2)) * 15);
     pdf.moveDown(0.8);
 
-    const labelX = 330;
-    const labelWidth = 130;
+    const labelX = 290;
+    const labelWidth = 175;
     const valueX = labelX + labelWidth;
     const valueWidth = PAGE.width - PAGE.right - valueX;
     const row = (label: string, value: string, bold = false) => {
       const y = pdf.y;
-      pdf.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 11 : 9.5).fillColor(COLORS.text);
+      pdf
+        .font(bold ? 'Helvetica-Bold' : 'Helvetica')
+        .fontSize(bold ? 11 : 9.5)
+        .fillColor(COLORS.text);
       pdf.text(label, labelX, y, { width: labelWidth });
       pdf.text(value, valueX, y, { width: valueWidth, align: 'right' });
       pdf.y = y + (bold ? 17 : 14);
@@ -327,11 +487,26 @@ export class DocumentPdfService {
 
     row('Nettosumme', money.format(totals.net.toNumber()));
     for (const group of totals.vatGroups) {
-      row(`zzgl. ${quantityFormat.format(group.vatRate.toNumber())} % USt`, money.format(group.vat.toNumber()));
+      row(
+        `zzgl. ${quantityFormat.format(group.vatRate.toNumber())} % USt`,
+        money.format(group.vat.toNumber()),
+      );
     }
-    pdf.moveTo(labelX, pdf.y).lineTo(PAGE.width - PAGE.right, pdf.y).lineWidth(0.8).strokeColor(COLORS.text).stroke();
+    pdf
+      .moveTo(labelX, pdf.y)
+      .lineTo(PAGE.width - PAGE.right, pdf.y)
+      .lineWidth(0.8)
+      .strokeColor(COLORS.text)
+      .stroke();
     pdf.y += 4;
     row('Gesamtsumme', money.format(totals.gross.toNumber()), true);
+    if (retention > 0) {
+      row(
+        `abzgl. Sicherheitseinbehalt (${quantityFormat.format(retentionPercent)} %)`,
+        money.format(-retention),
+      );
+      row('Zahlbetrag', money.format(totals.gross.toNumber() - retention), true);
+    }
   }
 
   // Footer, page numbers and the draft watermark on every page (needs bufferPages).
@@ -344,17 +519,38 @@ export class DocumentPdfService {
       pdf.page.margins.bottom = 0;
 
       const footerY = PAGE.height - PAGE.bottom + 25;
-      pdf.moveTo(PAGE.left, footerY - 6).lineTo(PAGE.width - PAGE.right, footerY - 6).lineWidth(0.3).strokeColor(COLORS.line).stroke();
-      const bank = [company.iban && `IBAN ${company.iban}`, company.bic && `BIC ${company.bic}`, company.vatId && `USt-IdNr. ${company.vatId}`, company.taxId && `Steuernr. ${company.taxId}`].filter(Boolean).join('  ·  ');
+      pdf
+        .moveTo(PAGE.left, footerY - 6)
+        .lineTo(PAGE.width - PAGE.right, footerY - 6)
+        .lineWidth(0.3)
+        .strokeColor(COLORS.line)
+        .stroke();
+      const bank = [
+        company.iban && `IBAN ${company.iban}`,
+        company.bic && `BIC ${company.bic}`,
+        company.vatId && `USt-IdNr. ${company.vatId}`,
+        company.taxId && `Steuernr. ${company.taxId}`,
+      ]
+        .filter(Boolean)
+        .join('  ·  ');
       pdf.font('Helvetica').fontSize(7).fillColor(COLORS.muted);
-      pdf.text([company.letterheadFooterText, bank].filter(Boolean).join('\n'), PAGE.left, footerY, { width: CONTENT_WIDTH - 60 });
-      pdf.text(`Seite ${index + 1} von ${range.count}`, PAGE.width - PAGE.right - 60, footerY, { width: 60, align: 'right' });
+      pdf.text([company.letterheadFooterText, bank].filter(Boolean).join('\n'), PAGE.left, footerY, {
+        width: CONTENT_WIDTH - 60,
+      });
+      pdf.text(`Seite ${index + 1} von ${range.count}`, PAGE.width - PAGE.right - 60, footerY, {
+        width: 60,
+        align: 'right',
+      });
 
       if (isDraft) {
         pdf.save();
         pdf.rotate(-35, { origin: [PAGE.width / 2, PAGE.height / 2] });
         pdf.font('Helvetica-Bold').fontSize(90).fillColor('#cc0000').fillOpacity(0.12);
-        pdf.text('ENTWURF', 0, PAGE.height / 2 - 45, { width: PAGE.width, align: 'center', lineBreak: false });
+        pdf.text('ENTWURF', 0, PAGE.height / 2 - 45, {
+          width: PAGE.width,
+          align: 'center',
+          lineBreak: false,
+        });
         pdf.restore();
       }
       pdf.page.margins.bottom = bottomMargin;
