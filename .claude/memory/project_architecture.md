@@ -33,6 +33,10 @@ eine Service-Methode versehentlich den Filter vergisst.
 - JWT-Payload: `{ sub: userId, companyId, role }`. Die `JwtStrategy` prüft bei jedem Request
   zusätzlich live in der DB, ob der Nutzer noch aktiv ist und noch zur im Token stehenden Firma
   gehört (schützt gegen weiterhin gültige Tokens nach Deaktivierung).
+- Nutzerverwaltung (`UsersService.update/remove`, serverseitig erzwungen): OWNER/ADMIN bearbeiten
+  Name, E-Mail, Rolle, Aktiv-Status, Passwort-Reset und Bild. ADMINs dürfen keine OWNER-Konten
+  ändern/löschen und die Rolle OWNER nicht vergeben; niemand ändert die eigene Rolle, deaktiviert
+  oder löscht sich selbst (Aussperr-Schutz).
 - Rollen: `OWNER`, `ADMIN`, `MEMBER` (einfaches Enum, keine granulare Permission-Tabelle). Bewusst
   minimal gehalten — erst erweitern, wenn ein konkretes Feature granulare Rechte braucht.
 

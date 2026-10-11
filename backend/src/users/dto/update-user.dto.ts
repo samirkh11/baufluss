@@ -1,8 +1,19 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
 import { CompanyRole } from '@prisma/client';
 
 export class UpdateUserDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @ApiPropertyOptional({ minLength: 8, description: 'Sets a new password (admin reset); omit to keep the current one' })
+  @IsOptional()
+  @IsString()
+  @MinLength(8)
+  password?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

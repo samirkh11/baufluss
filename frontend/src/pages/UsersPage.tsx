@@ -10,7 +10,10 @@ import {
   setUserImage,
   updateUser,
 } from '../api/users';
+import { useAuth } from '../auth/AuthContext';
 import { ImageUpload } from '../components/ImageUpload';
+import { apiErrorMessage } from '../utils/assets';
+import { CompanyUser } from '../types';
 
 const ROLE_OPTIONS = [
   { value: 'OWNER', label: 'Inhaber' },
@@ -21,22 +24,61 @@ const ROLE_OPTIONS = [
 export function UsersPage() {
   const queryClient = useQueryClient();
   const { data: users } = useQuery({ queryKey: ['users'], queryFn: listUsers });
+  const { user: currentUser } = useAuth();
   const [modalOpen, setModalOpen] = useState(false);
-  const [form] = Form.useForm<CreateUserPayload>();
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form] = Form.useForm<Partial<CreateUserPayload>>();
 
-  const createMutation = useMutation({
-    mutationFn: createUser,
+  // Mirrors the backend rules (which are authoritative): only OWNER/ADMIN manage users, and
+  // ADMINs may not touch OWNER accounts or grant the OWNER role.
+  const canManage = currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN';
+  const isOwner = currentUser?.role === 'OWNER';
+  const canEdit = (target: CompanyUser) => canManage && (isOwner || target.role !== 'OWNER');
+  const roleOptions = ROLE_OPTIONS.map((option) => ({
+    ...option,
+    disabled: option.value === 'OWNER' && !isOwner,
+  }));
+
+  // Derived from the list so the picture in the dialog updates right after an upload.
+  const editing = users?.find((candidate) => candidate.id === editingId) ?? null;
+
+  function openModal(target: CompanyUser | null) {
+    setEditingId(target?.id ?? null);
+    form.resetFields();
+    form.setFieldsValue(
+      target
+        ? { firstName: target.firstName, lastName: target.lastName, email: target.email, role: target.role }
+        : { role: 'MEMBER' },
+    );
+    setModalOpen(true);
+  }
+
+  function closeModal() {
+    setModalOpen(false);
+    setEditingId(null);
+  }
+
+  const saveMutation = useMutation({
+    mutationFn: (values: Partial<CreateUserPayload>) => {
+      if (!editing) {
+        return createUser(values as CreateUserPayload);
+      }
+      // An empty password field means "keep the current password".
+      const { password, ...rest } = values;
+      return updateUser(editing.id, password ? { ...rest, password } : rest);
+    },
     onSuccess: () => {
-      message.success('Nutzer angelegt.');
-      setModalOpen(false);
-      form.resetFields();
+      message.success('Nutzer gespeichert.');
+      closeModal();
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
+    onError: (error) => message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => updateUser(id, { isActive }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onError: (error) => message.error(apiErrorMessage(error, 'Änderung fehlgeschlagen.')),
   });
 
   const removeImageMutation = useMutation({
@@ -47,13 +89,16 @@ export function UsersPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+    onError: (error) => message.error(apiErrorMessage(error, 'Löschen fehlgeschlagen.')),
   });
 
   return (
     <div>
-      <Button type="primary" onClick={() => setModalOpen(true)} style={{ marginBottom: 16 }}>
-        Nutzer einladen
-      </Button>
+      {canManage && (
+        <Button type="primary" onClick={() => openModal(null)} style={{ marginBottom: 16 }}>
+          Nutzer einladen
+        </Button>
+      )}
 
       <Table
         rowKey="id"
@@ -80,7 +125,14 @@ export function UsersPage() {
           },
           {
             title: 'Name',
-            render: (_, record) => `${record.firstName} ${record.lastName}`,
+            render: (_, record) =>
+              canEdit(record) ? (
+                <a onClick={() => openModal(record)}>
+                  {record.firstName} {record.lastName}
+                </a>
+              ) : (
+                `${record.firstName} ${record.lastName}`
+              ),
           },
           { title: 'E-Mail', dataIndex: 'email' },
           {
@@ -93,6 +145,7 @@ export function UsersPage() {
             dataIndex: 'isActive',
             render: (isActive: boolean, record) => (
               <Switch
+                disabled={!canEdit(record) || record.id === currentUser?.id}
                 checked={isActive}
                 onChange={(checked) =>
                   toggleActiveMutation.mutate({
@@ -105,32 +158,54 @@ export function UsersPage() {
           },
           {
             title: '',
-            render: (_, record) => (
-              <Space>
-                {record.imagePath && (
-                  <Button size="small" onClick={() => removeImageMutation.mutate(record.id)}>
-                    Bild löschen
+            render: (_, record) =>
+              canEdit(record) && (
+                <Space>
+                  <Button size="small" onClick={() => openModal(record)}>
+                    Bearbeiten
                   </Button>
-                )}
-                <Popconfirm title="Nutzer entfernen?" onConfirm={() => deleteMutation.mutate(record.id)}>
-                  <Button danger size="small">
-                    Entfernen
-                  </Button>
-                </Popconfirm>
-              </Space>
-            ),
+                  {record.imagePath && (
+                    <Button size="small" onClick={() => removeImageMutation.mutate(record.id)}>
+                      Bild löschen
+                    </Button>
+                  )}
+                  {record.id !== currentUser?.id && (
+                    <Popconfirm title="Nutzer entfernen?" onConfirm={() => deleteMutation.mutate(record.id)}>
+                      <Button danger size="small">
+                        Entfernen
+                      </Button>
+                    </Popconfirm>
+                  )}
+                </Space>
+              ),
           },
         ]}
       />
 
       <Modal
-        title="Neuen Nutzer anlegen"
+        title={editing ? 'Nutzer bearbeiten' : 'Neuen Nutzer anlegen'}
         open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        onCancel={closeModal}
         onOk={() => form.submit()}
-        confirmLoading={createMutation.isPending}
+        confirmLoading={saveMutation.isPending}
+        destroyOnClose
       >
-        <Form layout="vertical" form={form} onFinish={(values) => createMutation.mutate(values)}>
+        {editing && (
+          <Form.Item label="Bild">
+            <ImageUpload
+              path={editing.imagePath}
+              onUpload={async (file) => {
+                await setUserImage(editing.id, file);
+                await queryClient.invalidateQueries({ queryKey: ['users'] });
+              }}
+              onRemove={async () => {
+                await removeUserImage(editing.id);
+                await queryClient.invalidateQueries({ queryKey: ['users'] });
+              }}
+            />
+          </Form.Item>
+        )}
+        <Form layout="vertical" form={form} onFinish={(values) => saveMutation.mutate(values)}>
           <Form.Item name="firstName" label="Vorname" rules={[{ required: true }]}>
             <Input />
           </Form.Item>
@@ -140,11 +215,15 @@ export function UsersPage() {
           <Form.Item name="email" label="E-Mail" rules={[{ required: true, type: 'email' }]}>
             <Input />
           </Form.Item>
-          <Form.Item name="password" label="Initialpasswort" rules={[{ required: true, min: 8 }]}>
-            <Input.Password />
+          <Form.Item
+            name="password"
+            label={editing ? 'Neues Passwort (leer lassen = unverändert)' : 'Initialpasswort'}
+            rules={[{ required: !editing, min: 8, message: 'Mindestens 8 Zeichen' }]}
+          >
+            <Input.Password autoComplete="new-password" />
           </Form.Item>
-          <Form.Item name="role" label="Rolle" initialValue="MEMBER">
-            <Select options={ROLE_OPTIONS} />
+          <Form.Item name="role" label="Rolle">
+            <Select options={roleOptions} disabled={editing?.id === currentUser?.id} />
           </Form.Item>
         </Form>
       </Modal>

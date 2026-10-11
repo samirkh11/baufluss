@@ -46,13 +46,13 @@ export class UsersController {
   @Patch(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   update(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: UpdateUserDto) {
-    return this.usersService.update(user.companyId, id, dto);
+    return this.usersService.update(user, id, dto);
   }
 
   @Delete(':id')
   @Roles(CompanyRole.OWNER, CompanyRole.ADMIN)
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.usersService.remove(user.companyId, id);
+    return this.usersService.remove(user, id);
   }
 
   // Profile picture: managed by OWNER/ADMIN for anyone, or by a user for themselves.
