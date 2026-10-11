@@ -43,6 +43,17 @@ Backend/Frontend starten: `cd backend && npm run start` bzw. `start:dev`; `cd fr
 Achtung beim Neustart des Backends: nicht mit `pkill -f` auf Muster killen, das beendet die
 eigene Shell — PID über `ss -ltnp | grep :3000` ermitteln.
 
+## UI-Tests im Browser
+
+Es gibt keinen Browser im Projekt; Claude testet die Oberfläche mit Playwright (Chromium wurde
+2026-10-11 nach `~/.cache/ms-playwright` geladen, Playwright selbst liegt NUR im Scratchpad der
+Session, nicht im Repo). Neu installieren: in einem Scratchpad-Ordner `npm i playwright && npx
+playwright install chromium`. Ein umfassendes Skript (Login, Projekte, Berichte, Fotos, Kontakte,
+Katalog, Nutzer, Arbeiter-Rechte; 25 Checks) lag dort als `e2e.mjs` — bei Bedarf neu schreiben
+oder als `e2e/` ins Repo übernehmen (Rückfrage an Volker). Vor jedem Lauf `npm run seed`.
+Hinweise: antd-`<a onClick>` hat keine Link-Rolle (per `tbody a` selektieren); Dialoge mit dem
+„×" schließen, nicht per Escape, wenn der Fokus im Datei-Input liegt.
+
 ## Push-Workflow
 
 Laut Nutzeranforderung: Code wird erst nach GitHub gepusht, wenn neue Funktionen **lokal

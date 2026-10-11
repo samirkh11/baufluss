@@ -7,5 +7,6 @@ import { NumberSequencesService } from './number-sequences/number-sequences.serv
 @Module({
   controllers: [CompaniesController, NumberSequencesController],
   providers: [CompaniesService, NumberSequencesService],
+  exports: [NumberSequencesService],
 })
 export class CompaniesModule {}

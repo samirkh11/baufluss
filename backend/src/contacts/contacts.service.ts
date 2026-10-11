@@ -69,7 +69,15 @@ export class ContactsService {
 
   async remove(companyId: string, id: string) {
     const contact = await this.findOne(companyId, id);
-    await this.prisma.contact.delete({ where: { id } });
+    try {
+      await this.prisma.contact.delete({ where: { id } });
+    } catch (error) {
+      // P2003 = foreign key violation: the contact is referenced (e.g. by a project).
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictException('Der Kontakt wird in Projekten verwendet und kann nur archiviert werden.');
+      }
+      throw error;
+    }
     await deleteUploadedFile(contact.imagePath);
   }
 

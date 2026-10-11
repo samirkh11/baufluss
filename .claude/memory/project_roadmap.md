@@ -34,12 +34,24 @@ Backend: `contacts/` und `catalog/`. Frontend: `ContactsPage`, `CatalogPage`.
 - Offen/Ideen: Ansprechpartner je Kontakt, mehrere Adressen (Lieferadresse), CSV-Import,
   Kategorien/Warengruppen im Katalog.
 
-### ⬜ Block 3 — Projekte
-Projektliste, Projekt anlegen, Projektübersicht mit allen Dokumenten UND Berichten.
-**Wichtig (explizit vom Nutzer betont):** Berichte sind in der Baubranche genauso wichtig wie
-Angebote/Rechnungen und gehören zu den Kernfunktionen, nicht als Nachgedanke. Ein `Report`-Modell
-(Datum, Verfasser, Freitext, ggf. Fotos/Anhänge, Wetter/Baufortschritt) sollte von Anfang an
-gleichrangig neben `Quote`/`Invoice` im Projekt-Dokumenten-Tab stehen.
+### ✅ Block 3 — Projekte (fertig, 2026-10-11)
+Backend: `projects/`, `reports/`. Frontend: `ProjectsPage`, `ProjectDetailPage`, `ReportsPage`,
+`components/ProjectFormModal`, `components/ReportsPanel`.
+- `Project`: Nummer aus Nummernkreis `PROJECT`, Status (Planung/Ausführung/Pausiert/Abgeschlossen/
+  Abgebrochen), Kunde (Contact, FK Restrict → verwendeter Kontakt nur archivierbar), Baustellen-
+  Adresse, Zeitraum, Projektleiter, Team (`ProjectMember`, M:N). Ansehen: alle; Anlegen/Ändern/
+  Löschen: OWNER/ADMIN.
+- **Berichte** gleichrangig: `Report` mit Nummer (`REPORT`), Art (Tages-/Fortschritts-/Mängel-
+  bericht, Abnahme, Vorkommnis, Sonstiges), Datum, Wetter, Arbeiten, Mängel, Fortschritt %, bis zu
+  20 Fotos. JEDER Mitarbeiter darf Berichte schreiben; ändern/löschen nur Verfasser oder
+  OWNER/ADMIN. Verfasser-Namenssnapshot (`authorName`) bleibt bei gelöschtem Nutzer erhalten.
+  Eigene Berichte-Seite (alle Projekte) + Tab im Projekt.
+- Projektübersicht hat bisher nur den Tab „Berichte". **Ab Block 4/5 kommen hier Tabs für
+  Angebote, Aufträge, Rechnungen dazu** (Dokumentenliste je Projekt).
+- Nummernvergabe: `NumberSequencesService.next(tx, companyId, type)` — lückenlos in der Transaktion
+  des Speicherns, mit Jahreswechsel-Reset (`lastResetYear`). Block 4/5 nutzen dasselbe.
+- Offen/Ideen: Projektdateien/Pläne als Anhänge, Zeiterfassung je Projekt, PDF-Export von
+  Berichten, Bautagebuch-Vorlagen, Mitarbeiter sieht nur zugewiesene Projekte (aktuell sehen alle alles).
 
 ### ⬜ Block 4 — Angebote
 Angebotseditor mit Positionen, PDF-Export, Preise aus dem Artikelstamm (Block 2), Workflow
@@ -84,17 +96,35 @@ Mandanten-Status (`ACTIVE/TRIAL/SUSPENDED`) und Plan-Zuordnung am `Company`-Mode
 App-Auth muss gesperrte Mandanten ablehnen. Sinnvoll nach Block 3, spätestens vor dem ersten
 zahlenden Kunden.
 
+### ⬜ Block 9 — Dashboard mit frei anordenbaren Widgets (Wunsch von Volker 2026-10-11)
+Auf der Startseite soll der Benutzer sich ein Dashboard aus Widgets selbst zusammenstellen und
+anordnen können (Drag & Drop, Größe, ein-/ausblenden). Welche Widgets es gibt, wird später
+festgelegt — Beispiele: Auftragslage, Geldfluss (offene Posten/Zahlungseingänge), Angebotsquote,
+laufende Projekte, aktuelle Berichte, fällige Mahnungen, Mitarbeitereinsatz.
+**Vorgaben für die laufende Entwicklung (damit später nichts umgebaut werden muss):**
+- Jedes Feature-Modul soll seine Kennzahlen/Listen über eigene, schlanke Read-Endpunkte
+  bereitstellen können (z.B. `GET /projects/stats`), statt dass das Dashboard Rohlisten lädt.
+  Neue Module deshalb Aggregationen im Service kapseln (Status-Zählungen, Summen).
+- Frontend: Widgets sind eigenständige Komponenten (Titel, Inhalt, Ladezustand) ohne feste
+  Seiten-Abhängigkeit; Registry-Muster (`id → Komponente + Default-Größe`) beim Bau von Block 9.
+- Persistenz: Layout je Nutzer in der DB (z.B. Tabelle `DashboardLayout(userId, widgets Json)`),
+  nicht nur localStorage, damit es geräteübergreifend gilt.
+- Passende Bibliothek später prüfen (z.B. `react-grid-layout`).
+- Die Startseite (`DashboardPage`) ist bis dahin ein einfacher Platzhalter.
+Zeitpunkt: nach Block 5 (dann gibt es Geld-Kennzahlen), spätestens vor dem ersten Kunden.
+
 ## Empfohlene Reihenfolge
 
 1. ~~Firmenprofil & Konto~~ ✅
 2. ~~Kontakte & Stammdaten~~ ✅
-3. Projekte (inkl. Berichte von Anfang an)
+3. ~~Projekte (inkl. Berichte)~~ ✅
 4. Angebote (inkl. GAEB)
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Datenmodell von Anfang an EN16931-kompatibel
 6. Eingangsrechnungen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
    vor dem ersten zahlenden Kunden
+9. Dashboard mit Widgets (ab Block 5 sinnvoll, Vorgaben siehe Block 9)
 
 **Why diese Reihenfolge:** Jeder Block baut auf dem vorherigen auf (Artikelstamm → Angebot →
 Rechnung). E-Rechnung zuletzt, aber mit Vorwirkung auf das Rechnungsschema in Block 5, damit keine

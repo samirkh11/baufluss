@@ -47,10 +47,12 @@ const CONTACTS = [
   },
 ];
 
-export async function seedContacts(prisma: PrismaClient, companyId: string): Promise<void> {
+// Returns contact ids keyed by contact number (e.g. 'K-1001').
+export async function seedContacts(prisma: PrismaClient, companyId: string): Promise<Record<string, string>> {
+  const ids: Record<string, string> = {};
   for (const contact of CONTACTS) {
     const label = contact.organizationName ?? `${contact.firstName} ${contact.lastName}`;
-    await prisma.contact.create({
+    const created = await prisma.contact.create({
       data: {
         ...contact,
         companyId,
@@ -61,5 +63,7 @@ export async function seedContacts(prisma: PrismaClient, companyId: string): Pro
         ),
       },
     });
+    ids[contact.number] = created.id;
   }
+  return ids;
 }

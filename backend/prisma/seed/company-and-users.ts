@@ -22,9 +22,16 @@ const NUMBER_SEQUENCES = [
   { documentType: 'INVOICE', prefix: 'RE-', digits: 5, resetYearly: true },
   { documentType: 'CREDIT_NOTE', prefix: 'GS-', digits: 5 },
   { documentType: 'REPORT', prefix: 'BE-', digits: 4 },
+  { documentType: 'PROJECT', prefix: 'P-', digits: 4 },
 ];
 
-export async function seedCompanyAndUsers(prisma: PrismaClient): Promise<{ companyId: string }> {
+export interface SeededCompany {
+  companyId: string;
+  // user ids keyed by last name (Schmidt, Keller, Hoffmann, Vogel, Yilmaz, Bauer)
+  userIds: Record<string, string>;
+}
+
+export async function seedCompanyAndUsers(prisma: PrismaClient): Promise<SeededCompany> {
   const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 12);
   const name = 'Dachdeckerei Schmidt GmbH';
 
@@ -60,7 +67,11 @@ export async function seedCompanyAndUsers(prisma: PrismaClient): Promise<{ compa
       },
       numberSequences: { create: NUMBER_SEQUENCES },
     },
+    include: { users: true },
   });
 
-  return { companyId: company.id };
+  return {
+    companyId: company.id,
+    userIds: Object.fromEntries(company.users.map((user) => [user.lastName, user.id])),
+  };
 }

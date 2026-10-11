@@ -182,7 +182,7 @@ export function CatalogPage() {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={640}
-        destroyOnClose
+        forceRender
       >
         {editing ? (
           <Form.Item label="Bilder">

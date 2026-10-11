@@ -20,6 +20,8 @@ können; Block 1+2 wurden deshalb nachträglich befüllt.
 - Seed ist idempotent: `removeExistingDemoTenants()` löscht die Demo-Mandanten (Cascade + Upload-
   Dateien) und legt sie neu an. Neue Tabellen mit `companyId` brauchen `onDelete: Cascade`;
   neue Upload-Pfade müssen in `removeExistingDemoTenants` mit aufgeräumt werden.
+- Bisher im Seed: Firma+Nutzer+Nummernkreise, Kontakte, Katalog, Projekte+Berichte+Fotos
+  (`projects.ts`; Seed setzt PROJECT/REPORT-Zähler hinter die vergebenen Nummern).
 - Bilder im Seed: generierte SVGs über `seed/helpers.ts` (`writeSeedImage`), nichts Binäres
   committen.
 - Zweiter Mandant (`second-tenant.ts`, Zimmerei Beispiel GmbH) bekommt je Feature 1 Datensatz,

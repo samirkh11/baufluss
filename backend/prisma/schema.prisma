@@ -59,6 +59,8 @@ model Company {
   numberSequences NumberSequence[]
   contacts        Contact[]
   catalogItems    CatalogItem[]
+  projects        Project[]
+  reports         Report[]
 
   @@map("companies")
 }
@@ -74,6 +76,10 @@ model User {
   isActive     Boolean     @default(true)
   imagePath    String? // profile picture (single image), relative path under /uploads
 
+  managedProjects    Project[]       @relation("ProjectManager")
+  projectMemberships ProjectMember[]
+  reports            Report[]
+
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -88,14 +94,15 @@ model User {
 // Only the configuration lives here for now; the counter is consumed once the corresponding
 // document module (Angebote, Rechnungen, ...) is implemented.
 model NumberSequence {
-  id           String  @id @default(uuid())
-  companyId    String
-  company      Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  documentType String // "QUOTE" | "ORDER" | "INVOICE" | "CREDIT_NOTE" | "REPORT" (free-form for now)
-  prefix       String  @default("")
-  nextNumber   Int     @default(1)
-  digits       Int     @default(4) // zero-padding width, e.g. digits=4 -> "0007"
-  resetYearly  Boolean @default(false)
+  id            String  @id @default(uuid())
+  companyId     String
+  company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  documentType  String // "QUOTE" | "ORDER" | "INVOICE" | "CREDIT_NOTE" | "REPORT" (free-form for now)
+  prefix        String  @default("")
+  nextNumber    Int     @default(1)
+  digits        Int     @default(4) // zero-padding width, e.g. digits=4 -> "0007"
+  resetYearly   Boolean @default(false)
+  lastResetYear Int? // calendar year of the last yearly reset (only used when resetYearly)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -155,6 +162,8 @@ model Contact {
   bic             String?
   paymentTermDays Int? // default Zahlungsziel in Tagen
 
+  projects Project[] // projects this contact is the customer of
+
   notes     String? @db.Text
   imagePath String? // single picture/logo, relative path under /uploads
   isActive  Boolean @default(true)
@@ -207,4 +216,120 @@ model CatalogItemImage {
 
   @@index([catalogItemId])
   @@map("catalog_item_images")
+}
+
+enum ProjectStatus {
+  PLANNING // In Planung
+  IN_PROGRESS // In Ausführung
+  ON_HOLD // Pausiert
+  COMPLETED // Abgeschlossen
+  CANCELLED // Abgebrochen
+}
+
+enum ReportType {
+  DAILY // Tagesbericht / Bautagebuch
+  PROGRESS // Baufortschrittsbericht
+  DEFECT // Mängelbericht
+  ACCEPTANCE // Abnahmeprotokoll
+  INCIDENT // Vorkommnis / Unfall / Behinderungsanzeige
+  OTHER
+}
+
+// A construction job (Bauvorhaben). The hub that quotes, orders, invoices (later blocks) and
+// reports hang off.
+model Project {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  number      String // generated from the PROJECT number sequence
+  name        String
+  status      ProjectStatus @default(PLANNING)
+  description String?       @db.Text
+
+  // Customer is optional (early leads), but a contact that is used by a project cannot be hard-deleted.
+  customerId String?
+  customer   Contact? @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  // Building site address (differs from the customer's address in most cases)
+  siteStreet  String?
+  siteZipCode String?
+  siteCity    String?
+
+  startDate DateTime? @db.Date
+  endDate   DateTime? @db.Date
+
+  managerId String?
+  manager   User?   @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
+
+  members ProjectMember[]
+  reports Report[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, status])
+  @@index([customerId])
+  @@map("projects")
+}
+
+// Employees assigned to a project (many-to-many).
+model ProjectMember {
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("project_members")
+}
+
+// A report on a project (Bautagebuch, Mängelbericht, Abnahme, ...). Equal in rank to quotes and
+// invoices: shown in the project overview next to the documents.
+model Report {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  number     String // generated from the REPORT number sequence
+  type       ReportType @default(DAILY)
+  title      String
+  reportDate DateTime   @db.Date
+
+  // Author reference plus a name snapshot, so the report stays attributable if the user is deleted.
+  authorId   String?
+  author     User?   @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  authorName String
+
+  weather         String? // free text, e.g. "sonnig, 18 °C"
+  workPerformed   String? @db.Text // durchgeführte Arbeiten
+  issues          String? @db.Text // Besonderheiten, Mängel, Behinderungen
+  progressPercent Int? // 0-100
+
+  photos ReportPhoto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@index([companyId, reportDate])
+  @@index([projectId])
+  @@map("reports")
+}
+
+model ReportPhoto {
+  id        String   @id @default(uuid())
+  reportId  String
+  report    Report   @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  path      String // relative path under /uploads
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([reportId])
+  @@map("report_photos")
 }

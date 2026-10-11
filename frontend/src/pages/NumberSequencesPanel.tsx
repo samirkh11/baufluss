@@ -8,6 +8,7 @@ import {
 } from '../api/numberSequences';
 
 const DOCUMENT_TYPE_OPTIONS = [
+  { value: 'PROJECT', label: 'Projekt' },
   { value: 'QUOTE', label: 'Angebot' },
   { value: 'ORDER', label: 'Auftragsbestätigung' },
   { value: 'INVOICE', label: 'Rechnung' },

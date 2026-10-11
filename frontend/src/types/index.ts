@@ -105,3 +105,63 @@ export interface CatalogItem {
   isActive: boolean;
   images: CatalogItemImage[];
 }
+
+export interface UserSummary {
+  id: string;
+  firstName: string;
+  lastName: string;
+  imagePath: string | null;
+}
+
+export type ProjectStatus = 'PLANNING' | 'IN_PROGRESS' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
+
+export interface Project {
+  id: string;
+  number: string;
+  name: string;
+  status: ProjectStatus;
+  description: string | null;
+  customerId: string | null;
+  customer: {
+    id: string;
+    number: string | null;
+    organizationName: string | null;
+    firstName: string | null;
+    lastName: string | null;
+  } | null;
+  siteStreet: string | null;
+  siteZipCode: string | null;
+  siteCity: string | null;
+  // ISO timestamps at UTC midnight (the API stores plain dates)
+  startDate: string | null;
+  endDate: string | null;
+  managerId: string | null;
+  manager: UserSummary | null;
+  members: UserSummary[];
+  _count: { reports: number };
+}
+
+export type ReportType = 'DAILY' | 'PROGRESS' | 'DEFECT' | 'ACCEPTANCE' | 'INCIDENT' | 'OTHER';
+
+export interface ReportPhoto {
+  id: string;
+  path: string;
+  sortOrder: number;
+}
+
+export interface Report {
+  id: string;
+  number: string;
+  type: ReportType;
+  title: string;
+  reportDate: string;
+  projectId: string;
+  project: { id: string; number: string; name: string };
+  authorId: string | null;
+  authorName: string;
+  weather: string | null;
+  workPerformed: string | null;
+  issues: string | null;
+  progressPercent: number | null;
+  photos: ReportPhoto[];
+}

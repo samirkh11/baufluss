@@ -1,5 +1,5 @@
 // A second, tiny tenant so tenant isolation can be checked by hand (log in as both and compare).
-import { CatalogItemKind, CompanyRole, ContactType, PrismaClient } from '@prisma/client';
+import { CatalogItemKind, CompanyRole, ContactType, PrismaClient, ProjectStatus } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { DEMO_PASSWORD } from './company-and-users';
 
@@ -20,6 +20,7 @@ export async function seedSecondTenant(prisma: PrismaClient): Promise<void> {
         },
       },
       contacts: { create: { types: [ContactType.CUSTOMER], number: 'K-1', organizationName: 'Nur für Zimmerei sichtbar GmbH' } },
+      projects: { create: { number: 'P-0001', name: 'Nur für Zimmerei sichtbar: Dachstuhl Neubau', status: ProjectStatus.PLANNING } },
       catalogItems: { create: { kind: CatalogItemKind.SERVICE, sku: 'L-1', name: 'Zimmermann, Stunde', unit: 'h', netPrice: 60 } },
     },
   });

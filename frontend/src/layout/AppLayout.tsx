@@ -1,5 +1,14 @@
 import { Layout, Menu, Typography } from 'antd';
-import { ContactsOutlined, DashboardOutlined, SettingOutlined, TeamOutlined, LogoutOutlined, ToolOutlined } from '@ant-design/icons';
+import {
+  ContactsOutlined,
+  DashboardOutlined,
+  FileTextOutlined,
+  ProjectOutlined,
+  SettingOutlined,
+  TeamOutlined,
+  LogoutOutlined,
+  ToolOutlined,
+} from '@ant-design/icons';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../auth/AuthContext';
 
@@ -10,6 +19,8 @@ const { Header, Sider, Content } = Layout;
 // /.claude/memory/project_roadmap.md for the planned order.
 const MENU_ITEMS = [
   { key: '/', icon: <DashboardOutlined />, label: <Link to="/">Übersicht</Link> },
+  { key: '/projects', icon: <ProjectOutlined />, label: <Link to="/projects">Projekte</Link> },
+  { key: '/reports', icon: <FileTextOutlined />, label: <Link to="/reports">Berichte</Link> },
   { key: '/contacts', icon: <ContactsOutlined />, label: <Link to="/contacts">Kontakte</Link> },
   { key: '/catalog', icon: <ToolOutlined />, label: <Link to="/catalog">Leistungen &amp; Artikel</Link> },
   { key: '/company', icon: <SettingOutlined />, label: <Link to="/company">Firmenprofil</Link> },
@@ -30,10 +41,21 @@ export function AppLayout() {
     <Layout style={{ minHeight: '100vh' }}>
       <Sider>
         <div style={{ color: 'white', padding: 16, fontWeight: 'bold', fontSize: 18 }}>Meisterwerk</div>
-        <Menu theme="dark" mode="inline" selectedKeys={[location.pathname]} items={MENU_ITEMS} />
+        <Menu
+          theme="dark"
+          mode="inline"
+          selectedKeys={[
+            MENU_ITEMS.map((item) => item.key)
+              .filter((key) => key !== '/')
+              .find((key) => location.pathname.startsWith(key)) ?? location.pathname,
+          ]}
+          items={MENU_ITEMS}
+        />
       </Sider>
       <Layout>
-        <Header style={{ background: '#fff', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+        <Header
+          style={{ background: '#fff', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}
+        >
           <Typography.Text style={{ marginRight: 16 }}>
             {user?.firstName} {user?.lastName}
           </Typography.Text>

@@ -9,6 +9,7 @@ import { join } from 'path';
 import { DEMO_OWNER_EMAIL, DEMO_PASSWORD, seedCompanyAndUsers } from './company-and-users';
 import { seedContacts } from './contacts';
 import { seedCatalog } from './catalog';
+import { seedProjects } from './projects';
 import { SECOND_TENANT_OWNER_EMAIL, seedSecondTenant } from './second-tenant';
 
 const prisma = new PrismaClient();
@@ -21,17 +22,19 @@ async function removeExistingDemoTenants() {
   const companyIds = owners.map((owner) => owner.companyId);
 
   // Uploaded files are not removed by the database cascade, so delete them explicitly first.
-  const [companies, users, contacts, images] = await Promise.all([
+  const [companies, users, contacts, images, photos] = await Promise.all([
     prisma.company.findMany({ where: { id: { in: companyIds } }, select: { logoPath: true } }),
     prisma.user.findMany({ where: { companyId: { in: companyIds } }, select: { imagePath: true } }),
     prisma.contact.findMany({ where: { companyId: { in: companyIds } }, select: { imagePath: true } }),
     prisma.catalogItemImage.findMany({ where: { catalogItem: { companyId: { in: companyIds } } }, select: { path: true } }),
+    prisma.reportPhoto.findMany({ where: { report: { companyId: { in: companyIds } } }, select: { path: true } }),
   ]);
   const paths = [
     ...companies.map((c) => c.logoPath),
     ...users.map((u) => u.imagePath),
     ...contacts.map((c) => c.imagePath),
     ...images.map((i) => i.path),
+    ...photos.map((p) => p.path),
   ];
   for (const path of paths) {
     if (path?.startsWith('/uploads/')) {
@@ -46,9 +49,10 @@ async function removeExistingDemoTenants() {
 async function main() {
   await removeExistingDemoTenants();
 
-  const { companyId } = await seedCompanyAndUsers(prisma);
-  await seedContacts(prisma, companyId);
+  const { companyId, userIds } = await seedCompanyAndUsers(prisma);
+  const contactIds = await seedContacts(prisma, companyId);
   await seedCatalog(prisma, companyId);
+  await seedProjects(prisma, companyId, userIds, contactIds);
   await seedSecondTenant(prisma);
 
   console.log('Demo-Daten angelegt (Dachdeckerei Schmidt GmbH + Zimmerei Beispiel GmbH).');

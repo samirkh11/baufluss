@@ -1,6 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { UpsertNumberSequenceDto } from './dto/upsert-number-sequence.dto';
+
+// Defaults used when a document type is numbered before the company configured its range.
+const DEFAULT_PREFIXES: Record<string, string> = {
+  PROJECT: 'P-',
+  REPORT: 'BE-',
+  QUOTE: 'AN-',
+  ORDER: 'AB-',
+  INVOICE: 'RE-',
+  CREDIT_NOTE: 'GS-',
+};
 
 @Injectable()
 export class NumberSequencesService {
@@ -40,5 +51,38 @@ export class NumberSequencesService {
       throw new NotFoundException();
     }
     await this.prisma.numberSequence.delete({ where: { id: sequence.id } });
+  }
+
+  // Hands out the next number of a sequence, e.g. "P-0007". MUST be called with the transaction
+  // client of the operation that stores the number, so a rolled-back save never burns a number
+  // (gap-free numbering is required for invoices under GoBD). Concurrent callers are serialized
+  // by the row lock of the UPDATE statements.
+  async next(tx: Prisma.TransactionClient, companyId: string, documentType: string): Promise<string> {
+    // Create the range with defaults on first use.
+    await tx.numberSequence.upsert({
+      where: { companyId_documentType: { companyId, documentType } },
+      create: { companyId, documentType, prefix: DEFAULT_PREFIXES[documentType] ?? '' },
+      update: {},
+    });
+
+    // Yearly reset: restart at 1 once per calendar year.
+    const year = new Date().getFullYear();
+    await tx.numberSequence.updateMany({
+      where: {
+        companyId,
+        documentType,
+        resetYearly: true,
+        OR: [{ lastResetYear: null }, { lastResetYear: { lt: year } }],
+      },
+      data: { nextNumber: 1, lastResetYear: year },
+    });
+
+    // Atomic increment; the value before the increment is the number we hand out.
+    const sequence = await tx.numberSequence.update({
+      where: { companyId_documentType: { companyId, documentType } },
+      data: { nextNumber: { increment: 1 } },
+    });
+    const assigned = sequence.nextNumber - 1;
+    return `${sequence.prefix}${String(assigned).padStart(sequence.digits, '0')}`;
   }
 }

@@ -188,7 +188,7 @@ export function UsersPage() {
         onCancel={closeModal}
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
-        destroyOnClose
+        forceRender
       >
         {editing && (
           <Form.Item label="Bild">

@@ -196,7 +196,7 @@ export function ContactsPage() {
         onOk={() => form.submit()}
         confirmLoading={saveMutation.isPending}
         width={720}
-        destroyOnClose
+        forceRender
       >
         {editing ? (
           <Form.Item label="Bild">

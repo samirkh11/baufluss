@@ -66,6 +66,8 @@ meisterwerk/
 │       ├── users/      Nutzerverwaltung & Rollen
 │       ├── contacts/   Kunden, Lieferanten, Subunternehmer
 │       ├── catalog/    Leistungs- und Artikelstamm
+│       ├── projects/   Projekte, Team
+│       ├── reports/    Berichte mit Fotos
 │       └── common/     Prisma-Service, Guards, Decorators, Datei-Uploads
 ├── frontend/          React-SPA
 └── docker-compose.yml PostgreSQL + Adminer für die lokale Entwicklung
@@ -80,9 +82,11 @@ meisterwerk/
 - Kontakte (Kunden, Lieferanten, Subunternehmer) mit Suche, Filter, Archivierung
 - Leistungs- und Artikelstamm (Preise, USt, Einheiten)
 - Bilder: 1 Bild je Kontakt/Mitarbeiter, mehrere je Leistung/Artikel
+- Projekte (Status, Kunde, Baustelle, Team) mit Projektübersicht
+- Berichte (Bautagebuch, Mängel, Abnahme, ...) mit Fotos, je Projekt und projektübergreifend
 
-Die restlichen Funktionsblöcke (Projekte, Angebote, Rechnungen,
-Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice) sind in der Roadmap-Memory-Datei geplant und werden
+Die restlichen Funktionsblöcke (Angebote, Rechnungen,
+Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 
 ## Testdaten

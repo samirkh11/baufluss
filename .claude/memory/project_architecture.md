@@ -51,6 +51,13 @@ eine Service-Methode versehentlich den Filter vergisst.
   ausschließlich über die im JWT enthaltene `companyId` — verhindert, dass ein Client sich als
   anderer Mandant ausgeben kann.
 
+## Nummernkreise (Dokumentnummern)
+
+`NumberSequencesService.next(tx, companyId, documentType)` vergibt Nummern wie `P-0007`. Immer mit
+dem Transaktions-Client des Speichervorgangs aufrufen (kein verbrannter Zähler bei Rollback →
+lückenlos, GoBD). Legt fehlende Kreise mit Standard-Präfix an, setzt bei `resetYearly` zum
+Jahreswechsel zurück. Alle künftigen Dokumente (Angebot, Auftrag, Rechnung, Gutschrift) nutzen es.
+
 ## Datei-Upload & Bilder
 
 - Gemeinsamer Baustein: `backend/src/common/storage/uploads.ts` (`imageUploadOptions(subdir)`,
@@ -60,7 +67,8 @@ eine Service-Methode versehentlich den Filter vergisst.
   `__dirname` (kompilierter Code liegt in `dist/src`).
 - Bilder: Firmenlogo (`Company.logoPath`, SVG erlaubt), Kontakt (`Contact.imagePath`, genau 1),
   Mitarbeiter (`User.imagePath`, genau 1; OWNER/ADMIN für alle, jeder für sich selbst),
-  Leistung/Artikel (Tabelle `CatalogItemImage`, bis zu 10, `sortOrder`).
+  Leistung/Artikel (Tabelle `CatalogItemImage`, bis zu 10, `sortOrder`), Bericht (Tabelle
+  `ReportPhoto`, bis zu 20).
   Nutzer-Uploads erlauben nur PNG/JPG/WebP — **kein SVG** (Skriptausführung beim direkten Öffnen).
 - Services löschen beim Ersetzen/Entfernen/Löschen die alte Datei und räumen die neu hochgeladene
   Datei wieder auf, wenn der Request abgelehnt wird (fremder Mandant, Limit) → keine Waisen.
