@@ -101,6 +101,7 @@ meisterwerk/
 - Mahnwesen: Mahnstufen, Verzugszinsen/Pauschale nach § 288 BGB, Mahn-PDF, Mahnvorschlag, Mahnsperre
 - Eingangsrechnungen: Beleg-Upload, Erfassung, Freigabe-Workflow, Projektzuordnung (Mail-Eingang folgt)
 - Dashboard: frei anordenbare Widgets (Drag & Drop, Größe, ein-/ausblenden), Layout je Nutzer gespeichert
+- E-Rechnungen lesen: hochgeladene XRechnung (UBL/CII) und ZUGFeRD-PDFs füllen Eingangsrechnungen automatisch vor
 - E-Rechnung: XRechnung (UBL/CII) und ZUGFeRD/Factur-X (PDF/A-3) für ausgestellte Rechnungen und Gutschriften, mit offiziellen Validatoren geprüft (`e2e/validate-einvoice.sh`)
 
 Die restlichen Funktionsblöcke (E-Rechnung/Compliance, Betreiber-Backoffice, Urlaub) sind in der Roadmap-Memory-Datei geplant und werden

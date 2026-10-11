@@ -730,6 +730,10 @@ model IncomingInvoice {
   fileSize Int?
   fileHash String? // SHA-256 hex, detects the same file uploaded twice
 
+  // Set when the upload was a structured e-invoice (XRechnung / ZUGFeRD): the parsed content (format,
+  // seller, amounts, lines) the captured data was prefilled from. Null for ordinary scans.
+  eInvoice Json?
+
   uploadedById String?
   uploadedBy   User?     @relation("InvoiceUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
   approvedById String?

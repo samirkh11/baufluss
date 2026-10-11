@@ -36,8 +36,13 @@ page.on('pageerror', (e) => errors.push('PAGEERROR ' + e.message));
 
 async function pickOption(label, optionText) {
   const dialog = page.locator('.ant-modal:visible');
-  await dialog.getByLabel(label, { exact: true }).click({ force: true });
-  await page.locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: optionText }).first().click();
+  const option = page.locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: optionText }).first();
+  // The dropdown sometimes does not open on the first click while the dialog is still animating.
+  for (let attempt = 0; attempt < 4 && !(await option.isVisible()); attempt++) {
+    await dialog.getByLabel(label, { exact: true }).click({ force: true });
+    await option.waitFor({ state: 'visible', timeout: 2500 }).catch(() => undefined);
+  }
+  await option.click();
 }
 
 async function closeModal() {
@@ -484,7 +489,7 @@ check('final invoice issued (RE-00007)', await page.locator('h3', { hasText: 'Sc
 // ---- incoming invoices (Block 6, step 1)
 await page.getByRole('menuitem', { name: 'Eingangsrechnungen' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
-check('incoming invoices: 6 seeded rows', (await page.locator('tbody tr.ant-table-row').count()) === 6);
+check('incoming invoices: 7 seeded rows', (await page.locator('tbody tr.ant-table-row').count()) === 7);
 check('incoming invoices: approved amount 3.379,60 € waits for payment', (await page.getByTestId('incoming-to-pay').innerText()).includes('3.379,60'));
 await page.screenshot({ path: shots + '30-incoming-list.png' });
 await page.locator('tr:has-text("ER-0003")').click();
@@ -500,8 +505,8 @@ check('list shows ER-0003 as "Freigegeben"', (await page.locator('tr:has-text("E
 const pdfFile = join(dirname(TEST_IMAGE), 'lieferant.pdf');
 writeFileSync(pdfFile, '%PDF-1.4\n% e2e incoming invoice ' + Date.now() + '\n%%EOF\n');
 await page.locator('input[type=file]').setInputFiles(pdfFile);
-await page.waitForSelector('.ant-modal-title:has-text("ER-0007")');
-check('upload creates ER-0007 in status "Zu prüfen"', (await page.locator('.ant-modal-title').innerText()).includes('Zu prüfen'));
+await page.waitForSelector('.ant-modal-title:has-text("ER-0008")');
+check('upload creates ER-0008 in status "Zu prüfen"', (await page.locator('.ant-modal-title').innerText()).includes('Zu prüfen'));
 await page.getByTestId('incoming-approve').click();
 await page.waitForSelector('text=Zum Freigeben fehlt noch');
 check('approval of an incomplete invoice is refused with the missing items', true);
@@ -526,6 +531,37 @@ await page.getByRole('button', { name: 'Schließen' }).click();
 await page.locator('input[type=file]').setInputFiles(pdfFile);
 await page.waitForSelector('.ant-message-error:has-text("bereits hochgeladen")');
 check('uploading the same file twice is refused', true);
+
+// ---- reading e-invoices (Block 7, step 2)
+await page.waitForSelector('tbody tr.ant-table-row');
+await page.locator('tr:has-text("RE-2026-4620")').click();
+await page.waitForSelector('[data-testid=einvoice-alert]');
+check('seeded XRechnung: alert, supplier matched, lines shown', (await page.getByTestId('einvoice-alert').innerText()).includes('XRechnung (UBL)') && (await page.getByTestId('einvoice-lines').innerText()).includes('Konterlatten'));
+check('seeded XRechnung: amounts prefilled (1.487,50 gross)', (await page.getByTestId('incoming-gross').inputValue()).includes('1.487,50') || (await page.getByTestId('incoming-gross').inputValue()).includes('1487,50'));
+await page.getByRole('button', { name: 'Schließen' }).click();
+// upload our own XRechnung (UBL) and ZUGFeRD PDF of RE-00003
+const xmlFile = join(dirname(TEST_IMAGE), 'x-rechnung.xml');
+writeFileSync(xmlFile, ubl.content);
+await page.locator('input[type=file]').setInputFiles(xmlFile);
+await page.waitForSelector('.ant-modal-title:has-text("ER-0009")');
+await page.waitForSelector('[data-testid=einvoice-alert]');
+await page.waitForFunction(() => document.querySelector('[data-testid=incoming-invoice-number]')?.value === 'RE-00003');
+check('uploaded XRechnung XML is read: invoice number and amount prefilled', (await page.getByTestId('incoming-invoice-number').inputValue()) === 'RE-00003' && (await page.getByTestId('incoming-gross').inputValue()).includes('12691,78'));
+check('unknown supplier is kept as free text with a hint', (await page.getByTestId('einvoice-alert').innerText()).includes('nicht in den Kontakten'));
+await page.getByRole('button', { name: 'Schließen' }).click();
+const zfFile = join(dirname(TEST_IMAGE), 'zugferd.pdf');
+writeFileSync(zfFile, zugferd.content);
+await page.locator('input[type=file]').setInputFiles(zfFile);
+await page.waitForSelector('.ant-modal-title:has-text("ER-0010")');
+await page.waitForSelector('[data-testid=einvoice-alert]');
+await page.waitForSelector('iframe[title=Beleg]');
+check('uploaded ZUGFeRD PDF is read (format shown, original PDF previewed)', (await page.getByTestId('einvoice-alert').innerText()).includes('ZUGFeRD') && (await page.locator('iframe[title=Beleg]').count()) === 1);
+await page.getByRole('button', { name: 'Schließen' }).click();
+const badXml = join(dirname(TEST_IMAGE), 'kaputt.xml');
+writeFileSync(badXml, '<foo><bar/></foo>');
+await page.locator('input[type=file]').setInputFiles(badXml);
+await page.waitForSelector('.ant-message-error:has-text("keine E-Rechnung")');
+check('XML that is not an e-invoice is refused', true);
 
 // ---- time tracking (Block 10), office view
 await page.getByRole('menuitem', { name: 'Zeiten' }).click();
@@ -633,7 +669,7 @@ check('worker dashboard shows only the general widgets', (await page.getByTestId
 check('worker sees no "Nutzer einladen" button', (await page.getByRole('button', { name: 'Nutzer einladen' }).count()) === 0);
 
 // the invalid-GAEB-file and overlapping-time checks above intentionally provoke HTTP 400/403/409 (also the rejected issuing of an incomplete invoice)
-const real = errors.filter((e) => !/favicon|DevTools|import-gaeb|finalize|circular references|incoming-invoices\/[^ ]*\/approve|400 \(Bad Request\)|409 \(Conflict\)|HTTP 409|HTTP 403|403 \(Forbidden\)/i.test(e));
+const real = errors.filter((e) => !/favicon|DevTools|import-gaeb|finalize|circular references|incoming-invoices\/[^ ]*\/approve|incoming-invoices\/upload|400 \(Bad Request\)|409 \(Conflict\)|HTTP 409|HTTP 403|403 \(Forbidden\)/i.test(e));
 check('no browser console errors', real.length === 0, real.slice(0, 3).join(' | '));
 await browser.close();
 console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed`);

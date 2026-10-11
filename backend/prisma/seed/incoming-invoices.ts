@@ -5,6 +5,7 @@ import { createHash } from 'crypto';
 import { createWriteStream, mkdirSync } from 'fs';
 import { join } from 'path';
 import PDFDocument from 'pdfkit';
+import { readEInvoice } from '../../src/incoming-invoices/e-invoice-reader';
 
 export const INCOMING_STORAGE_ROOT = join(process.cwd(), 'storage', 'incoming-invoices');
 
@@ -115,5 +116,75 @@ export async function seedIncomingInvoices(
       },
     });
   }
+  counter = await seedXRechnung(prisma, companyId, userIds, contactIds, projectId, counter);
   await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'INCOMING_INVOICE' }, data: { nextNumber: counter + 1 } });
+}
+
+// A supplier invoice that arrived as XRechnung (UBL XML): the data is read from the file, exactly like
+// an upload through the app does it.
+async function seedXRechnung(
+  prisma: PrismaClient,
+  companyId: string,
+  userIds: Record<string, string>,
+  contactIds: Record<string, string>,
+  projectId: Record<string, string>,
+  counter: number,
+): Promise<number> {
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+  <cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID>
+  <cbc:ID>RE-2026-4620</cbc:ID>
+  <cbc:IssueDate>2026-10-09</cbc:IssueDate>
+  <cbc:DueDate>2026-11-08</cbc:DueDate>
+  <cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+  <cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+  <cbc:BuyerReference>P-0001</cbc:BuyerReference>
+  <cac:AccountingSupplierParty><cac:Party>
+    <cac:PartyName><cbc:Name>Baustoffhandel Maier &amp; Söhne KG</cbc:Name></cac:PartyName>
+    <cac:PostalAddress><cbc:StreetName>Industriestraße 22</cbc:StreetName><cbc:CityName>Ulm</cbc:CityName><cbc:PostalZone>89079</cbc:PostalZone><cac:Country><cbc:IdentificationCode>DE</cbc:IdentificationCode></cac:Country></cac:PostalAddress>
+    <cac:PartyTaxScheme><cbc:CompanyID>DE822222222</cbc:CompanyID><cac:TaxScheme><cbc:ID>VAT</cbc:ID></cac:TaxScheme></cac:PartyTaxScheme>
+    <cac:PartyLegalEntity><cbc:RegistrationName>Baustoffhandel Maier &amp; Söhne KG</cbc:RegistrationName></cac:PartyLegalEntity>
+    <cac:Contact><cbc:ElectronicMail>bestellung@baustoffe-maier.example</cbc:ElectronicMail></cac:Contact>
+  </cac:Party></cac:AccountingSupplierParty>
+  <cac:PaymentMeans><cbc:PaymentMeansCode>58</cbc:PaymentMeansCode><cac:PayeeFinancialAccount><cbc:ID>DE89370400440532013000</cbc:ID></cac:PayeeFinancialAccount></cac:PaymentMeans>
+  <cac:TaxTotal><cbc:TaxAmount currencyID="EUR">237.50</cbc:TaxAmount></cac:TaxTotal>
+  <cac:LegalMonetaryTotal><cbc:LineExtensionAmount currencyID="EUR">1250.00</cbc:LineExtensionAmount><cbc:TaxExclusiveAmount currencyID="EUR">1250.00</cbc:TaxExclusiveAmount><cbc:TaxInclusiveAmount currencyID="EUR">1487.50</cbc:TaxInclusiveAmount><cbc:PayableAmount currencyID="EUR">1487.50</cbc:PayableAmount></cac:LegalMonetaryTotal>
+  <cac:InvoiceLine><cbc:ID>1</cbc:ID><cbc:InvoicedQuantity unitCode="MTK">500</cbc:InvoicedQuantity><cbc:LineExtensionAmount currencyID="EUR">750.00</cbc:LineExtensionAmount><cac:Item><cbc:Name>Dämmung Mineralwolle 140 mm</cbc:Name></cac:Item><cac:Price><cbc:PriceAmount currencyID="EUR">1.50</cbc:PriceAmount></cac:Price></cac:InvoiceLine>
+  <cac:InvoiceLine><cbc:ID>2</cbc:ID><cbc:InvoicedQuantity unitCode="C62">250</cbc:InvoicedQuantity><cbc:LineExtensionAmount currencyID="EUR">500.00</cbc:LineExtensionAmount><cac:Item><cbc:Name>Konterlatten 30x50 mm</cbc:Name></cac:Item><cac:Price><cbc:PriceAmount currencyID="EUR">2.00</cbc:PriceAmount></cac:Price></cac:InvoiceLine>
+</Invoice>`;
+  const buffer = Buffer.from(xml, 'utf8');
+  const parsed = (await readEInvoice(buffer, '.xml'))!;
+  const relative = join(companyId, 'seed-xrechnung.xml');
+  await new Promise<void>((resolve, reject) => {
+    const stream = createWriteStream(join(INCOMING_STORAGE_ROOT, relative));
+    stream.on('finish', () => resolve());
+    stream.on('error', reject);
+    stream.end(buffer);
+  });
+  const number = `ER-${String(counter + 1).padStart(4, '0')}`;
+  await prisma.incomingInvoice.create({
+    data: {
+      companyId,
+      number,
+      supplierId: contactIds['L-2001'],
+      supplierName: parsed.seller.name,
+      invoiceNumber: parsed.number,
+      invoiceDate: new Date(parsed.issueDate!),
+      dueDate: new Date(parsed.dueDate!),
+      description: parsed.lines.map((line) => line.name).join('; '),
+      netAmount: parsed.netAmount,
+      vatAmount: parsed.vatAmount,
+      grossAmount: parsed.grossAmount,
+      projectId: projectId['P-0001'],
+      status: IncomingInvoiceStatus.RECEIVED,
+      filePath: relative,
+      fileName: 'RE-2026-4620.xml',
+      mimeType: 'application/xml',
+      fileSize: buffer.length,
+      fileHash: createHash('sha256').update(buffer).digest('hex'),
+      eInvoice: { ...parsed, supplierMatched: true } as object,
+      uploadedById: userIds['Keller'],
+    },
+  });
+  return counter + 1;
 }

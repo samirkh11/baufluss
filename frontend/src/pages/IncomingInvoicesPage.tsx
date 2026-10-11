@@ -28,7 +28,7 @@ export function IncomingInvoicesPage() {
   const uploadMutation = useMutation({
     mutationFn: uploadIncomingInvoice,
     onSuccess: (invoice) => {
-      message.success(`Beleg gespeichert als ${invoice.number}.`);
+      message.success(invoice.eInvoice ? `E-Rechnung gelesen und als ${invoice.number} gespeichert.` : `Beleg gespeichert als ${invoice.number}.`);
       opened(invoice);
     },
     onError: (error) => void message.error(apiErrorMessage(error, 'Upload fehlgeschlagen.')),

@@ -5,6 +5,7 @@ import { NumberSequencesService } from '../companies/number-sequences/number-seq
 import { PrismaService } from '../common/prisma/prisma.service';
 import { ListIncomingInvoicesQueryDto, UpdateIncomingInvoiceDto } from './dto/incoming-invoice.dto';
 import { approvalIssues } from './incoming-invoice-validation';
+import { EInvoiceReadError, ParsedEInvoice, readEInvoice } from './e-invoice-reader';
 import { deleteInvoiceFile, sha256, storeInvoiceFile, validateInvoiceFile } from './incoming-invoice-storage';
 
 const NUMBER_TYPE = 'INCOMING_INVOICE';
@@ -74,11 +75,25 @@ export class IncomingInvoicesService {
     if (same) {
       throw new ConflictException(`Diese Datei wurde bereits hochgeladen (${same.number}).`);
     }
+
+    // Structured e-invoices (XRechnung XML, ZUGFeRD PDF) prefill the captured data. A plain PDF/image is
+    // simply stored; an XML file that is not an e-invoice is refused.
+    let parsed: ParsedEInvoice | null = null;
+    try {
+      parsed = await readEInvoice(file.buffer, extension);
+    } catch (error) {
+      if (extension === '.xml') {
+        throw new BadRequestException(error instanceof EInvoiceReadError ? error.message : 'Die E-Rechnung konnte nicht gelesen werden.');
+      }
+    }
+    const prefill = parsed ? await this.prefillFrom(user.companyId, parsed) : {};
+
     const filePath = await storeInvoiceFile(user.companyId, extension, file.buffer);
     try {
       const created = await this.prisma.$transaction(async (tx) =>
         tx.incomingInvoice.create({
           data: {
+            ...prefill,
             companyId: user.companyId,
             number: await this.numbers.next(tx, user.companyId, NUMBER_TYPE),
             source: IncomingInvoiceSource.UPLOAD,
@@ -217,8 +232,48 @@ export class IncomingInvoicesService {
     return invoice;
   }
 
-  private issuesOf(invoice: Parameters<typeof approvalIssues>[0]) {
-    return approvalIssues(invoice);
+  private issuesOf(invoice: Parameters<typeof approvalIssues>[0] & { eInvoice?: Prisma.JsonValue | null }) {
+    const issues = approvalIssues(invoice);
+    const parsed = invoice.eInvoice as unknown as (ParsedEInvoice & { supplierMatched?: boolean }) | null | undefined;
+    if (parsed?.isCreditNote) {
+      issues.push('Das ist eine Gutschrift des Lieferanten (Typ 381) und kann nicht als Eingangsrechnung freigegeben werden.');
+    }
+    if (parsed?.currency && parsed.currency !== 'EUR') {
+      issues.push(`Die Rechnung lautet auf ${parsed.currency}; nur EUR wird unterstützt.`);
+    }
+    return issues;
+  }
+
+  // Captured data from a parsed e-invoice; the supplier is matched against the contacts by USt-IdNr.,
+  // IBAN or name, otherwise the seller name is kept as free text.
+  private async prefillFrom(companyId: string, parsed: ParsedEInvoice) {
+    const suppliers = await this.prisma.contact.findMany({
+      where: { companyId, types: { hasSome: ['SUPPLIER', 'SUBCONTRACTOR'] } },
+      select: { id: true, vatId: true, iban: true, organizationName: true, firstName: true, lastName: true },
+    });
+    const compact = (value: string | null | undefined) => (value ? value.replace(/\s+/g, '').toUpperCase() : null);
+    const name = (value: string | null | undefined) => value?.trim().toLowerCase() ?? null;
+    const sellerName = name(parsed.seller.name);
+    const match =
+      suppliers.find((c) => compact(c.vatId) && compact(c.vatId) === compact(parsed.seller.vatId)) ??
+      suppliers.find((c) => compact(c.iban) && compact(c.iban) === compact(parsed.seller.iban)) ??
+      suppliers.find((c) => sellerName && name(c.organizationName ?? `${c.firstName ?? ''} ${c.lastName ?? ''}`) === sellerName);
+    const lines = parsed.lines.map((line) => line.name).filter(Boolean);
+    return {
+      supplierId: match?.id ?? null,
+      supplierName: parsed.seller.name,
+      invoiceNumber: parsed.number,
+      invoiceDate: parsed.issueDate ? new Date(parsed.issueDate) : null,
+      dueDate: parsed.dueDate ? new Date(parsed.dueDate) : null,
+      serviceDate: parsed.serviceDate ? new Date(parsed.serviceDate) : null,
+      description: lines.length ? lines.slice(0, 3).join('; ') + (lines.length > 3 ? ` (+${lines.length - 3} weitere)` : '') : parsed.note,
+      netAmount: parsed.netAmount,
+      vatAmount: parsed.vatAmount,
+      grossAmount: parsed.grossAmount,
+      currency: parsed.currency ?? 'EUR',
+      reverseCharge: parsed.reverseCharge,
+      eInvoice: { ...parsed, supplierMatched: !!match } as unknown as Prisma.InputJsonValue,
+    };
   }
 
   // Maps the DTO to Prisma data and verifies that referenced supplier/project belong to the tenant.

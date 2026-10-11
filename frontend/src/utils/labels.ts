@@ -88,6 +88,12 @@ export const INCOMING_STATUS: Record<IncomingInvoiceStatus, { label: string; col
   PAID: { label: 'Bezahlt', color: 'green' },
 };
 
+export const EINVOICE_FORMAT: Record<string, string> = {
+  XRECHNUNG_UBL: 'XRechnung (UBL)',
+  XRECHNUNG_CII: 'XRechnung (CII)',
+  ZUGFERD: 'ZUGFeRD / Factur-X',
+};
+
 export const PAYMENT_METHOD: Record<PaymentMethod, { label: string }> = {
   BANK_TRANSFER: { label: 'Überweisung' },
   CASH: { label: 'Bar' },

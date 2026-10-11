@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Invoice xmlns="urn:oasis:names:specification:ubl:schema:xsd:Invoice-2" xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2" xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2">
+	<cbc:CustomizationID>urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0</cbc:CustomizationID>
+	<cbc:ProfileID>urn:fdc:peppol.eu:2017:poacc:billing:01:1.0</cbc:ProfileID>
+	<cbc:ID>RE-00007</cbc:ID>
+	<cbc:IssueDate>2026-10-11</cbc:IssueDate>
+	<cbc:DueDate>2026-10-25</cbc:DueDate>
+	<cbc:InvoiceTypeCode>380</cbc:InvoiceTypeCode>
+	<cbc:Note>Neueindeckung Einfamilienhaus – Variante Standard
+Sicherheitseinbehalt 5 % (631.07 EUR) bis 2031-11-13 ist Bestandteil des Rechnungsbetrags.</cbc:Note>
+	<cbc:DocumentCurrencyCode>EUR</cbc:DocumentCurrencyCode>
+	<cbc:BuyerReference>P-0002</cbc:BuyerReference>
+	<cac:InvoicePeriod>
+		<cbc:StartDate>2026-11-02</cbc:StartDate>
+		<cbc:EndDate>2026-11-13</cbc:EndDate>
+	</cac:InvoicePeriod>
+	<cac:ProjectReference>
+		<cbc:ID>P-0002</cbc:ID>
+	</cac:ProjectReference>
+	<cac:AccountingSupplierParty>
+		<cac:Party>
+			<cbc:EndpointID schemeID="EM">info@dachdecker-schmidt.example</cbc:EndpointID>
+			<cac:PartyName>
+				<cbc:Name>Dachdeckerei Schmidt GmbH</cbc:Name>
+			</cac:PartyName>
+			<cac:PostalAddress>
+				<cbc:StreetName>Am Sägewerk 7</cbc:StreetName>
+				<cbc:CityName>Ulm</cbc:CityName>
+				<cbc:PostalZone>89073</cbc:PostalZone>
+				<cac:Country>
+					<cbc:IdentificationCode>DE</cbc:IdentificationCode>
+				</cac:Country>
+			</cac:PostalAddress>
+			<cac:PartyTaxScheme>
+				<cbc:CompanyID>DE123456789</cbc:CompanyID>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:PartyTaxScheme>
+			<cac:PartyLegalEntity>
+				<cbc:RegistrationName>Dachdeckerei Schmidt GmbH</cbc:RegistrationName>
+				<cbc:CompanyLegalForm>GmbH</cbc:CompanyLegalForm>
+			</cac:PartyLegalEntity>
+			<cac:Contact>
+				<cbc:Name>Dachdeckerei Schmidt GmbH</cbc:Name>
+				<cbc:Telephone>0731 123456</cbc:Telephone>
+				<cbc:ElectronicMail>info@dachdecker-schmidt.example</cbc:ElectronicMail>
+			</cac:Contact>
+		</cac:Party>
+	</cac:AccountingSupplierParty>
+	<cac:AccountingCustomerParty>
+		<cac:Party>
+			<cbc:EndpointID schemeID="EM">s.becker@mail.example</cbc:EndpointID>
+			<cac:PartyName>
+				<cbc:Name>Herr Stefan Becker</cbc:Name>
+			</cac:PartyName>
+			<cac:PostalAddress>
+				<cbc:StreetName>Lindenweg 3</cbc:StreetName>
+				<cbc:CityName>Neu-Ulm</cbc:CityName>
+				<cbc:PostalZone>89231</cbc:PostalZone>
+				<cac:Country>
+					<cbc:IdentificationCode>DE</cbc:IdentificationCode>
+				</cac:Country>
+			</cac:PostalAddress>
+			<cac:PartyLegalEntity>
+				<cbc:RegistrationName>Herr Stefan Becker</cbc:RegistrationName>
+			</cac:PartyLegalEntity>
+		</cac:Party>
+	</cac:AccountingCustomerParty>
+	<cac:PaymentMeans>
+		<cbc:PaymentMeansCode>58</cbc:PaymentMeansCode>
+		<cbc:PaymentID>RE-00007</cbc:PaymentID>
+		<cac:PayeeFinancialAccount>
+			<cbc:ID>DE02120300000000202051</cbc:ID>
+			<cac:FinancialInstitutionBranch>
+				<cbc:ID>BYLADEM1001</cbc:ID>
+			</cac:FinancialInstitutionBranch>
+		</cac:PayeeFinancialAccount>
+	</cac:PaymentMeans>
+	<cac:PaymentTerms>
+		<cbc:Note>Zahlbar innerhalb von 14 Tagen bis 2026-10-25 ohne Abzug.</cbc:Note>
+	</cac:PaymentTerms>
+	<cac:TaxTotal>
+		<cbc:TaxAmount currencyID="EUR">2015.19</cbc:TaxAmount>
+		<cac:TaxSubtotal>
+			<cbc:TaxableAmount currencyID="EUR">10606.26</cbc:TaxableAmount>
+			<cbc:TaxAmount currencyID="EUR">2015.19</cbc:TaxAmount>
+			<cac:TaxCategory>
+				<cbc:ID>S</cbc:ID>
+				<cbc:Percent>19</cbc:Percent>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:TaxCategory>
+		</cac:TaxSubtotal>
+	</cac:TaxTotal>
+	<cac:LegalMonetaryTotal>
+		<cbc:LineExtensionAmount currencyID="EUR">10606.26</cbc:LineExtensionAmount>
+		<cbc:TaxExclusiveAmount currencyID="EUR">10606.26</cbc:TaxExclusiveAmount>
+		<cbc:TaxInclusiveAmount currencyID="EUR">12621.45</cbc:TaxInclusiveAmount>
+		<cbc:PayableAmount currencyID="EUR">12621.45</cbc:PayableAmount>
+	</cac:LegalMonetaryTotal>
+	<cac:InvoiceLine>
+		<cbc:ID>1</cbc:ID>
+		<cbc:Note>Treuerabatt für Folgeauftrag.</cbc:Note>
+		<cbc:InvoicedQuantity unitCode="MTK">140</cbc:InvoicedQuantity>
+		<cbc:LineExtensionAmount currencyID="EUR">12901.00</cbc:LineExtensionAmount>
+		<cac:AllowanceCharge>
+			<cbc:ChargeIndicator>false</cbc:ChargeIndicator>
+			<cbc:AllowanceChargeReason>Rabatt</cbc:AllowanceChargeReason>
+			<cbc:MultiplierFactorNumeric>3</cbc:MultiplierFactorNumeric>
+			<cbc:Amount currencyID="EUR">399.00</cbc:Amount>
+			<cbc:BaseAmount currencyID="EUR">13300.00</cbc:BaseAmount>
+		</cac:AllowanceCharge>
+		<cac:Item>
+			<cbc:Name>Neueindeckung Tonziegel inkl. Lattung</cbc:Name>
+			<cac:SellersItemIdentification>
+				<cbc:ID>L-110</cbc:ID>
+			</cac:SellersItemIdentification>
+			<cac:ClassifiedTaxCategory>
+				<cbc:ID>S</cbc:ID>
+				<cbc:Percent>19</cbc:Percent>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:ClassifiedTaxCategory>
+		</cac:Item>
+		<cac:Price>
+			<cbc:PriceAmount currencyID="EUR">95</cbc:PriceAmount>
+		</cac:Price>
+	</cac:InvoiceLine>
+	<cac:InvoiceLine>
+		<cbc:ID>2</cbc:ID>
+		<cbc:InvoicedQuantity unitCode="MTR">22</cbc:InvoicedQuantity>
+		<cbc:LineExtensionAmount currencyID="EUR">627.00</cbc:LineExtensionAmount>
+		<cac:Item>
+			<cbc:Name>Dachrinne montieren</cbc:Name>
+			<cac:SellersItemIdentification>
+				<cbc:ID>L-111</cbc:ID>
+			</cac:SellersItemIdentification>
+			<cac:ClassifiedTaxCategory>
+				<cbc:ID>S</cbc:ID>
+				<cbc:Percent>19</cbc:Percent>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:ClassifiedTaxCategory>
+		</cac:Item>
+		<cac:Price>
+			<cbc:PriceAmount currencyID="EUR">28.5</cbc:PriceAmount>
+		</cac:Price>
+	</cac:InvoiceLine>
+	<cac:InvoiceLine>
+		<cbc:ID>3</cbc:ID>
+		<cbc:InvoicedQuantity unitCode="MTR">22</cbc:InvoicedQuantity>
+		<cbc:LineExtensionAmount currencyID="EUR">327.80</cbc:LineExtensionAmount>
+		<cac:Item>
+			<cbc:Name>Zink-Regenrinne halbrund NW 333</cbc:Name>
+			<cac:SellersItemIdentification>
+				<cbc:ID>A-203</cbc:ID>
+			</cac:SellersItemIdentification>
+			<cac:ClassifiedTaxCategory>
+				<cbc:ID>S</cbc:ID>
+				<cbc:Percent>19</cbc:Percent>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:ClassifiedTaxCategory>
+		</cac:Item>
+		<cac:Price>
+			<cbc:PriceAmount currencyID="EUR">14.9</cbc:PriceAmount>
+		</cac:Price>
+	</cac:InvoiceLine>
+	<cac:InvoiceLine>
+		<cbc:ID>4</cbc:ID>
+		<cbc:Note>Stundenlohnarbeiten nach Aufwand (Planwert).</cbc:Note>
+		<cbc:InvoicedQuantity unitCode="HUR">24</cbc:InvoicedQuantity>
+		<cbc:LineExtensionAmount currencyID="EUR">1296.00</cbc:LineExtensionAmount>
+		<cac:Item>
+			<cbc:Name>Dachdeckergeselle, Stunde</cbc:Name>
+			<cac:SellersItemIdentification>
+				<cbc:ID>L-101</cbc:ID>
+			</cac:SellersItemIdentification>
+			<cac:ClassifiedTaxCategory>
+				<cbc:ID>S</cbc:ID>
+				<cbc:Percent>19</cbc:Percent>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:ClassifiedTaxCategory>
+		</cac:Item>
+		<cac:Price>
+			<cbc:PriceAmount currencyID="EUR">54</cbc:PriceAmount>
+		</cac:Price>
+	</cac:InvoiceLine>
+	<cac:InvoiceLine>
+		<cbc:ID>5</cbc:ID>
+		<cbc:InvoicedQuantity unitCode="LS">-1</cbc:InvoicedQuantity>
+		<cbc:LineExtensionAmount currencyID="EUR">-4545.54</cbc:LineExtensionAmount>
+		<cac:Item>
+			<cbc:Name>abzüglich Abschlagsrechnung Nr. 1 (RE-00006 vom 11.10.2026)</cbc:Name>
+			<cac:ClassifiedTaxCategory>
+				<cbc:ID>S</cbc:ID>
+				<cbc:Percent>19</cbc:Percent>
+				<cac:TaxScheme>
+					<cbc:ID>VAT</cbc:ID>
+				</cac:TaxScheme>
+			</cac:ClassifiedTaxCategory>
+		</cac:Item>
+		<cac:Price>
+			<cbc:PriceAmount currencyID="EUR">4545.54</cbc:PriceAmount>
+		</cac:Price>
+	</cac:InvoiceLine>
+</Invoice>

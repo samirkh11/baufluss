@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Col, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Tag, message } from 'antd';
+import { Alert, Button, Col, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Table, Tag, message } from 'antd';
 import {
   deleteIncomingInvoice,
   fetchIncomingInvoiceFile,
@@ -13,7 +13,7 @@ import { listContacts } from '../api/contacts';
 import { listProjects } from '../api/projects';
 import { useIsPhone } from '../hooks/useMediaQuery';
 import { apiErrorMessage } from '../utils/assets';
-import { formatDate, INCOMING_STATUS, toDateInput, todayDateInput } from '../utils/labels';
+import { EINVOICE_FORMAT, formatDate, formatMoney, INCOMING_STATUS, toDateInput, todayDateInput } from '../utils/labels';
 
 interface FormValues {
   supplierId?: string | null;
@@ -216,10 +216,26 @@ export function IncomingInvoiceModal({ id, onClose }: { id: string | null; onClo
           <Col xs={24} md={11}>
             <div style={{ border: '1px solid #d9d9d9', borderRadius: 6, height: phone ? 260 : 560, overflow: 'auto', marginBottom: 12, background: '#fafafa' }}>
               {!hasFile && <div style={{ padding: 16 }}>Ohne Beleg erfasst.</div>}
-              {hasFile && !previewUrl && <div style={{ padding: 16 }}>Beleg wird geladen …</div>}
+              {hasFile && !previewUrl && !invoice.eInvoice && <div style={{ padding: 16 }}>Beleg wird geladen …</div>}
+              {invoice.eInvoice && !isPdf && (
+                <Table
+                  size="small"
+                  pagination={false}
+                  rowKey={(row) => `${row.position}-${row.name}`}
+                  dataSource={invoice.eInvoice.lines}
+                  scroll={{ x: 'max-content' }}
+                  data-testid="einvoice-lines"
+                  columns={[
+                    { title: 'Pos.', dataIndex: 'position', width: 50 },
+                    { title: 'Bezeichnung', dataIndex: 'name' },
+                    { title: 'Menge', align: 'right', render: (_, row) => `${row.quantity ?? ''} ${row.unit ?? ''}` },
+                    { title: 'Netto', align: 'right', render: (_, row) => (row.net ? formatMoney(row.net) : '') },
+                  ]}
+                />
+              )}
               {previewUrl && isPdf && <iframe title="Beleg" src={previewUrl} style={{ border: 0, width: '100%', height: '100%' }} />}
               {previewUrl && isImage && <img alt="Beleg" src={previewUrl} style={{ width: '100%' }} />}
-              {previewUrl && !isPdf && !isImage && (
+              {previewUrl && !isPdf && !isImage && !invoice.eInvoice && (
                 <div style={{ padding: 16 }}>
                   <a href={previewUrl} target="_blank" rel="noreferrer">{invoice.fileName}</a>
                 </div>
@@ -228,6 +244,20 @@ export function IncomingInvoiceModal({ id, onClose }: { id: string | null; onClo
             {invoice.fileName && <small>{invoice.fileName}</small>}
           </Col>
           <Col xs={24} md={13}>
+            {invoice.eInvoice && (
+              <Alert
+                type="success"
+                showIcon
+                style={{ marginBottom: 12 }}
+                data-testid="einvoice-alert"
+                message={`E-Rechnung erkannt: ${EINVOICE_FORMAT[invoice.eInvoice.format] ?? invoice.eInvoice.format}`}
+                description={
+                  invoice.eInvoice.supplierMatched
+                    ? 'Die Daten wurden aus der Datei übernommen, der Lieferant wurde in den Kontakten gefunden.'
+                    : `Die Daten wurden aus der Datei übernommen. „${invoice.eInvoice.seller.name ?? 'Lieferant'}“ ist nicht in den Kontakten – bei Bedarf einen Kontakt anlegen und hier auswählen.`
+                }
+              />
+            )}
             {invoice.duplicateOf && (
               <Alert type="warning" showIcon style={{ marginBottom: 12 }} message={`Mögliche Doppelerfassung: gleiche Rechnungsnummer bereits als ${invoice.duplicateOf.number} erfasst.`} />
             )}

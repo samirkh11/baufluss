@@ -458,6 +458,14 @@ export interface IncomingInvoice {
   approvedAt: string | null;
   paidAt: string | null;
   createdAt: string;
+  // Parsed content when the upload was a structured e-invoice (XRechnung / ZUGFeRD)
+  eInvoice?: {
+    format: 'XRECHNUNG_UBL' | 'XRECHNUNG_CII' | 'ZUGFERD';
+    isCreditNote: boolean;
+    supplierMatched: boolean;
+    seller: { name: string | null; iban: string | null; vatId: string | null };
+    lines: { position: string | null; name: string; quantity: string | null; unit: string | null; unitPrice: string | null; net: string | null }[];
+  } | null;
   issues?: string[]; // what still blocks the approval (detail only)
   duplicateOf?: { id: string; number: string } | null;
 }

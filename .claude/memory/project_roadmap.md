@@ -207,7 +207,7 @@ Aufgeteilt in vier Teilschritte:
   `GET incoming-invoices/:id/file`); Vorschau (PDF/Bild) im Dialog; nur OWNER/ADMIN; Menü „Eingangsrechnungen“.
   Seed: 6 Rechnungen in allen Status mit generierten PDFs. Tests: e2e smoke 105, responsive 57, jest 83.
 - ⬜ **Offen:** Mail-Eingang (Infrastruktur-Entscheidung: Postfach/IMAP oder Inbound-Webhook), Eingangsrechnungen-Tab
-  im Projekt (Kostenübersicht/Marge), Lesen von XRechnung/ZUGFeRD (Block 7), Skonto, Zahlungsexport (SEPA/DATEV),
+  im Projekt (Kostenübersicht/Marge), Skonto, Zahlungsexport (SEPA/DATEV),
   Upload/Foto für Bauleiter (MEMBER) mit Freigabe durch Büro, Mehr-Augen-Prinzip/Freigabegrenzen.
 
 ### 🟡 Block 7 — E-Rechnung und Compliance (Teil 1 ✅ 2026-10-11)
@@ -224,8 +224,14 @@ Aufgeteilt in vier Teilschritte:
   Schematron und veraPDF (nach `e2e/.cache`) und prüft alle Demo-Belege → alle akzeptiert. Pitfall: UBL-CreditNote
   kennt kein ProjectReference (weggelassen); CII erlaubt die Notiz nur einmal (Notizen zusammengeführt).
   Tests: jest 97, e2e smoke 127, responsive 59.
-- ⬜ **Teil 2: E-Rechnung lesen** (XRechnung UBL/CII + ZUGFeRD-PDF → Eingangsrechnung vorbefüllen; Upload-XML/PDF in
-  Block 6 erkennen; Format-Validierung beim Import).
+- ✅ **Teil 2: E-Rechnung lesen** (2026-10-11). `incoming-invoices/e-invoice-reader.ts` liest XRechnung UBL (Invoice/CreditNote),
+  CII und das eingebettete XML eines ZUGFeRD/Factur-X-PDFs (pdf-lib, EmbeddedFiles) in eine flache Struktur (7 Tests mit
+  echten, validierten Fixtures in `backend/test/fixtures/e-invoice/`). Beim Upload (Block 6) wird automatisch erkannt:
+  Daten werden vorbefüllt (Lieferant per USt-IdNr./IBAN/Name den Kontakten zugeordnet, sonst Freitext + Hinweis; Nr., Datum,
+  Fälligkeit, Leistungsdatum, Netto/USt/Brutto, § 13b, Beschreibung aus Positionen), geparster Inhalt in
+  `IncomingInvoice.eInvoice` (Json). XML, die keine E-Rechnung ist → 400. Gutschrift des Lieferanten (381) und Fremdwährung
+  blockieren die Freigabe (Hinweis). Dialog zeigt Alert „E-Rechnung erkannt“ + Positionstabelle (bei XML statt Vorschau).
+  Seed: ER-0007 als XRechnung-XML (Maier). Tests: jest 104, e2e smoke 133, responsive 59.
 - ⬜ **Teil 3: GoBD** — Archiv (unveränderliche PDF/XML-Ablage mit Hash zum Ausstellzeitpunkt statt Neurendern),
   Audit-Log (wer/wann/was), Verfahrensdokumentation (Vorlage), Aufbewahrungsfristen/Löschsperre.
 - ⬜ **Teil 4: DSGVO** — Kontakt-Auskunft/Export, Löschkonzept (Sperren statt Löschen bei Aufbewahrung), AVV-/TOM-Hinweise.
@@ -312,7 +318,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 4. ~~Angebote (Editor, PDF, Übernahme, GAEB)~~ ✅
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1–4 ✅ (ausstellen, Abschlag/Schluss, Storno/Zahlungen); Mahnwesen ✅, Datenmodell EN16931-kompatibel halten
 6. Eingangsrechnungen — Teil 1 ✅ (Upload, Erfassung, Freigabe, Projektzuordnung); Mail-Eingang offen
-7. E-Rechnung — Teil 1 ✅ (Erzeugen XRechnung/ZUGFeRD, validiert); offen: Lesen, GoBD-Archiv/Audit, DSGVO, Steuerprüfer-Export
+7. E-Rechnung — Teil 1+2 ✅ (Erzeugen XRechnung/ZUGFeRD validiert, Lesen/Import); offen: GoBD-Archiv/Audit, DSGVO, Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
    vor dem ersten zahlenden Kunden
 9. Dashboard mit Widgets — V1 ✅ (siehe Block 9), V2 offen
