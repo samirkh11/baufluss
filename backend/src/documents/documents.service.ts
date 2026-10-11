@@ -342,6 +342,7 @@ export class DocumentsService {
         source.items.map((item) => ({
           kind: item.kind,
           catalogItemId: item.catalogItemId ?? undefined,
+          oz: item.oz ?? undefined,
           sku: item.sku ?? undefined,
           name: item.name,
           description: item.description ?? undefined,
@@ -401,6 +402,7 @@ export class DocumentsService {
           sortOrder: index,
           ...values,
           catalogItemId: item.catalogItemId,
+          oz: item.oz,
           sku: item.sku,
           name: item.name,
           description: item.description,

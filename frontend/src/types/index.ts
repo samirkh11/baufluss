@@ -177,6 +177,7 @@ export interface DocumentItem {
   id: string;
   kind: DocumentItemKind;
   catalogItemId: string | null;
+  oz: string | null; // original GAEB Ordnungszahl of imported lines
   sku: string | null;
   name: string;
   description: string | null;

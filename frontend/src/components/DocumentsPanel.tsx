@@ -4,10 +4,18 @@ import { Button, Form, Input, Modal, Select, Space, Table, Tag, message } from '
 import { PlusOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { createDocument, listDocuments } from '../api/documents';
+import { GaebImportButton } from './GaebImportButton';
 import { listProjects } from '../api/projects';
 import { BusinessDocument, DocumentStatus, DocumentType } from '../types';
 import { apiErrorMessage } from '../utils/assets';
-import { DOCUMENT_NEW_LABEL, DOCUMENT_STATUS, documentPath, formatDate, formatMoney, optionsOf } from '../utils/labels';
+import {
+  DOCUMENT_NEW_LABEL,
+  DOCUMENT_STATUS,
+  documentPath,
+  formatDate,
+  formatMoney,
+  optionsOf,
+} from '../utils/labels';
 
 interface DocumentsPanelProps {
   type: DocumentType;
@@ -58,6 +66,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
         <Button type="primary" icon={<PlusOutlined />} loading={createMutation.isPending} onClick={handleNew}>
           {DOCUMENT_NEW_LABEL[type]}
         </Button>
+        {type === 'QUOTE' && <GaebImportButton projectId={projectId} />}
         <Select
           allowClear
           placeholder="Alle Status"

@@ -3,9 +3,10 @@
 // Run `npm run seed` in backend/ first, then `npm test` here. Screenshots go to e2e/shots/.
 // Extend this file (or add *.e2e.mjs files) with every new feature.
 import { chromium } from 'playwright';
-import { mkdirSync, mkdtempSync, writeFileSync } from 'fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 
 const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:5173';
 const shots = new URL('./shots/', import.meta.url).pathname;
@@ -176,11 +177,11 @@ check('user edited via dialog', true);
 // ---- quotes (Block 4)
 await page.getByRole('menuitem', { name: 'Angebote' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
-check('quotes list shows 6 seed quotes', (await page.locator('tbody tr.ant-table-row').count()) === 6);
+check('quotes list shows 7 seed quotes', (await page.locator('tbody tr.ant-table-row').count()) === 7);
 await page.locator('.ant-select').first().click();
 await page.locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: 'Entwurf' }).click();
 await page.waitForTimeout(600);
-check('status filter "Entwurf" -> 1 quote', (await page.locator('tbody tr.ant-table-row').count()) === 1);
+check('status filter "Entwurf" -> 2 quotes', (await page.locator('tbody tr.ant-table-row').count()) === 2);
 await page.screenshot({ path: shots + '08-quotes.png' });
 // reload to reset the status filter
 await page.goto(BASE + '/quotes');
@@ -266,6 +267,38 @@ await page.locator('.ant-popover:visible').getByRole('button', { name: 'OK' }).c
 await page.waitForURL(/\/projects\/.+/);
 check('draft deleted, back on project', true);
 
+// ---- GAEB import/export (Block 4, step 3) on the project page
+const SAMPLES = join(dirname(fileURLToPath(import.meta.url)), '..', 'docs', 'gaeb-samples');
+await page.waitForSelector('.ant-tabs-tabpane-active input[type=file]', { state: 'attached' });
+await page.locator('.ant-tabs-tabpane-active input[type=file]').setInputFiles(join(SAMPLES, 'lv-dachsanierung.x83'));
+await page.waitForURL(/\/quotes\/.+/);
+await page.waitForSelector('text=OZ 02.01.0010');
+check('GAEB X83 import: 17 lines with original Ordnungszahlen', (await page.locator('tbody tr.ant-table-row').count()) === 17);
+check('GAEB import takes the project label as subject', (await page.getByLabel('Betreff').inputValue()).includes('Dachsanierung Wohnanlage'));
+await page.screenshot({ path: shots + '13-gaeb-import.png' });
+const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'GAEB-Export' }).click()]);
+const exported = readFileSync(await download.path(), 'utf8');
+check('GAEB export downloads an .x84 file', download.suggestedFilename().endsWith('.x84'), download.suggestedFilename());
+check('GAEB export is X84 and keeps the original numbering', exported.includes('GAEB_DA_XML/DA84/3.3') && exported.includes('RNoPart="0040"') && exported.includes('Tondachziegel eindecken'));
+await page.getByRole('button', { name: 'Löschen' }).click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'OK' }).click();
+await page.waitForURL(/\/projects\/.+/);
+// GAEB 3.2 file and an invalid file
+await page.waitForSelector('.ant-tabs-tabpane-active input[type=file]', { state: 'attached' });
+await page.locator('.ant-tabs-tabpane-active input[type=file]').setInputFiles(join(SAMPLES, 'lv-einfach-3.2.x81'));
+await page.waitForURL(/\/quotes\/.+/);
+await page.waitForSelector('text=Trapezblech-Dach', { state: 'attached' });
+check('GAEB 3.2 (X81) import: 3 lines', (await page.locator('tbody tr.ant-table-row').count()) === 3);
+await page.getByRole('button', { name: 'Löschen' }).click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'OK' }).click();
+await page.waitForURL(/\/projects\/.+/);
+const badFile = join(mkdtempSync(join(tmpdir(), 'meisterwerk-e2e-')), 'kaputt.x83');
+writeFileSync(badFile, '<html><body>kein GAEB</body></html>');
+await page.waitForSelector('.ant-tabs-tabpane-active input[type=file]', { state: 'attached' });
+await page.locator('.ant-tabs-tabpane-active input[type=file]').setInputFiles(badFile);
+await page.waitForSelector('.ant-message-error');
+check('invalid GAEB file shows an error and stays on the page', (await page.locator('.ant-message-error').innerText()).includes('GAEB') && /\/projects\//.test(page.url()));
+
 // ---- worker view: no admin controls
 await page.getByTitle('Abmelden').click();
 await page.getByLabel('E-Mail').fill('l.bauer@dachdecker-schmidt.example');
@@ -279,7 +312,8 @@ await page.waitForSelector('tbody tr.ant-table-row');
 check('worker sees no document menu items', (await page.getByRole('menuitem', { name: /Angebote|Aufträge|Rechnungen/ }).count()) === 0);
 check('worker sees no "Nutzer einladen" button', (await page.getByRole('button', { name: 'Nutzer einladen' }).count()) === 0);
 
-const real = errors.filter((e) => !/favicon|DevTools/i.test(e));
+// the invalid-GAEB-file check above intentionally provokes one HTTP 400
+const real = errors.filter((e) => !/favicon|DevTools|import-gaeb|400 \(Bad Request\)/i.test(e));
 check('no browser console errors', real.length === 0, real.slice(0, 3).join(' | '));
 await browser.close();
 console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed`);

@@ -1,4 +1,19 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CompanyRole } from '@prisma/client';
 import { Response } from 'express';
@@ -7,6 +22,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.type';
+import { GaebService } from './gaeb/gaeb.service';
 import { DocumentPdfService } from './document-pdf.service';
 import { DocumentsService } from './documents.service';
 import { ConvertDocumentDto } from './dto/convert-document.dto';
@@ -26,6 +42,7 @@ export class DocumentsController {
   constructor(
     private readonly documentsService: DocumentsService,
     private readonly pdfService: DocumentPdfService,
+    private readonly gaebService: GaebService,
   ) {}
 
   @Get('documents')
@@ -80,5 +97,33 @@ export class DocumentsController {
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     res.send(buffer);
+  }
+
+  // GAEB import: uploads a bill of quantities (GAEB DA XML) and creates a quote draft from it.
+  // The file is processed in memory and not stored.
+  @Post('projects/:projectId/documents/import-gaeb')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+      fileFilter: (_req, file, callback) => {
+        const ok = /\.(x8[0-9]|x3[0-9]|xml|gaeb)$/i.test(file.originalname);
+        callback(ok ? null : new BadRequestException('Bitte eine GAEB-DA-XML-Datei (.x83, .x84, .x86, .xml) wählen.'), ok);
+      },
+    }),
+  )
+  importGaeb(@CurrentUser() user: AuthenticatedUser, @Param('projectId') projectId: string, @UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Keine Datei empfangen.');
+    }
+    return this.gaebService.importAsQuote(user.companyId, projectId, file.buffer);
+  }
+
+  // GAEB export of a quote as X84 (Angebotsabgabe, with prices).
+  @Get('documents/:id/gaeb')
+  async exportGaeb(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Res() res: Response) {
+    const { xml, filename } = await this.gaebService.exportQuote(user.companyId, id);
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(xml);
   }
 }

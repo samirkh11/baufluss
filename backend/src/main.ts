@@ -14,7 +14,8 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
 
   const corsOrigins = configService.get<string>('CORS_ORIGINS', 'http://localhost:5173').split(',');
-  app.enableCors({ origin: corsOrigins, credentials: true });
+  // Content-Disposition must be exposed so the SPA can read the file name of downloads (PDF, GAEB).
+  app.enableCors({ origin: corsOrigins, credentials: true, exposedHeaders: ['Content-Disposition'] });
 
   // Serve uploaded company logos directly; see CompaniesController#uploadLogo.
   // Resolved from the working directory (same base as multer's './uploads/logos'), not __dirname:

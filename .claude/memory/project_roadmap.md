@@ -53,7 +53,7 @@ Backend: `projects/`, `reports/`. Frontend: `ProjectsPage`, `ProjectDetailPage`,
 - Offen/Ideen: Projektdateien/Pläne als Anhänge, Zeiterfassung je Projekt, PDF-Export von
   Berichten, Bautagebuch-Vorlagen, Mitarbeiter sieht nur zugewiesene Projekte (aktuell sehen alle alles).
 
-### 🟡 Block 4 — Angebote (Teilschritte 1+2 fertig, 2026-10-11)
+### ✅ Block 4 — Angebote (alle 3 Teilschritte fertig, 2026-10-11)
 Aufgeteilt in drei Teilschritte:
 - ✅ **1. Angebotseditor + PDF + Preise aus dem Stamm.** Backend `documents/`, Frontend
   `DocumentEditorPage`, `DocumentsPanel`, `QuotesPage` (Menü „Angebote", Tab „Angebote" im Projekt;
@@ -87,8 +87,27 @@ Aufgeteilt in drei Teilschritte:
   Auftrag): Ausstellen bleibt gesperrt (409 + Hinweis im Editor), bis Block 5 die Pflichtangaben
   (§ 14 UStG, Leistungsdatum, Zahlungsbedingungen, § 13b, Abschlag/Schluss, EN16931-Felder) liefert.
   Block 5 muss außerdem: Optionalpositionen vor dem Ausstellen verbieten, `CREDIT_NOTE` freischalten.
-- ⬜ **3. GAEB-Import/-Export** (Import zuerst, siehe [[project_compliance]]): Leistungsverzeichnis
-  → Titel/Positionen mit OZ; die Struktur HEADING/POSITION passt bereits dazu.
+- ✅ **3. GAEB-Import/-Export** (2026-10-11). Code in `backend/src/documents/gaeb/`
+  (`gaeb-xml.ts` Baumparser mit fast-xml-parser, `gaeb-parser.ts`, `gaeb-writer.ts`,
+  `gaeb.service.ts`), Frontend `GaebImportButton` + Button „GAEB-Export" im Editor.
+  - **Import** (`POST /projects/:id/documents/import-gaeb`, Datei nur im Speicher): GAEB DA XML 3.x,
+    jede Phase mit LV (X81/83/84/86 …), Namespace/Prefix egal, UTF-8 oder Windows-1252. Titel
+    (auch verschachtelt) → HEADING, Items → POSITION, Item ohne Menge/Einheit → TEXT, Pauschal →
+    „psch", Bedarfs-/Alternativposition (`Provis`, `ALN*`) → Optional, `m2`→`m²`. Kurztext/Langtext
+    aus `OutlineText`/`DetailTxt`. Erzeugt einen Angebots-ENTWURF; Preise aus der Datei (`UP`) falls
+    vorhanden, sonst 0. Neu: `DocumentItem.oz` (Original-Ordnungszahl, z.B. `02.01.0030`), bleibt bei
+    Speichern/Duplizieren/Übernahme erhalten und wird im Editor als „OZ …" angezeigt.
+  - **Export** (`GET /documents/:id/gaeb`, nur Angebote): GAEB DA XML 3.3, Phase **X84**
+    (Angebotsabgabe, mit `UP`/`IT`). Mit Original-OZ wird die Original-Gliederung (auch
+    verschachtelt) rekonstruiert, sonst werden 01/02… und 0010/0020… erzeugt. Rabatt wird in den
+    Einheitspreis eingerechnet, Optionalpositionen als `Provis WithoutTotal` ohne `IT`.
+  - **Testdaten:** `docs/gaeb-samples/` (SELBST erzeugt, keine Originale: X83 3.3 mit Verschachtelung,
+    Pauschal/Bedarf/Alternative/Text; X81 3.2 flach) + 17 Jest-Tests (Parser, Writer, Rundlauf).
+  - **Grenzen / ungeprüft:** nicht gegen das offizielle GAEB-XSD validiert (Schreibweise von
+    Alternativpositionen und Element-Reihenfolge nach bestem Wissen); Zuschlagspositionen
+    (`MarkupItem`) werden mit Warnung übersprungen; keine Teilmengen (`QtySplit`), keine X86/X89-
+    Ausgabe, kein GAEB-90 (.d83); Bieter-Angaben (`OWN`) fehlen im Export. **Vor dem Kundeneinsatz
+    mit echten Dateien aus Ausschreibungsportalen und einer AVA-Software gegentesten.**
 - Ideen/offen: Textbausteine & Standard-Einleitung je Firma, Angebotsvarianten/Alternativen
   gruppieren, Zwischensummen, Rabatt auf Gesamtsumme, Versand per E-Mail, PDF-Layout
   konfigurierbar (Briefpapier-PDF als Hintergrund), Angebots-Historie/Revisionen.
@@ -144,18 +163,62 @@ laufende Projekte, aktuelle Berichte, fällige Mahnungen, Mitarbeitereinsatz.
 - Die Startseite (`DashboardPage`) ist bis dahin ein einfacher Platzhalter.
 Zeitpunkt: nach Block 5 (dann gibt es Geld-Kennzahlen), spätestens vor dem ersten Kunden.
 
+### ⬜ Block 10 — Zeiterfassung (Wunsch von Volker 2026-10-11)
+Alle Mitarbeiter erfassen ihre Arbeitszeiten und ordnen sie Projekten zu; daraus ergibt sich die
+**gesamte Arbeitszeit pro Projekt** (Nachkalkulation, Soll/Ist gegen Angebotsstunden).
+**Anforderungen/Ideen:**
+- Mobile-first (Baustelle!): Start/Stop-Stoppuhr UND manuelle Einträge (Datum, Von/Bis, Pause,
+  Projekt, Tätigkeit/optional Leistung aus dem Katalog, Notiz). **Offline-fähig** (PWA mit
+  Warteschlange), weil auf Baustellen oft schlechter Empfang ist — früh klären.
+- Rechte: Mitarbeiter sehen/ändern nur eigene Einträge (Frist für Korrekturen); Büro (OWNER/ADMIN)
+  sieht alle, kann korrigieren und Wochen/Monate freigeben/sperren.
+- Auswertungen: Stunden je Projekt (gesamt, je Mitarbeiter, je Zeitraum), Monatsübersicht je
+  Mitarbeiter, CSV-Export (später Lohn/DATEV). Interner Stundensatz je Mitarbeiter (nur Büro
+  sichtbar) für Projektkosten/Nachkalkulation.
+- Recht: Pflicht zur Arbeitszeiterfassung (BAG-Beschluss 2022, § 16 ArbZG: Aufzeichnung und
+  mind. 2 Jahre Aufbewahrung), Pausen-/Höchstarbeitszeit-Hinweise, Beschäftigtendatenschutz
+  (§ 26 BDSG, DSGVO). Im Detail vor der Umsetzung prüfen.
+- Datenmodell-Idee: `TimeEntry(companyId, userId, projectId?, date, startTime, endTime,
+  breakMinutes, durationMinutes, activity, note, status)`. Mitarbeiterstammdaten (Eintritt,
+  Wochenstunden, Urlaubstage, Stundensatz) als Erweiterung von `User`/`EmployeeProfile`,
+  gemeinsam mit Block 11.
+- Abhängigkeit: Projekte (Block 3 ✅). Liefert später Dashboard-Widgets (Block 9: Stunden je
+  Projekt, wer ist heute wo).
+
+### ⬜ Block 11 — Urlaub / Abwesenheiten (Wunsch von Volker 2026-10-11)
+Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die freigegeben werden müssen**.
+**Anforderungen/Ideen:**
+- Urlaubskonto je Mitarbeiter und Jahr: Jahresanspruch (Tage, anteilig im Eintrittsjahr, Teilzeit),
+  Übertrag aus dem Vorjahr mit Verfallsdatum (§ 7 Abs. 3 BUrlG, i.d.R. 31.3.), Sonderurlaub,
+  Resturlaub live (Anspruch + Übertrag − genehmigt − beantragt).
+- Antrag: Zeitraum (inkl. halbe Tage), Art (Urlaub, Sonderurlaub, ggf. unbezahlt), Notiz; Tage
+  werden automatisch berechnet (ohne Wochenenden und **Feiertage je Bundesland**, Tabelle
+  `PublicHoliday`). Kein Überziehen des Kontos; Überschneidungen werden angezeigt.
+- Workflow: BEANTRAGT → GENEHMIGT/ABGELEHNT (Chef/Administrator, mit Kommentar), Rücknahme/
+  Stornierung durch den Antragsteller; Benachrichtigung (E-Mail/Push) bei Antrag und Entscheidung.
+- Team-/Abwesenheitskalender (wer ist wann weg; Warnung bei zu vielen Abwesenden in einem
+  laufenden Projekt). Optional später: Krankmeldungen/andere Abwesenheiten im selben Modell.
+- Dachdeckerhandwerk: **tarifliche Urlaubsregelung / Urlaubskasse (SOKA-DACH)** für gewerbliche
+  Arbeitnehmer — Anforderung mit Volker klären, bevor das Konto-Modell fest ist.
+- Datenmodell-Idee: `LeaveBalance(userId, year, entitlementDays, carryOverDays, carryOverExpires)`,
+  `LeaveRequest(userId, from, to, halfDayStart/End, days, type, status, decidedById, decisionNote)`,
+  `PublicHoliday(state, date, name)`. Verknüpfung zu Block 10: Urlaubstage zählen als Soll-Zeit.
+
 ## Empfohlene Reihenfolge
 
 1. ~~Firmenprofil & Konto~~ ✅
 2. ~~Kontakte & Stammdaten~~ ✅
 3. ~~Projekte (inkl. Berichte)~~ ✅
-4. Angebote (inkl. GAEB) — Teilschritte 1+2 von 3 ✅ (Editor+PDF, Übernahme); GAEB offen
+4. ~~Angebote (Editor, PDF, Übernahme, GAEB)~~ ✅
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Datenmodell von Anfang an EN16931-kompatibel
 6. Eingangsrechnungen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
    vor dem ersten zahlenden Kunden
 9. Dashboard mit Widgets (ab Block 5 sinnvoll, Vorgaben siehe Block 9)
+10. Zeiterfassung und 11. Urlaub — Zeitpunkt mit Volker abstimmen (Zeiterfassung ist für die
+    Baustellen-Mitarbeiter besonders nützlich und könnte vor Block 6 gezogen werden; beide teilen
+    sich die Mitarbeiterstammdaten)
 
 **Why diese Reihenfolge:** Jeder Block baut auf dem vorherigen auf (Artikelstamm → Angebot →
 Rechnung). E-Rechnung zuletzt, aber mit Vorwirkung auf das Rechnungsschema in Block 5, damit keine

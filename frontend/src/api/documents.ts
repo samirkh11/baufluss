@@ -13,6 +13,7 @@ export interface ListDocumentsParams {
 export interface DocumentItemPayload {
   kind: DocumentItemKind;
   catalogItemId?: string;
+  oz?: string;
   sku?: string;
   name: string;
   description?: string;
@@ -80,7 +81,10 @@ export async function setDocumentStatus(
 }
 
 // Creates the next document of the chain as a draft: quote -> order, quote -> invoice, order -> invoice.
-export async function convertDocument(id: string, targetType: 'ORDER' | 'INVOICE'): Promise<BusinessDocument> {
+export async function convertDocument(
+  id: string,
+  targetType: 'ORDER' | 'INVOICE',
+): Promise<BusinessDocument> {
   const { data } = await apiClient.post<BusinessDocument>(`/documents/${id}/convert`, { targetType });
   return data;
 }
@@ -94,4 +98,35 @@ export async function duplicateDocument(id: string): Promise<BusinessDocument> {
 export async function openDocumentPdf(id: string): Promise<void> {
   const { data } = await apiClient.get<Blob>(`/documents/${id}/pdf`, { responseType: 'blob' });
   window.open(URL.createObjectURL(data), '_blank');
+}
+
+export interface GaebImportResult {
+  document: BusinessDocument;
+  warnings: string[];
+  source: { version: string | null; phase: string | null; name: string | null };
+}
+
+// Uploads a GAEB DA XML bill of quantities; the server creates a quote draft from it.
+export async function importGaeb(projectId: string, file: File): Promise<GaebImportResult> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await apiClient.post<GaebImportResult>(
+    `/projects/${projectId}/documents/import-gaeb`,
+    formData,
+  );
+  return data;
+}
+
+// Downloads the quote as GAEB X84 (with prices). Needs the auth header, so it goes through axios
+// and is saved from an object URL.
+export async function downloadGaeb(id: string): Promise<void> {
+  const response = await apiClient.get<Blob>(`/documents/${id}/gaeb`, { responseType: 'blob' });
+  const disposition: string = response.headers['content-disposition'] ?? '';
+  const filename = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? 'Angebot.x84';
+  const url = URL.createObjectURL(response.data);
+  const link = window.document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }

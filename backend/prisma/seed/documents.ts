@@ -1,6 +1,9 @@
 // Block 4 test data: quotes of the roofing company in every status (draft, sent, accepted, rejected).
 import { DocumentItemKind, DocumentStatus, DocumentType, PrismaClient } from '@prisma/client';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 import { calculateTotals, lineTotal } from '../../src/documents/calculations';
+import { parseGaeb } from '../../src/documents/gaeb/gaeb-parser';
 import { SeededCatalogItem } from './catalog';
 
 const { POSITION, HEADING, TEXT } = DocumentItemKind;
@@ -159,6 +162,7 @@ export async function seedDocuments(
   }
 
   await seedDerivedDocuments(prisma, companyId);
+  await seedGaebImport(prisma, companyId);
 
   // The seed assigns numbers directly, so move the sequences past them.
   await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'QUOTE' }, data: { nextNumber: numbered + 1 } });
@@ -243,4 +247,48 @@ async function seedDerivedDocuments(prisma: PrismaClient, companyId: string): Pr
       },
     });
   }
+}
+
+// A quote draft created by the GAEB import from the self-made sample bill of quantities
+// (docs/gaeb-samples/lv-dachsanierung.x83): original numbering kept, prices still to be filled in.
+async function seedGaebImport(prisma: PrismaClient, companyId: string): Promise<void> {
+  const xml = readFileSync(join(process.cwd(), '..', 'docs', 'gaeb-samples', 'lv-dachsanierung.x83'), 'utf8');
+  const parsed = parseGaeb(xml);
+  const project = await prisma.project.findFirstOrThrow({ where: { companyId, number: 'P-0004' }, include: { customer: true } });
+  const customer = project.customer!;
+
+  await prisma.document.create({
+    data: {
+      companyId,
+      projectId: project.id,
+      type: DocumentType.QUOTE,
+      status: DocumentStatus.DRAFT,
+      recipientContactId: customer.id,
+      recipientName: customer.organizationName,
+      recipientStreet: customer.street,
+      recipientZipCode: customer.zipCode,
+      recipientCity: customer.city,
+      recipientCountry: customer.country,
+      subject: parsed.projectLabel,
+      introText: 'vielen Dank für Ihre Anfrage. Gerne bieten wir Ihnen die folgenden Leistungen an:',
+      closingText: 'Wir freuen uns auf Ihren Auftrag und stehen für Rückfragen gerne zur Verfügung.',
+      documentDate: new Date('2026-10-10'),
+      validUntil: new Date('2026-11-09'),
+      items: {
+        create: parsed.items.map((item, index) => ({
+          sortOrder: index,
+          kind: item.kind,
+          oz: item.oz,
+          name: item.name,
+          description: item.description,
+          quantity: item.quantity,
+          unit: item.unit,
+          unitPrice: item.unitPrice,
+          vatRate: 19,
+          isOptional: item.isOptional,
+          lineTotal: 0,
+        })),
+      },
+    },
+  });
 }

@@ -33,6 +33,7 @@ import {
   duplicateDocument,
   finalizeDocument,
   getDocument,
+  downloadGaeb,
   openDocumentPdf,
   setDocumentStatus,
   updateDocument,
@@ -56,6 +57,7 @@ interface EditorLine {
   key: string;
   kind: DocumentItemKind;
   catalogItemId?: string;
+  oz?: string; // original GAEB Ordnungszahl (imported lines only)
   sku?: string;
   name: string;
   description: string;
@@ -99,6 +101,7 @@ function toEditorLines(document: BusinessDocument): EditorLine[] {
     key: newKey(),
     kind: item.kind,
     catalogItemId: item.catalogItemId ?? undefined,
+    oz: item.oz ?? undefined,
     sku: item.sku ?? undefined,
     name: item.name,
     description: item.description ?? '',
@@ -115,6 +118,7 @@ function toPayload(line: EditorLine): DocumentItemPayload {
   return {
     kind: line.kind,
     catalogItemId: line.catalogItemId,
+    oz: line.oz,
     sku: line.sku,
     name: line.name,
     description: line.description || undefined,
@@ -312,6 +316,17 @@ export function DocumentEditorPage() {
     onError,
   });
 
+  // GAEB X84 export (quotes): saves a pending draft first so the file matches what is on screen.
+  const gaebMutation = useMutation({
+    mutationFn: async () => {
+      if (dirty && isDraft) {
+        refreshCache(await updateDocument(id, currentPayload()));
+      }
+      await downloadGaeb(id);
+    },
+    onError,
+  });
+
   if (isLoading) {
     return null;
   }
@@ -339,8 +354,13 @@ export function DocumentEditorPage() {
   const lineColumns = [
     {
       title: 'Pos.',
-      width: 56,
-      render: (_: unknown, __: EditorLine, index: number) => ordinals[index] ?? '',
+      width: 80,
+      render: (_: unknown, line: EditorLine, index: number) => (
+        <div>
+          {ordinals[index] ?? ''}
+          {line.oz && <div style={{ fontSize: 11, color: '#888' }}>OZ {line.oz}</div>}
+        </div>
+      ),
     },
     {
       title: 'Bezeichnung',
@@ -505,6 +525,7 @@ export function DocumentEditorPage() {
       title={
         <Space>
           {ordinals[index] && <Tag>{ordinals[index]}</Tag>}
+          {line.oz && <span style={{ fontSize: 12, color: '#888' }}>OZ {line.oz}</span>}
           <span>{{ POSITION: 'Position', HEADING: 'Titel', TEXT: 'Text' }[line.kind]}</span>
         </Space>
       }
@@ -546,6 +567,11 @@ export function DocumentEditorPage() {
           <Button loading={pdfMutation.isPending} onClick={() => pdfMutation.mutate()}>
             PDF
           </Button>
+          {document.type === 'QUOTE' && (
+            <Button loading={gaebMutation.isPending} onClick={() => gaebMutation.mutate()}>
+              GAEB-Export
+            </Button>
+          )}
           <Button loading={duplicateMutation.isPending} onClick={() => duplicateMutation.mutate()}>
             Duplizieren
           </Button>

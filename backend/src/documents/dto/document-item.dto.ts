@@ -15,6 +15,11 @@ export class DocumentItemDto {
   @IsUUID()
   catalogItemId?: string;
 
+  @ApiPropertyOptional({ description: 'Original GAEB Ordnungszahl of an imported line, e.g. 02.01.0030' })
+  @IsOptional()
+  @IsString()
+  oz?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

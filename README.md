@@ -68,7 +68,7 @@ meisterwerk/
 │       ├── catalog/    Leistungs- und Artikelstamm
 │       ├── projects/   Projekte, Team
 │       ├── reports/    Berichte mit Fotos
-│       ├── documents/  Angebote (später Aufträge/Rechnungen), Berechnung, PDF
+│       ├── documents/  Angebote, Aufträge, Rechnungsentwürfe, Berechnung, PDF, GAEB
 │       └── common/     Prisma-Service, Guards, Decorators, Datei-Uploads
 ├── frontend/          React-SPA
 └── docker-compose.yml PostgreSQL + Adminer für die lokale Entwicklung
@@ -88,9 +88,11 @@ meisterwerk/
 - Berichte (Bautagebuch, Mängel, Abnahme, ...) mit Fotos, je Projekt und projektübergreifend
 - Angebote: Editor mit Titeln/Positionen/Optionalpositionen, Preise aus dem Stamm, lückenlose Nummern,
   Sperre nach Ausstellung, PDF mit Briefpapier
-- Übernahme Angebot → Auftragsbestätigung → Rechnung (Rechnungen zunächst als Entwurf; GAEB folgt)
+- Übernahme Angebot → Auftragsbestätigung → Rechnung (Rechnungen zunächst als Entwurf)
+- GAEB: Leistungsverzeichnis (DA XML, z.B. .x83) als Angebotsentwurf importieren, Angebot als .x84 exportieren;
+  Testdateien in [`docs/gaeb-samples/`](docs/gaeb-samples/)
 
-Die restlichen Funktionsblöcke (Rechnungsstellung, GAEB,
+Die restlichen Funktionsblöcke (Rechnungsstellung,
 Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 

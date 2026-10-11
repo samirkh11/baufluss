@@ -56,13 +56,17 @@ Rechnungs-Datenmodell (Block 5) braucht ein Flag `reverseCharge: boolean` plus d
   vorhanden sein (Leistungsdatum, Leitweg-ID für B2G, Zahlungsbedingungen strukturiert statt nur
   als Freitext, etc.), damit der Export in Block 7 keine Schema-Migration erfordert.
 
-## GAEB (Block 4 — Angebote)
+## GAEB (Block 4 — umgesetzt, Details in [[project_roadmap]])
 
-GAEB-Format (DA XML, Standard im Bauwesen für Leistungsverzeichnisse/Angebote) hat keine
-verbreitete, gepflegte npm-Bibliothek. Vor Umsetzung: Format-Spezifikation (GAEB e.V.) besorgen
-und entscheiden, ob Import ODER Export zuerst sinnvoll ist (Import ist für den Start vermutlich
-wichtiger, da Handwerksbetriebe oft GAEB-Leistungsverzeichnisse von Architekten/Bauherren
-*erhalten* und darauf ein Angebot erstellen).
+Import/Export von GAEB DA XML 3.x ist umgesetzt (X83/X81 rein, X84 raus), eigene Implementierung
+mit `fast-xml-parser` (kein brauchbares fertiges npm-Paket). Recherche-Stand: Aufbau
+`GAEB/Award/BoQ/BoQBody → BoQCtgy(RNoPart) → BoQBody → Itemlist → Item(RNoPart; Qty, QU, UP, IT,
+Description/CompleteText/DetailTxt+OutlineText)`, Namespace je Phase `…/DA83/3.3`. NICHT verifiziert
+(kein Zugriff auf das offizielle XSD, keine echte Datei): Schreibweise der Alternativposition
+(`ALNGroupNo/ALNSerNo` Element vs. Zuordnungszahl-Attribut), Werte von `Provis`, Reihenfolge der
+Item-Kinder. Der Importer ist deshalb tolerant, der Export konservativ. Echte Dateien besorgen (z.B.
+aus Ausschreibungsportalen) und die Tests damit erweitern. Offen: X86/X89, Zuschläge, Teilmengen,
+`OWN`-Bieterdaten, GAEB 90.
 
 ## Export für den Steuerprüfer (Block 7)
 

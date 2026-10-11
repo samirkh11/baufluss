@@ -430,6 +430,10 @@ model DocumentItem {
   catalogItemId String?
   catalogItem   CatalogItem? @relation(fields: [catalogItemId], references: [id], onDelete: SetNull)
 
+  // Original GAEB Ordnungszahl (OZ) of an imported line, e.g. "02.01.0030". Kept so a priced offer
+  // exported as GAEB X84 refers to the same numbers as the bill of quantities we received.
+  oz String?
+
   sku         String?
   name        String // Kurztext
   description String? @db.Text // Langtext
