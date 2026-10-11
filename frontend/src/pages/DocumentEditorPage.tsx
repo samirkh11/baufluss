@@ -27,6 +27,7 @@ import {
   Typography,
   message,
 } from 'antd';
+import { EInvoiceButton } from '../components/EInvoiceButton';
 import { DunningCard } from '../components/DunningCard';
 import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -732,6 +733,9 @@ export function DocumentEditorPage() {
           <Button loading={pdfMutation.isPending} onClick={() => pdfMutation.mutate()}>
             PDF
           </Button>
+          {(document.type === 'INVOICE' || document.type === 'CREDIT_NOTE') && document.status !== 'DRAFT' && (
+            <EInvoiceButton documentId={document.id} />
+          )}
           {document.type === 'QUOTE' && (
             <Button loading={gaebMutation.isPending} onClick={() => gaebMutation.mutate()}>
               GAEB-Export

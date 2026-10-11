@@ -3,6 +3,7 @@ import { Company, DocumentItemKind, DocumentStatus, DocumentType, InvoiceKind } 
 import { readFile } from 'fs/promises';
 import { extname, resolve, sep } from 'path';
 import PDFDocument from 'pdfkit';
+import { DEFAULT_FONT, registerEmbeddedFonts } from './pdf-fonts';
 import SVGtoPDF from 'svg-to-pdfkit';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { UPLOAD_ROOT } from '../common/storage/uploads';
@@ -70,11 +71,13 @@ export class DocumentPdfService {
     const company = (document.issuerSnapshot as unknown as Company | null) ?? liveCompany;
 
     const pdf = new PDFDocument({
+      font: DEFAULT_FONT,
       size: 'A4',
       margins: { top: PAGE.top, bottom: PAGE.bottom, left: PAGE.left, right: PAGE.right },
       bufferPages: true,
       info: { Title: `${TITLES[document.type]} ${document.number ?? '(Entwurf)'}`, Author: company.name },
     });
+    registerEmbeddedFonts(pdf);
     const chunks: Buffer[] = [];
     pdf.on('data', (chunk: Buffer) => chunks.push(chunk));
     const finished = new Promise<Buffer>((resolveBuffer) =>

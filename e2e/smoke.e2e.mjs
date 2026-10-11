@@ -220,6 +220,30 @@ await page.locator('.ant-tabs-tabpane-active tr:has-text("RE-00003") a').first()
 await page.waitForSelector('[data-testid=dunning-card]');
 check('invoice shows the seeded reminder MA-0001', (await page.getByTestId('dunning-card').innerText()).includes('MA-0001'));
 
+// ---- e-invoice (Block 7, step 1)
+await page.goto(BASE + '/invoices');
+await page.waitForSelector('tbody tr.ant-table-row');
+await page.getByRole('link', { name: 'RE-00003' }).click();
+await page.waitForSelector('[data-testid=einvoice-button]');
+async function downloadEInvoice(menuText) {
+  await page.getByTestId('einvoice-button').click();
+  await page.waitForTimeout(600);
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: menuText }).click()]);
+  const file = await download.path();
+  return { name: download.suggestedFilename(), content: readFileSync(file) };
+}
+const ubl = await downloadEInvoice(/XRechnung \(UBL/);
+check('XRechnung UBL download: RE-00003.xml with EN16931/XRechnung identifiers', ubl.name === 'RE-00003.xml' && ubl.content.toString().includes('urn:xeinkauf.de:kosit:xrechnung_3') && ubl.content.toString().includes('<cbc:ID>RE-00003</cbc:ID>'));
+const cii = await downloadEInvoice(/XRechnung \(CII/);
+check('XRechnung CII download', cii.content.toString().includes('CrossIndustryInvoice') && cii.content.toString().includes('RE-00003'));
+const zugferd = await downloadEInvoice(/ZUGFeRD/);
+check('ZUGFeRD download is a PDF with the embedded factur-x.xml', zugferd.name === 'RE-00003.pdf' && zugferd.content.subarray(0, 4).toString() === '%PDF' && zugferd.content.includes('factur-x.xml'.split('').join('\0')) || zugferd.content.toString('latin1').includes('factur-x'));
+await page.goto(BASE + '/invoices');
+await page.waitForSelector('tbody tr.ant-table-row');
+await page.locator('tbody a', { hasText: 'Entwurf' }).first().click();
+await page.waitForSelector('text=Rechnungsangaben');
+check('draft invoices have no e-invoice button', (await page.getByTestId('einvoice-button').count()) === 0);
+
 // ---- payments, open items and cancellation (Block 5, step 3)
 await page.goto(BASE + '/invoices');
 await page.getByRole('tab', { name: 'Offene Posten' }).click();

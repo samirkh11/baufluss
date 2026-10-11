@@ -27,6 +27,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ListReceivablesQueryDto } from './dto/list-receivables-query.dto';
 import { PaymentsService } from './payments.service';
 import { DocumentPdfService } from './document-pdf.service';
+import { EInvoiceService, isEInvoiceFormat } from './e-invoice/e-invoice.service';
 import { DocumentsService } from './documents.service';
 import { ConvertDocumentDto } from './dto/convert-document.dto';
 import { CreateDocumentDto } from './dto/create-document.dto';
@@ -45,6 +46,7 @@ export class DocumentsController {
   constructor(
     private readonly documentsService: DocumentsService,
     private readonly pdfService: DocumentPdfService,
+    private readonly eInvoiceService: EInvoiceService,
     private readonly gaebService: GaebService,
     private readonly paymentsService: PaymentsService,
   ) {}
@@ -142,6 +144,23 @@ export class DocumentsController {
     const { buffer, filename } = await this.pdfService.render(user.companyId, id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+    res.send(buffer);
+  }
+
+  // E-invoice (EN16931) of an issued invoice or credit note: xrechnung-ubl | xrechnung-cii | zugferd.
+  @Get('documents/:id/e-invoice')
+  async eInvoice(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Query('format') format: string,
+    @Res() res: Response,
+  ) {
+    if (!isEInvoiceFormat(format)) {
+      throw new BadRequestException('Format: xrechnung-ubl, xrechnung-cii oder zugferd.');
+    }
+    const { buffer, filename, mimeType } = await this.eInvoiceService.generate(user.companyId, id, format);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(buffer);
   }
 

@@ -46,7 +46,7 @@ eigene Shell — PID über `ss -ltnp | grep :3000` ermitteln.
 ## UI-Tests im Browser (E2E)
 
 `e2e/` im Repo (Playwright, Chromium liegt in `~/.cache/ms-playwright`). Ablauf: Stack läuft →
-`cd backend && npm run seed` → `cd e2e && npm test` (`smoke.e2e.mjs` 123 Checks: Login, Projekte,
+`cd backend && npm run seed` → `cd e2e && npm test` (`smoke.e2e.mjs` 127 Checks: Login, Projekte,
 Berichte+Fotos, Kontakte, Katalog, Nutzer, Angebote/Editor/PDF/Übernahme/GAEB, Rechnung ausstellen, Abschlag/Schluss, Zahlungen/Storno/Offene Posten, Zeiterfassung, Arbeiter-Rechte; danach
 `responsive.e2e.mjs` 59 Checks auf Phone 390 px/Tablet 820 px: Drawer-Menü, kein Seiten-Überlauf,
 Dialoge, Arbeiter-Bericht mit Foto). Einzeln: `npm run test:smoke` / `npm run test:responsive`.
@@ -90,3 +90,4 @@ erfolgreich getestet** sind. Nicht automatisch nach jedem Build pushen.
 
 - Pitfall: Rechner hat nur ~8 GB RAM; bei Speichermangel werden Backend/Vite/Tool-Shell mit Exit 137/144 gekillt → Server neu starten (`setsid nohup npm run start:dev`), Seed + Tests einzeln laufen lassen. Antd-Dropdown-Menüs animieren: vor Menüpunkt-Klick kurz warten.
 - Pitfall: NIE `pkill -f "nest start"` o. ä. in der Tool-Shell – das Muster steht in der eigenen Kommandozeile und killt die Shell (Exit 144). Nest-Watch lädt Änderungen selbst neu.
+- E-Rechnung prüfen: `cd e2e && ./validate-einvoice.sh` (Backend + Seed nötig, Java; erster Lauf lädt ~100 MB nach e2e/.cache).

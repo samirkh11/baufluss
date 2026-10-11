@@ -210,14 +210,30 @@ Aufgeteilt in vier Teilschritte:
   im Projekt (Kostenübersicht/Marge), Lesen von XRechnung/ZUGFeRD (Block 7), Skonto, Zahlungsexport (SEPA/DATEV),
   Upload/Foto für Bauleiter (MEMBER) mit Freigabe durch Büro, Mehr-Augen-Prinzip/Freigabegrenzen.
 
-### ⬜ Block 7 — E-Rechnung und Compliance
-XRechnung und ZUGFeRD lesen und erzeugen, GoBD (Unveränderbarkeit, Verfahrensdokumentation,
-Aufbewahrung), DSGVO, Export für den Steuerprüfer (GoBD-Z3-Zugriff / DATEV-Export).
-**Hinweis:** Ab 2025 gilt in Deutschland die E-Rechnungspflicht für B2B — betrifft Block 5 und 6
-direkt. Sollte NICHT als letztes "Compliance-Anhängsel" behandelt werden, sondern die
-Rechnungs-/Eingangsrechnungs-Datenmodelle in Block 5/6 müssen von Anfang an so gebaut sein, dass
-XRechnung/ZUGFeRD-Export ohne Nacharbeit möglich ist (alle Pflichtfelder der EN16931-Norm von
-Anfang an im Schema vorsehen). Details siehe [[project_compliance]].
+### 🟡 Block 7 — E-Rechnung und Compliance (Teil 1 ✅ 2026-10-11)
+- ✅ **Teil 1: E-Rechnung erzeugen.** `GET documents/:id/e-invoice?format=xrechnung-ubl|xrechnung-cii|zugferd` für
+  ausgestellte Rechnungen/Gutschriften (Button „E-Rechnung“ im Editor). Library `@e-invoice-eu/core` (WTFPL, Node;
+  Entscheidung gegen PHP-Mini-Service), eigener Mapper `documents/e-invoice/e-invoice-mapper.ts` (rein, 14 Tests):
+  Typ 380/381, Gutschrift = positive Beträge + BillingReference, Abzugspositionen (neg. Preis) → neg. Menge,
+  Rabatt → Zeilen-Allowance, USt-Kategorien S/Z/AE (§ 13b mit vatex-eu-ae), Einheiten → UN/ECE, Käufer-Referenz =
+  Leitweg-ID > Bestellnr. > Projektnr. `readinessIssues` meldet fehlende Pflichtdaten (IBAN, Steuer-ID, Empfängeradresse;
+  XRechnung zusätzlich Firmen-E-Mail/-Telefon, Kunden-E-Mail) als 400 mit deutscher Meldung.
+  **ZUGFeRD = unser PDF + eingebettetes CII (EN16931), PDF/A-3b**: dafür werden Liberation-Sans-Schriften
+  (`backend/assets/fonts`, OFL) in ALLE Beleg-PDFs eingebettet (`pdf-fonts.ts`; vorher Standard-Helvetica = nicht PDF/A).
+  **Echte Validierung:** `e2e/validate-einvoice.sh` lädt KoSIT-Validator + XRechnung-Konfiguration 3.0.2, Saxon/EN16931-
+  Schematron und veraPDF (nach `e2e/.cache`) und prüft alle Demo-Belege → alle akzeptiert. Pitfall: UBL-CreditNote
+  kennt kein ProjectReference (weggelassen); CII erlaubt die Notiz nur einmal (Notizen zusammengeführt).
+  Tests: jest 97, e2e smoke 127, responsive 59.
+- ⬜ **Teil 2: E-Rechnung lesen** (XRechnung UBL/CII + ZUGFeRD-PDF → Eingangsrechnung vorbefüllen; Upload-XML/PDF in
+  Block 6 erkennen; Format-Validierung beim Import).
+- ⬜ **Teil 3: GoBD** — Archiv (unveränderliche PDF/XML-Ablage mit Hash zum Ausstellzeitpunkt statt Neurendern),
+  Audit-Log (wer/wann/was), Verfahrensdokumentation (Vorlage), Aufbewahrungsfristen/Löschsperre.
+- ⬜ **Teil 4: DSGVO** — Kontakt-Auskunft/Export, Löschkonzept (Sperren statt Löschen bei Aufbewahrung), AVV-/TOM-Hinweise.
+- ⬜ **Teil 5: Steuerprüfer-Export** — DATEV-Buchungsstapel (Ausgangs-/Eingangsrechnungen) und GoBD-Datenträger
+  (index.xml/CSV, „Z3“), Zeitraum-Export als ZIP mit Belegen.
+- Offen/Ideen: Leitweg-ID als Kontaktfeld (statt nur Rechnungsfeld), Versand per E-Mail/PEPPOL, Skonto-Felder (BT-20),
+  Einbehalt als Teilzahlung abbilden, XRechnung-Extension/CVD-Szenarien, Rechtsstand zur E-Rechnungspflicht (2027/2028)
+  vor Kundenstart prüfen.
 
 ### ⬜ Block 8 — Plattform-Admin / Betreiber-Backoffice (von Volker nachgefordert 2026-10-10)
 Unter der Backend-URL gibt es bisher nur die Swagger-Doku. Es braucht ein echtes
@@ -296,7 +312,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 4. ~~Angebote (Editor, PDF, Übernahme, GAEB)~~ ✅
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1–4 ✅ (ausstellen, Abschlag/Schluss, Storno/Zahlungen); Mahnwesen ✅, Datenmodell EN16931-kompatibel halten
 6. Eingangsrechnungen — Teil 1 ✅ (Upload, Erfassung, Freigabe, Projektzuordnung); Mail-Eingang offen
-7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
+7. E-Rechnung — Teil 1 ✅ (Erzeugen XRechnung/ZUGFeRD, validiert); offen: Lesen, GoBD-Archiv/Audit, DSGVO, Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
    vor dem ersten zahlenden Kunden
 9. Dashboard mit Widgets — V1 ✅ (siehe Block 9), V2 offen

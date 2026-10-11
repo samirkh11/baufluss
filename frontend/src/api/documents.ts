@@ -173,3 +173,32 @@ export async function downloadGaeb(id: string): Promise<void> {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export type EInvoiceFormat = 'xrechnung-ubl' | 'xrechnung-cii' | 'zugferd';
+
+// Downloads the e-invoice (XRechnung XML or ZUGFeRD PDF) of an issued invoice / credit note. When the
+// server refuses (e.g. missing seller data) the error body arrives as a Blob; it is unpacked so the
+// readable German message reaches the caller's error handling.
+export async function downloadEInvoice(id: string, format: EInvoiceFormat): Promise<void> {
+  try {
+    const response = await apiClient.get<Blob>(`/documents/${id}/e-invoice`, { params: { format }, responseType: 'blob' });
+    const disposition: string = response.headers['content-disposition'] ?? '';
+    const filename = /filename="?([^";]+)"?/.exec(disposition)?.[1] ?? `e-rechnung.${format === 'zugferd' ? 'pdf' : 'xml'}`;
+    const url = URL.createObjectURL(response.data);
+    const link = window.document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+  } catch (error) {
+    const body = (error as { response?: { data?: unknown } }).response?.data;
+    if (body instanceof Blob) {
+      try {
+        (error as { response: { data: unknown } }).response.data = JSON.parse(await body.text());
+      } catch {
+        // keep the original error
+      }
+    }
+    throw error;
+  }
+}

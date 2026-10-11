@@ -78,6 +78,13 @@ Item-Kinder. Der Importer ist deshalb tolerant, der Export konservativ. Echte Da
 aus Ausschreibungsportalen) und die Tests damit erweitern. Offen: X86/X89, Zuschläge, Teilmengen,
 `OWN`-Bieterdaten, GAEB 90.
 
+## E-Rechnung — Umsetzungsstand (Block 7, Teil 1)
+
+Node-Library `@e-invoice-eu/core` reicht aus (kein PHP-Service nötig): erzeugt XRechnung (UBL/CII) und Factur-X/ZUGFeRD aus
+einem EN16931-JSON. Ergebnis wurde mit KoSIT-Validator (XRechnung 3.0.2), EN16931-Schematron und veraPDF (PDF/A-3b) geprüft
+(`e2e/validate-einvoice.sh`). Voraussetzung für PDF/A: eingebettete Schriften (Liberation Sans). Wichtige Mapping-Regeln stehen
+im Roadmap-Eintrag Block 7.
+
 ## Export für den Steuerprüfer (Block 7)
 
 Üblich ist ein DATEV-kompatibler Export oder ein GoBD-konformer "Z3"-Datenzugriff (maschinell

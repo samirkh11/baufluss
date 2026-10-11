@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { Company, DunningLevel } from '@prisma/client';
 import PDFDocument from 'pdfkit';
+import { DEFAULT_FONT, registerEmbeddedFonts } from './pdf-fonts';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { COLORS, CONTENT_WIDTH, DocumentPdfService, PAGE } from './document-pdf.service';
 
@@ -56,11 +57,13 @@ export class DunningPdfService {
     const company = dunning.issuerSnapshot as unknown as Company;
 
     const pdf = new PDFDocument({
+      font: DEFAULT_FONT,
       size: 'A4',
       margins: { top: PAGE.top, bottom: PAGE.bottom, left: PAGE.left, right: PAGE.right },
       bufferPages: true,
       info: { Title: `${TITLES[dunning.level]} ${invoice.number ?? ''}`, Author: company.name },
     });
+    registerEmbeddedFonts(pdf);
     const chunks: Buffer[] = [];
     pdf.on('data', (chunk: Buffer) => chunks.push(chunk));
     const finished = new Promise<Buffer>((resolveBuffer) =>
