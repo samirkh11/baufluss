@@ -53,7 +53,7 @@ export async function seedCompanyAndUsers(prisma: PrismaClient): Promise<SeededC
       logoPath: writeSeedImage('logos', 'seed-schmidt-logo.svg', logoSvg('Dachdeckerei Schmidt')),
       letterheadHeaderText: 'Dachdeckerei Schmidt GmbH · Am Sägewerk 7 · 89073 Ulm',
       letterheadFooterText:
-        'Geschäftsführer: Thomas Schmidt · Amtsgericht Ulm HRB 123456 · USt-IdNr. DE123456789 · IBAN DE02 1203 0000 0000 2020 51',
+        'Geschäftsführer: Thomas Schmidt · Amtsgericht Ulm HRB 123456',
       users: {
         create: USERS.map((user) => ({
           ...user,

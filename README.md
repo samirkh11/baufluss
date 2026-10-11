@@ -68,6 +68,7 @@ meisterwerk/
 │       ├── catalog/    Leistungs- und Artikelstamm
 │       ├── projects/   Projekte, Team
 │       ├── reports/    Berichte mit Fotos
+│       ├── documents/  Angebote (später Aufträge/Rechnungen), Berechnung, PDF
 │       └── common/     Prisma-Service, Guards, Decorators, Datei-Uploads
 ├── frontend/          React-SPA
 └── docker-compose.yml PostgreSQL + Adminer für die lokale Entwicklung
@@ -84,8 +85,10 @@ meisterwerk/
 - Bilder: 1 Bild je Kontakt/Mitarbeiter, mehrere je Leistung/Artikel
 - Projekte (Status, Kunde, Baustelle, Team) mit Projektübersicht
 - Berichte (Bautagebuch, Mängel, Abnahme, ...) mit Fotos, je Projekt und projektübergreifend
+- Angebote: Editor mit Titeln/Positionen/Optionalpositionen, Preise aus dem Stamm, lückenlose Nummern,
+  Sperre nach Ausstellung, PDF mit Briefpapier (Übernahme in Auftrag/Rechnung und GAEB folgen)
 
-Die restlichen Funktionsblöcke (Angebote, Rechnungen,
+Die restlichen Funktionsblöcke (Auftrag/Rechnung, GAEB,
 Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 
@@ -100,3 +103,4 @@ Seed (`backend/prisma/seed/`).
 ## Tests
 
 - Browser-E2E-Tests (Playwright): siehe [`e2e/README.md`](e2e/README.md).
+- Backend-Unit-Tests (Jest): `cd backend && npm test`.

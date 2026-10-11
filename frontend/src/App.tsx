@@ -11,6 +11,8 @@ import { CatalogPage } from './pages/CatalogPage';
 import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { ReportsPage } from './pages/ReportsPage';
+import { QuotesPage } from './pages/QuotesPage';
+import { DocumentEditorPage } from './pages/DocumentEditorPage';
 
 export function App() {
   return (
@@ -23,6 +25,8 @@ export function App() {
           <Route path="/" element={<DashboardPage />} />
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
+          <Route path="/quotes" element={<QuotesPage />} />
+          <Route path="/documents/:id" element={<DocumentEditorPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/contacts" element={<ContactsPage />} />
           <Route path="/catalog" element={<CatalogPage />} />

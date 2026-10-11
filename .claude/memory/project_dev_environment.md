@@ -46,14 +46,21 @@ eigene Shell — PID über `ss -ltnp | grep :3000` ermitteln.
 ## UI-Tests im Browser (E2E)
 
 `e2e/` im Repo (Playwright, Chromium liegt in `~/.cache/ms-playwright`). Ablauf: Stack läuft →
-`cd backend && npm run seed` → `cd e2e && npm test` (25 Checks: Login, Projekte, Berichte+Fotos,
-Kontakte, Katalog, Nutzer, Arbeiter-Rechte). Einrichtung/Details: `e2e/README.md`.
+`cd backend && npm run seed` → `cd e2e && npm test` (38 Checks: Login, Projekte, Berichte+Fotos,
+Kontakte, Katalog, Nutzer, Angebote/Editor/PDF, Arbeiter-Rechte). Einrichtung/Details: `e2e/README.md`.
 **Regel:** Jedes neue Feature erweitert `e2e/smoke.e2e.mjs` (oder eine neue `*.e2e.mjs`) um
 UI-Prüfungen und wird vor dem Push damit getestet (Volker hat das Skript ausdrücklich im Repo
 gewünscht, 2026-10-11).
 Hinweise: antd-`<a onClick>` hat keine Link-Rolle (per `tbody a` selektieren); Dialoge mit dem
 „×" schließen, nicht per Escape, wenn der Fokus im Datei-Input liegt; der Lauf verändert Seed-Daten
 → danach neu seeden.
+
+## Unit-Tests (Backend)
+
+`cd backend && npm test` (Jest + ts-jest, `*.spec.ts` neben dem Code). Aktuell
+`documents/calculations.spec.ts` (Geldberechnung). Neue Rechenlogik (Rechnungen, Mahnzinsen,
+Sicherheitseinbehalt …) immer mit Unit-Tests absichern.
+PDFs prüfen: per curl holen, `pdftoppm -png` rendern und ansehen (poppler-utils ist installiert).
 
 ## Push-Workflow
 

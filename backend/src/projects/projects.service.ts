@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { NumberSequencesService } from '../companies/number-sequences/number-sequences.service';
 import { PrismaService } from '../common/prisma/prisma.service';
@@ -14,7 +14,7 @@ const PROJECT_INCLUDE = {
   members: {
     select: { user: { select: { id: true, firstName: true, lastName: true, imagePath: true } } },
   },
-  _count: { select: { reports: true } },
+  _count: { select: { reports: true, documents: true } },
 } satisfies Prisma.ProjectInclude;
 
 // Date-only strings from the API ("2026-09-14") -> Date; null clears, undefined leaves untouched.
@@ -118,7 +118,15 @@ export class ProjectsService {
     await this.findOne(companyId, id);
     // Report photos are files on disk; the DB cascade removes the rows but not the files.
     const photos = await this.prisma.reportPhoto.findMany({ where: { report: { projectId: id } }, select: { path: true } });
-    await this.prisma.project.delete({ where: { id } });
+    try {
+      await this.prisma.project.delete({ where: { id } });
+    } catch (error) {
+      // P2003 = foreign key violation: documents (quotes, invoices, ...) still reference the project.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictException('Das Projekt enthält Dokumente (Angebote/Rechnungen) und kann nicht gelöscht werden.');
+      }
+      throw error;
+    }
     await Promise.all(photos.map((photo) => deleteUploadedFile(photo.path)));
   }
 

@@ -3,6 +3,7 @@ import { Alert, Button, Card, Form, Input, Typography } from 'antd';
 import { Link, useNavigate } from 'react-router-dom';
 import { registerCompany, RegisterPayload } from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
+import { apiErrorMessage } from '../utils/assets';
 
 export function RegisterCompanyPage() {
   const { signIn } = useAuth();
@@ -17,8 +18,8 @@ export function RegisterCompanyPage() {
       const response = await registerCompany(values);
       signIn(response.accessToken, response.user);
       navigate('/');
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'Registrierung fehlgeschlagen.');
+    } catch (err) {
+      setError(apiErrorMessage(err, 'Registrierung fehlgeschlagen.'));
     } finally {
       setLoading(false);
     }

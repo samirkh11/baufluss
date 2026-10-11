@@ -35,13 +35,27 @@ const ITEMS: SeedItem[] = [
   { kind: ARTICLE, sku: 'A-205', name: 'Dachschrauben 4,5x50 (Pack à 200)', unit: 'Pack', netPrice: 9.9, purchasePrice: 5.8, imageCount: 1 },
 ];
 
-export async function seedCatalog(prisma: PrismaClient, companyId: string): Promise<void> {
+export interface SeededCatalogItem {
+  id: string;
+  sku: string;
+  name: string;
+  description: string | null;
+  unit: string;
+  netPrice: number;
+  vatRate: number;
+}
+
+// Returns the created entries keyed by SKU so documents can reference them.
+export async function seedCatalog(prisma: PrismaClient, companyId: string): Promise<Record<string, SeededCatalogItem>> {
+  const bySku: Record<string, SeededCatalogItem> = {};
   for (const { imageCount, ...item } of ITEMS) {
     const created = await prisma.catalogItem.create({ data: { ...item, companyId } });
+    bySku[item.sku] = { id: created.id, sku: item.sku, name: item.name, description: created.description, unit: item.unit, netPrice: item.netPrice, vatRate: item.vatRate ?? 19 };
     for (let index = 0; index < imageCount; index++) {
       const caption = imageCount > 1 ? `${item.sku} · Bild ${index + 1}` : item.sku;
       const path = writeSeedImage('catalog', `seed-${item.sku.toLowerCase()}-${index + 1}.svg`, tileSvg(caption, colorFor(item.sku + index)));
       await prisma.catalogItemImage.create({ data: { catalogItemId: created.id, path, sortOrder: index } });
     }
   }
+  return bySku;
 }

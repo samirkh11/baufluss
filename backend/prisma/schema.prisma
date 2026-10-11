@@ -61,6 +61,7 @@ model Company {
   catalogItems    CatalogItem[]
   projects        Project[]
   reports         Report[]
+  documents       Document[]
 
   @@map("companies")
 }
@@ -162,7 +163,8 @@ model Contact {
   bic             String?
   paymentTermDays Int? // default Zahlungsziel in Tagen
 
-  projects Project[] // projects this contact is the customer of
+  projects  Project[] // projects this contact is the customer of
+  documents Document[] // documents addressed to this contact
 
   notes     String? @db.Text
   imagePath String? // single picture/logo, relative path under /uploads
@@ -195,7 +197,8 @@ model CatalogItem {
 
   isActive Boolean @default(true)
 
-  images CatalogItemImage[]
+  images        CatalogItemImage[]
+  documentItems DocumentItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -262,8 +265,9 @@ model Project {
   managerId String?
   manager   User?   @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
 
-  members ProjectMember[]
-  reports Report[]
+  members   ProjectMember[]
+  reports   Report[]
+  documents Document[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -332,4 +336,114 @@ model ReportPhoto {
 
   @@index([reportId])
   @@map("report_photos")
+}
+
+enum DocumentType {
+  QUOTE // Angebot
+  ORDER // Auftragsbestätigung
+  INVOICE // Rechnung
+  CREDIT_NOTE // Gutschrift / Stornorechnung
+}
+
+// Lifecycle states. Only the quote states are used so far; order/invoice states (e.g. PAID,
+// CANCELLED) are added with the blocks that need them.
+enum DocumentStatus {
+  DRAFT // editable, no number yet
+  SENT // finalized: number assigned, content locked
+  ACCEPTED
+  REJECTED
+}
+
+enum DocumentItemKind {
+  POSITION // priced line
+  HEADING // group title (Titel), numbered 1, 2, ...
+  TEXT // free text line without price
+}
+
+// One table for all business documents (quote -> order -> invoice share the same structure, so
+// converting one into the next is a copy, and PDF/GAEB/E-invoice logic is written once).
+model Document {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Documents are legal records: a project that still has documents cannot be deleted.
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  type   DocumentType
+  status DocumentStatus @default(DRAFT)
+  // Assigned from the number sequence when the document is finalized (drafts have none), so
+  // numbers stay gap-free.
+  number String?
+
+  // Document this one was created from (quote -> order -> invoice chain).
+  sourceDocumentId String?
+  sourceDocument   Document?  @relation("DocumentSource", fields: [sourceDocumentId], references: [id], onDelete: SetNull)
+  derivedDocuments Document[] @relation("DocumentSource")
+
+  // Recipient: live reference plus an address snapshot that is frozen on finalization, so a later
+  // change of the contact never alters an issued document.
+  recipientContactId String?
+  recipientContact   Contact? @relation(fields: [recipientContactId], references: [id], onDelete: Restrict)
+  recipientName      String?
+  recipientStreet    String?
+  recipientZipCode   String?
+  recipientCity      String?
+  recipientCountry   String?
+
+  subject      String? // Betreff
+  introText    String?   @db.Text
+  closingText  String?   @db.Text
+  documentDate DateTime  @db.Date
+  validUntil   DateTime? @db.Date // quotes: gültig bis
+  currency     String    @default("EUR")
+
+  // Totals are calculated server-side on every save (see documents/calculations.ts).
+  netTotal   Decimal @default(0) @db.Decimal(14, 2)
+  vatTotal   Decimal @default(0) @db.Decimal(14, 2)
+  grossTotal Decimal @default(0) @db.Decimal(14, 2)
+
+  finalizedAt DateTime?
+
+  items DocumentItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, type, number])
+  @@index([companyId, type, status])
+  @@index([projectId])
+  @@map("documents")
+}
+
+// A line of a document. Catalog values are COPIED here when the line is created, so later price
+// changes in the catalog never alter existing documents.
+model DocumentItem {
+  id         String   @id @default(uuid())
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  sortOrder  Int
+
+  kind DocumentItemKind @default(POSITION)
+
+  catalogItemId String?
+  catalogItem   CatalogItem? @relation(fields: [catalogItemId], references: [id], onDelete: SetNull)
+
+  sku         String?
+  name        String // Kurztext
+  description String? @db.Text // Langtext
+
+  quantity        Decimal @default(1) @db.Decimal(12, 3)
+  unit            String  @default("Stk")
+  unitPrice       Decimal @default(0) @db.Decimal(12, 2) // net
+  vatRate         Decimal @default(19) @db.Decimal(5, 2)
+  discountPercent Decimal @default(0) @db.Decimal(5, 2)
+  // Optional (Alternativ-/Bedarfsposition): shown on the document but not part of the totals.
+  isOptional      Boolean @default(false)
+
+  lineTotal Decimal @default(0) @db.Decimal(14, 2) // net, after discount; 0 for non-positions
+
+  @@index([documentId, sortOrder])
+  @@map("document_items")
 }

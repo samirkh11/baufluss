@@ -74,8 +74,9 @@ await page.waitForTimeout(600);
 
 // ---- project detail
 await page.getByRole('link', { name: 'Dachsanierung MFH Hirschstraße 14' }).click();
-await page.waitForSelector('text=Berichte (4)');
-check('detail shows header + 4 reports', (await page.locator('tbody tr.ant-table-row').count()) === 4);
+await page.getByRole('tab', { name: /Berichte \(4\)/ }).click();
+await page.waitForSelector('.ant-tabs-tabpane-active tbody tr.ant-table-row');
+check('detail shows header + 4 reports', (await page.locator('.ant-tabs-tabpane-active tbody tr.ant-table-row').count()) === 4);
 await page.screenshot({ path: shots + '02-project-detail.png' });
 
 // ---- edit project
@@ -172,6 +173,65 @@ await modal.getByRole('button', { name: 'OK' }).click();
 await page.waitForSelector('text=Dennis Vogel-E2E');
 check('user edited via dialog', true);
 
+// ---- quotes (Block 4)
+await page.getByRole('menuitem', { name: 'Angebote' }).click();
+await page.waitForSelector('tbody tr.ant-table-row');
+check('quotes list shows 6 seed quotes', (await page.locator('tbody tr.ant-table-row').count()) === 6);
+await page.locator('.ant-select').first().click();
+await page.locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: 'Entwurf' }).click();
+await page.waitForTimeout(600);
+check('status filter "Entwurf" -> 1 quote', (await page.locator('tbody tr.ant-table-row').count()) === 1);
+await page.screenshot({ path: shots + '08-quotes.png' });
+// reload to reset the status filter
+await page.goto(BASE + '/quotes');
+await page.waitForSelector('tbody tr.ant-table-row');
+await page.getByRole('link', { name: 'AN-00002' }).click();
+await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
+check('issued quote is locked (disabled fields)', await page.getByLabel('Betreff').isDisabled());
+check('issued quote shows 12 lines and gross total', (await page.locator('tbody tr.ant-table-row').count()) === 12 && (await page.getByText(/42\.305,93/).count()) > 0);
+await page.screenshot({ path: shots + '09-quote-locked.png' });
+
+// duplicate -> editable draft, add a catalog line, save, check total, PDF, issue, accept
+await page.getByRole('button', { name: 'Duplizieren' }).click();
+await page.waitForSelector('h3:has-text("Entwurf")');
+check('duplicate opens a new editable draft', !(await page.getByLabel('Betreff').isDisabled()));
+await page.locator('.ant-select', { hasText: 'Position aus' }).click();
+await page.keyboard.type('L-102');
+await page.locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: 'L-102' }).click();
+await page.waitForFunction(() => document.querySelectorAll('tbody tr.ant-table-row').length === 13);
+const lastRow = page.locator('tbody tr.ant-table-row').last();
+await lastRow.locator('input.ant-input-number-input').first().fill('4');
+await lastRow.locator('input.ant-input-number-input').first().blur();
+await page.getByRole('button', { name: 'Speichern' }).click();
+await page.waitForSelector('text=Gespeichert.');
+check('draft saved with new line: gross 42.486,81', (await page.getByText(/42\.486,81/).count()) > 0);
+await page.screenshot({ path: shots + '10-quote-draft.png' });
+const [popup] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'PDF' }).click()]);
+check('PDF opens in a new tab', true, popup.url());
+await popup.close();
+await page.getByRole('button', { name: 'Ausstellen' }).first().click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
+await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
+check('issuing assigns the next number AN-00006', await page.locator('h3', { hasText: 'AN-00006' }).isVisible());
+await page.getByRole('button', { name: 'Angenommen' }).click();
+await page.waitForSelector('h3 .ant-tag:has-text("Angenommen")');
+check('quote marked as accepted', true);
+
+// project tab: create + delete a draft
+await page.getByRole('menuitem', { name: 'Projekte' }).click();
+await page.getByRole('link', { name: 'Neueindeckung EFH Familie Becker' }).click();
+await page.getByRole('tab', { name: /Angebote/ }).click();
+await page.waitForSelector('.ant-tabs-tabpane-active tbody tr.ant-table-row');
+check('project tab lists its 2 quotes', (await page.locator('.ant-tabs-tabpane-active tbody tr.ant-table-row').count()) === 2);
+await page.getByRole('button', { name: 'Neues Angebot' }).click();
+await page.waitForURL(/\/documents\/.+/);
+await page.waitForSelector('h3:has-text("Entwurf")');
+check('new quote draft prefilled with project subject', (await page.getByLabel('Betreff').inputValue()) === 'Neueindeckung EFH Familie Becker');
+await page.getByRole('button', { name: 'Löschen' }).click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'OK' }).click();
+await page.waitForURL(/\/projects\/.+/);
+check('draft deleted, back on project', true);
+
 // ---- worker view: no admin controls
 await page.getByTitle('Abmelden').click();
 await page.getByLabel('E-Mail').fill('l.bauer@dachdecker-schmidt.example');
@@ -182,6 +242,7 @@ await page.waitForSelector('tbody tr.ant-table-row');
 check('worker sees no "Neues Projekt" button', (await page.getByRole('button', { name: 'Neues Projekt' }).count()) === 0);
 await page.getByRole('menuitem', { name: 'Nutzer & Rollen' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
+check('worker sees no "Angebote" menu item', (await page.getByRole('menuitem', { name: 'Angebote' }).count()) === 0);
 check('worker sees no "Nutzer einladen" button', (await page.getByRole('button', { name: 'Nutzer einladen' }).count()) === 0);
 
 const real = errors.filter((e) => !/favicon|DevTools/i.test(e));

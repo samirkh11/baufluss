@@ -47,7 +47,7 @@ export function tileSvg(caption: string, color: string): string {
 
 // Company logo: a simple roof symbol next to the company name.
 export function logoSvg(name: string): string {
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="420" height="120" viewBox="0 0 420 120">
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="520" height="120" viewBox="0 0 520 120">
 <polygon points="10,70 60,20 110,70" fill="#b03a2e"/>
 <rect x="30" y="70" width="60" height="35" fill="#7b241c"/>
 <text x="125" y="75" font-family="Arial, sans-serif" font-size="30" font-weight="bold" fill="#333">${escapeXml(name)}</text>

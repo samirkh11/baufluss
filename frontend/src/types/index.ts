@@ -138,7 +138,7 @@ export interface Project {
   managerId: string | null;
   manager: UserSummary | null;
   members: UserSummary[];
-  _count: { reports: number };
+  _count: { reports: number; documents: number };
 }
 
 export type ReportType = 'DAILY' | 'PROGRESS' | 'DEFECT' | 'ACCEPTANCE' | 'INCIDENT' | 'OTHER';
@@ -164,4 +164,51 @@ export interface Report {
   issues: string | null;
   progressPercent: number | null;
   photos: ReportPhoto[];
+}
+
+export type DocumentType = 'QUOTE' | 'ORDER' | 'INVOICE' | 'CREDIT_NOTE';
+export type DocumentStatus = 'DRAFT' | 'SENT' | 'ACCEPTED' | 'REJECTED';
+export type DocumentItemKind = 'POSITION' | 'HEADING' | 'TEXT';
+
+// Decimal columns arrive as strings (see CatalogItem).
+export interface DocumentItem {
+  id: string;
+  kind: DocumentItemKind;
+  catalogItemId: string | null;
+  sku: string | null;
+  name: string;
+  description: string | null;
+  quantity: string;
+  unit: string;
+  unitPrice: string;
+  vatRate: string;
+  discountPercent: string;
+  isOptional: boolean;
+  lineTotal: string;
+}
+
+// "BusinessDocument" because "Document" is a browser global.
+export interface BusinessDocument {
+  id: string;
+  projectId: string;
+  project: { id: string; number: string; name: string };
+  type: DocumentType;
+  status: DocumentStatus;
+  number: string | null;
+  recipientContactId: string | null;
+  recipientName: string | null;
+  recipientStreet: string | null;
+  recipientZipCode: string | null;
+  recipientCity: string | null;
+  subject: string | null;
+  introText: string | null;
+  closingText: string | null;
+  documentDate: string;
+  validUntil: string | null;
+  netTotal: string;
+  vatTotal: string;
+  grossTotal: string;
+  finalizedAt: string | null;
+  updatedAt: string;
+  items: DocumentItem[];
 }

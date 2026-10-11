@@ -53,14 +53,35 @@ Backend: `projects/`, `reports/`. Frontend: `ProjectsPage`, `ProjectDetailPage`,
 - Offen/Ideen: Projektdateien/Pläne als Anhänge, Zeiterfassung je Projekt, PDF-Export von
   Berichten, Bautagebuch-Vorlagen, Mitarbeiter sieht nur zugewiesene Projekte (aktuell sehen alle alles).
 
-### ⬜ Block 4 — Angebote
-Angebotseditor mit Positionen, PDF-Export, Preise aus dem Artikelstamm (Block 2), Workflow
-Angebot → Auftrag → Rechnung (Status-Übergänge, keine Datenneueingabe bei Übernahme), GAEB-Import
-und -Export.
-**Hinweis:** GAEB (GAEB DA XML / P88/P90) ist ein eigenes, nicht-triviales XML-Format aus der
-Baubranche — eigene Recherche/Bibliothek nötig, kein Standard-npm-Paket bekannt; ggf. eigenen
-Parser/Serializer schreiben. Sollte als eigener Teilschritt innerhalb von Block 4 geplant werden,
-nicht nebenbei.
+### 🟡 Block 4 — Angebote (Teilschritt 1 fertig, 2026-10-11)
+Aufgeteilt in drei Teilschritte:
+- ✅ **1. Angebotseditor + PDF + Preise aus dem Stamm.** Backend `documents/`, Frontend
+  `DocumentEditorPage`, `DocumentsPanel`, `QuotesPage` (Menü „Angebote", Tab „Angebote" im Projekt;
+  nur OWNER/ADMIN sehen Dokumente).
+  - Generisches `Document` + `DocumentItem` (Typ QUOTE/ORDER/INVOICE/CREDIT_NOTE; nur QUOTE
+    freigeschaltet, `SUPPORTED_TYPES` im Service). Status DRAFT → SENT (ausgestellt) →
+    ACCEPTED/REJECTED. **Nummer erst beim Ausstellen** (lückenlos, `NumberSequencesService.next`),
+    danach gesperrt (409), Überarbeiten per „Duplizieren" → neuer Entwurf.
+  - Positionen: Art POSITION/HEADING/TEXT, Menge (3 Nachkommastellen), Einheit, EK-netto-Preis,
+    USt, Rabatt %, `isOptional` (Alternativposition, nicht in Summe). Katalogwerte werden beim
+    Hinzufügen KOPIERT (Verweis `catalogItemId` nur Referenz). Ordnungszahlen 1, 1.1, 1.2 …
+  - Summen serverseitig (`calculations.ts`, `Prisma.Decimal`, kaufmännisch gerundet, USt je Satz
+    auf Netto-Summe) mit Jest-Unit-Tests (`npm test` in backend/); Frontend rechnet nur eine
+    Vorschau (`utils/documentCalc.ts`).
+  - Empfänger: Kontakt-Verweis + Adress-Snapshot, beim Ausstellen aus dem Kontakt eingefroren.
+  - PDF (`document-pdf.service.ts`, pdfkit + svg-to-pdfkit für SVG-Logo): Briefkopf mit Logo,
+    Anschrift, Positionstabelle mit Seitenumbruch + wiederholtem Tabellenkopf, USt-Summen,
+    Schlusstext, Fußzeile (Briefpapier-Text + IBAN/BIC/USt-IdNr.), Wasserzeichen „ENTWURF".
+  - Projekte/Kontakte mit Dokumenten sind nicht löschbar (FK Restrict → 409).
+- ⬜ **2. Angebot → Auftragsbestätigung → Rechnung (Übernahme).** `sourceDocumentId` ist im Schema
+  schon vorhanden. Übernahme = Kopie der Positionen in neues Dokument des Folgetyps; `SUPPORTED_TYPES`
+  erweitern; Status-Übergänge je Typ (ORDER: nur aus ACCEPTED-Angebot). Rechnungsspezifisches
+  (Leistungsdatum, Zahlungsziel, § 13b, Abschläge …) gehört zu Block 5.
+- ⬜ **3. GAEB-Import/-Export** (Import zuerst, siehe [[project_compliance]]): Leistungsverzeichnis
+  → Titel/Positionen mit OZ; die Struktur HEADING/POSITION passt bereits dazu.
+- Ideen/offen: Textbausteine & Standard-Einleitung je Firma, Angebotsvarianten/Alternativen
+  gruppieren, Zwischensummen, Rabatt auf Gesamtsumme, Versand per E-Mail, PDF-Layout
+  konfigurierbar (Briefpapier-PDF als Hintergrund), Angebots-Historie/Revisionen.
 
 ### ⬜ Block 5 — Rechnungen
 Pflichtangaben nach § 14 UStG, Abschlags- und Schlussrechnung, § 13b UStG (Reverse Charge bei
@@ -118,7 +139,7 @@ Zeitpunkt: nach Block 5 (dann gibt es Geld-Kennzahlen), spätestens vor dem erst
 1. ~~Firmenprofil & Konto~~ ✅
 2. ~~Kontakte & Stammdaten~~ ✅
 3. ~~Projekte (inkl. Berichte)~~ ✅
-4. Angebote (inkl. GAEB)
+4. Angebote (inkl. GAEB) — Teilschritt 1/3 ✅ (Editor+PDF)
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Datenmodell von Anfang an EN16931-kompatibel
 6. Eingangsrechnungen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export

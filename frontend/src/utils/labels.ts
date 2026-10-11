@@ -1,4 +1,4 @@
-import { Project, ProjectStatus, ReportType } from '../types';
+import { DocumentStatus, DocumentType, Project, ProjectStatus, ReportType } from '../types';
 
 export const PROJECT_STATUS: Record<ProjectStatus, { label: string; color: string }> = {
   PLANNING: { label: 'In Planung', color: 'blue' },
@@ -46,4 +46,25 @@ export function siteAddress(project: Pick<Project, 'siteStreet' | 'siteZipCode' 
   return [project.siteStreet, [project.siteZipCode, project.siteCity].filter(Boolean).join(' ')]
     .filter(Boolean)
     .join(', ');
+}
+
+export const DOCUMENT_STATUS: Record<DocumentStatus, { label: string; color: string }> = {
+  DRAFT: { label: 'Entwurf', color: 'default' },
+  SENT: { label: 'Versendet', color: 'blue' },
+  ACCEPTED: { label: 'Angenommen', color: 'green' },
+  REJECTED: { label: 'Abgelehnt', color: 'red' },
+};
+
+export const DOCUMENT_TYPE: Record<DocumentType, string> = {
+  QUOTE: 'Angebot',
+  ORDER: 'Auftragsbestätigung',
+  INVOICE: 'Rechnung',
+  CREDIT_NOTE: 'Gutschrift',
+};
+
+const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
+
+// Accepts numbers and the decimal strings returned by the API.
+export function formatMoney(value: number | string | null | undefined): string {
+  return euro.format(Number(value ?? 0));
 }

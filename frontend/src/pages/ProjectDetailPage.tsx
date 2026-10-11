@@ -18,6 +18,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteProject, getProject } from '../api/projects';
 import { useAuth } from '../auth/AuthContext';
 import { ProjectFormModal } from '../components/ProjectFormModal';
+import { DocumentsPanel } from '../components/DocumentsPanel';
 import { ReportsPanel } from '../components/ReportsPanel';
 import { apiErrorMessage, assetUrl } from '../utils/assets';
 import { customerName, formatDate, PROJECT_STATUS, siteAddress } from '../utils/labels';
@@ -118,6 +119,16 @@ export function ProjectDetailPage() {
 
       <Tabs
         items={[
+          // Documents contain prices: only the office (OWNER/ADMIN) sees them.
+          ...(canManage
+            ? [
+                {
+                  key: 'quotes',
+                  label: `Angebote (${project._count.documents})`,
+                  children: <DocumentsPanel type="QUOTE" projectId={project.id} />,
+                },
+              ]
+            : []),
           {
             key: 'reports',
             label: `Berichte (${project._count.reports})`,

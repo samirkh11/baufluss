@@ -58,6 +58,16 @@ dem Transaktions-Client des Speichervorgangs aufrufen (kein verbrannter Zähler 
 lückenlos, GoBD). Legt fehlende Kreise mit Standard-Präfix an, setzt bei `resetYearly` zum
 Jahreswechsel zurück. Alle künftigen Dokumente (Angebot, Auftrag, Rechnung, Gutschrift) nutzen es.
 
+## Dokumente (Angebot → Auftrag → Rechnung)
+
+Eine Tabelle `Document` (+ `DocumentItem`) für alle Geschäftsdokumente, Typ per Enum. Gründe:
+Übernahme = Kopie, PDF/GAEB/E-Rechnung-Logik nur einmal. Typspezifische Zusatzdaten (Rechnung:
+Zahlungen, Mahnungen, Sicherheitseinbehalt …) kommen als eigene Tabellen mit 1:1-Bezug dazu,
+NICHT als Spalten-Wildwuchs im Document. Dokumente sind Rechtsnachweise: Nummer erst beim
+Ausstellen, danach unveränderlich (Service `assertDraft`), FKs auf Projekt/Kontakt Restrict.
+Geld immer als `Decimal` (Prisma.Decimal) im Backend, nie `number`-Arithmetik. Dokument-
+Endpunkte sind OWNER/ADMIN-only (Preise, Kundendaten).
+
 ## Datei-Upload & Bilder
 
 - Gemeinsamer Baustein: `backend/src/common/storage/uploads.ts` (`imageUploadOptions(subdir)`,

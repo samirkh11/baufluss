@@ -10,6 +10,7 @@ import { DEMO_OWNER_EMAIL, DEMO_PASSWORD, seedCompanyAndUsers } from './company-
 import { seedContacts } from './contacts';
 import { seedCatalog } from './catalog';
 import { seedProjects } from './projects';
+import { seedDocuments } from './documents';
 import { SECOND_TENANT_OWNER_EMAIL, seedSecondTenant } from './second-tenant';
 
 const prisma = new PrismaClient();
@@ -51,8 +52,9 @@ async function main() {
 
   const { companyId, userIds } = await seedCompanyAndUsers(prisma);
   const contactIds = await seedContacts(prisma, companyId);
-  await seedCatalog(prisma, companyId);
+  const catalog = await seedCatalog(prisma, companyId);
   await seedProjects(prisma, companyId, userIds, contactIds);
+  await seedDocuments(prisma, companyId, catalog);
   await seedSecondTenant(prisma);
 
   console.log('Demo-Daten angelegt (Dachdeckerei Schmidt GmbH + Zimmerei Beispiel GmbH).');
