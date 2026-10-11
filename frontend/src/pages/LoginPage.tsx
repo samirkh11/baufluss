@@ -17,8 +17,10 @@ export function LoginPage() {
       const response = await login(values);
       signIn(response.accessToken, response.user);
       navigate('/');
-    } catch {
-      setError('E-Mail oder Passwort ist falsch.');
+    } catch (caught) {
+      // 403 carries the reason (suspended account, expired trial); everything else is a plain credentials error
+      const response = (caught as { response?: { status?: number; data?: { message?: string } } }).response;
+      setError(response?.status === 403 && response.data?.message ? response.data.message : 'E-Mail oder Passwort ist falsch.');
     } finally {
       setLoading(false);
     }

@@ -106,8 +106,9 @@ meisterwerk/
 - GoBD: unveränderliches Beleg-Archiv mit Prüfsummen (Archivprüfung), Änderungsprotokoll, Verfahrensdokumentation
 - DSGVO: Datenauskunft, Löschung/Anonymisierung, Datenschutz-Unterlagen (VVT/TOM)
 - Betriebsprüfung: GoBD-Datenträger (index.xml + CSV + Belege) und DATEV-Buchungsstapel als Export
+- Betreiber-Backoffice (`/admin`): Mandanten/Abonnenten (sperren, Testphase, Tarif), Tarife, Rechnungslauf und Betreiberrechnungen, Support-Zugriff mit Protokoll, Kennzahlen und Systemzustand
 
-Die restlichen Funktionsblöcke (Betreiber-Backoffice, Urlaub) sind in der Roadmap-Memory-Datei geplant und werden
+Die restlichen Funktionsblöcke (Urlaub, Mail-Eingang, Zahlungsanbieter) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 
 ## Testdaten

@@ -1,5 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
-import { Button, Drawer, Layout, Menu, Typography } from 'antd';
+import { Alert, Button, Drawer, Layout, Menu, Typography } from 'antd';
+import { useQuery } from '@tanstack/react-query';
+import { getOwnCompany } from '../api/companies';
 import {
   InboxOutlined,
   AuditOutlined,
@@ -56,6 +58,9 @@ export function AppLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const isOffice = user?.role === 'OWNER' || user?.role === 'ADMIN';
+  // Trial hint for the office: how long the free trial still runs.
+  const { data: company } = useQuery({ queryKey: ['company'], queryFn: getOwnCompany, enabled: isOffice && !user?.impersonatedBy });
+  const trialDaysLeft = company?.status === 'TRIAL' && company.trialEndsAt ? Math.ceil((new Date(company.trialEndsAt).getTime() - Date.now()) / 86400000) : null;
   const menuItems = MENU_ITEMS.filter((item) => !item.officeOnly || isOffice);
   // Credit notes (Stornorechnungen) live under the invoices menu entry.
   const path = location.pathname.startsWith('/credit-notes') ? '/invoices' : location.pathname;
@@ -129,6 +134,28 @@ export function AppLayout() {
             />
           </div>
         </Header>
+        {user?.impersonatedBy && (
+          <Alert
+            type="warning"
+            banner
+            data-testid="support-banner"
+            message={`Support-Zugriff als ${user.firstName} ${user.lastName} (${user.impersonatedBy}). Alle Aktionen werden protokolliert.`}
+            action={
+              <Button
+                size="small"
+                onClick={() => {
+                  signOut();
+                  navigate('/admin/companies');
+                }}
+              >
+                Beenden
+              </Button>
+            }
+          />
+        )}
+        {trialDaysLeft !== null && (
+          <Alert type="info" banner showIcon data-testid="trial-banner" message={trialDaysLeft > 0 ? `Testphase: noch ${trialDaysLeft} Tag(e) (bis ${new Date(company!.trialEndsAt!).toLocaleDateString('de-DE')}).` : 'Die Testphase ist abgelaufen.'} />
+        )}
         <Content style={{ margin: phone ? 12 : 24, minWidth: 0 }}>
           <Outlet />
         </Content>

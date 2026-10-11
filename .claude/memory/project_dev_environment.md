@@ -92,3 +92,4 @@ erfolgreich getestet** sind. Nicht automatisch nach jedem Build pushen.
 - Pitfall: NIE `pkill -f "nest start"` o. ä. in der Tool-Shell – das Muster steht in der eigenen Kommandozeile und killt die Shell (Exit 144). Nest-Watch lädt Änderungen selbst neu.
 - E-Rechnung prüfen: `cd e2e && ./validate-einvoice.sh` (Backend + Seed nötig, Java; erster Lauf lädt ~100 MB nach e2e/.cache).
 - storage/ (incoming-invoices, archive) ist gitignored und muss beim Deployment persistent + gesichert sein (GoBD-Archiv!). Seed löscht/erzeugt es für die Demo-Mandanten neu.
+- Backoffice: http://localhost:5173/admin (admin@meisterwerk.local / admin12345). `npm run test:admin` ändert Demo-Daten (sperrt/aktiviert, Rechnungslauf, Plan) → danach neu seeden. Tests bei knappem RAM im Hintergrund starten (`setsid nohup … &`) und per `until [ -f done ]` warten, sonst killt der OOM-Killer die Tool-Shell.

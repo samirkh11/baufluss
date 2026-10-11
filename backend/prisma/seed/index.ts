@@ -17,12 +17,13 @@ import { seedDocuments } from './documents';
 import { seedIncomingInvoices } from './incoming-invoices';
 import { seedTimeEntries } from './time-entries';
 import { SECOND_TENANT_OWNER_EMAIL, seedSecondTenant } from './second-tenant';
+import { EXTRA_OWNER_EMAILS, PLATFORM_ADMIN_EMAIL, PLATFORM_ADMIN_PASSWORD, seedPlatform } from './platform';
 
 const prisma = new PrismaClient();
 
 async function removeExistingDemoTenants() {
   const owners = await prisma.user.findMany({
-    where: { email: { in: [DEMO_OWNER_EMAIL, SECOND_TENANT_OWNER_EMAIL] } },
+    where: { email: { in: [DEMO_OWNER_EMAIL, SECOND_TENANT_OWNER_EMAIL, ...EXTRA_OWNER_EMAILS] } },
     select: { companyId: true },
   });
   const companyIds = owners.map((owner) => owner.companyId);
@@ -54,6 +55,10 @@ async function removeExistingDemoTenants() {
     rmSync(join(process.cwd(), 'storage', 'incoming-invoices', companyId), { recursive: true, force: true });
   }
 
+  // Operator invoices must go first: they restrict the deletion of their company.
+  await prisma.platformInvoice.deleteMany({ where: { companyId: { in: companyIds } } });
+  await prisma.platformAuditLog.deleteMany({ where: { companyId: { in: companyIds } } });
+
   // Deleting a company cascades to users, contacts, catalog items, number sequences, ...
   await prisma.company.deleteMany({ where: { id: { in: companyIds } } });
 }
@@ -69,6 +74,7 @@ async function main() {
   await seedTimeEntries(prisma, companyId, userIds);
   await seedIncomingInvoices(prisma, companyId, userIds, contactIds);
   await seedSecondTenant(prisma);
+  await seedPlatform(prisma);
 
   // GoBD archive of everything that is already issued in the demo data, created by the real service.
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error'] });
@@ -81,6 +87,7 @@ async function main() {
   console.log('Demo-Daten angelegt (Dachdeckerei Schmidt GmbH + Zimmerei Beispiel GmbH).');
   console.log(`Login Chef:      ${DEMO_OWNER_EMAIL} / ${DEMO_PASSWORD}`);
   console.log(`Login Bürokraft: buero@dachdecker-schmidt.example / ${DEMO_PASSWORD}`);
+  console.log(`Betreiber-Backoffice: ${PLATFORM_ADMIN_EMAIL} / ${PLATFORM_ADMIN_PASSWORD} (Seite /admin)`);
   console.log(`Login 2. Mandant: ${SECOND_TENANT_OWNER_EMAIL} / ${DEMO_PASSWORD}`);
 }
 

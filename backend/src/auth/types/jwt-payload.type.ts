@@ -6,10 +6,12 @@ export interface JwtPayload {
   sub: string; // user id
   companyId: string;
   role: CompanyRole;
+  imp?: string; // platform admin id when an operator is logged in as this user (support access)
 }
 
 export interface AuthenticatedUser {
   id: string;
   companyId: string;
   role: CompanyRole;
+  impersonatedBy?: { id: string; name: string };
 }

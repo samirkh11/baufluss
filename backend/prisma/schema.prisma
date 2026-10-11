@@ -70,6 +70,14 @@ model Company {
   archivedFiles      ArchivedFile[]
   auditLogs          AuditLog[]
   complianceSettings ComplianceSettings?
+  // Subscription / lifecycle, managed by the platform operator (Betreiber-Backoffice)
+  status             CompanyStatus       @default(TRIAL)
+  statusReason       String? // why the account is suspended/cancelled (shown to the customer on login)
+  trialEndsAt        DateTime?
+  planId             String?
+  plan               Plan?               @relation(fields: [planId], references: [id], onDelete: SetNull)
+  operatorNotes      String?             @db.Text // internal notes of the operator, never shown to the customer
+  platformInvoices   PlatformInvoice[]
 
   @@map("companies")
 }
@@ -863,4 +871,104 @@ model ComplianceSettings {
   accountCreditorBase  Int  @default(70000)
 
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------------------------
+// Platform (operator back office): admins, plans, billing
+// ---------------------------------------------------------------------------------------------
+
+enum CompanyStatus {
+  TRIAL // free trial until trialEndsAt
+  ACTIVE // paying customer
+  SUSPENDED // locked by the operator (e.g. unpaid invoices); users cannot log in
+  CANCELLED // contract ended; users cannot log in, data kept until deleted by the operator
+}
+
+// Operator staff. Completely separate from company users: own table, own login, own token type.
+model PlatformAdmin {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+// Subscription plan offered to customers.
+model Plan {
+  id           String  @id @default(uuid())
+  key          String  @unique // starter, business, pro
+  name         String
+  description  String?
+  priceMonthly Decimal @db.Decimal(10, 2) // net
+  maxUsers     Int? // null = unlimited
+  isActive     Boolean @default(true) // inactive plans cannot be newly assigned
+  sortOrder    Int     @default(0)
+
+  companies Company[]
+}
+
+// Operator-wide settings (singleton row with id 1): sender data of the invoices to customers, trial length.
+model PlatformSettings {
+  id              Int     @id @default(1)
+  operatorName    String  @default("Meisterwerk Betreiber")
+  street          String?
+  zipCode         String?
+  city            String?
+  vatId           String?
+  taxId           String?
+  iban            String?
+  bic             String?
+  email           String?
+  trialDays       Int     @default(14)
+  vatRate         Decimal @default(19) @db.Decimal(5, 2)
+  paymentTermDays Int     @default(14)
+  defaultPlanKey  String  @default("starter")
+}
+
+enum PlatformInvoiceStatus {
+  OPEN
+  PAID
+  VOID
+}
+
+// Invoice of the operator to a customer company for one billing month.
+model PlatformInvoice {
+  id        String  @id @default(uuid())
+  number    String  @unique // PR-2026-0001
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  periodStart DateTime @db.Date
+  periodEnd   DateTime @db.Date
+  planName    String
+  description String
+
+  net   Decimal @db.Decimal(10, 2)
+  vat   Decimal @db.Decimal(10, 2)
+  gross Decimal @db.Decimal(10, 2)
+
+  status   PlatformInvoiceStatus @default(OPEN)
+  issuedAt DateTime              @default(now())
+  dueDate  DateTime              @db.Date
+  paidAt   DateTime?             @db.Date
+
+  @@unique([companyId, periodStart])
+  @@index([status])
+}
+
+// What the operator staff did (suspend, impersonate, bill ...).
+model PlatformAuditLog {
+  id          String   @id @default(uuid())
+  adminId     String?
+  adminName   String
+  action      String // e.g. COMPANY_SUSPEND, IMPERSONATE
+  companyId   String?
+  companyName String?
+  details     Json?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([companyId])
 }

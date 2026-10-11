@@ -6,9 +6,10 @@
   "description": "Browser end-to-end tests (Playwright) for the Meisterwerk UI",
   "scripts": {
     "install:browser": "playwright install chromium",
-    "test": "node smoke.e2e.mjs && node responsive.e2e.mjs",
+    "test": "node smoke.e2e.mjs && node responsive.e2e.mjs && node admin.e2e.mjs",
     "test:smoke": "node smoke.e2e.mjs",
-    "test:responsive": "node responsive.e2e.mjs"
+    "test:responsive": "node responsive.e2e.mjs",
+    "test:admin": "node admin.e2e.mjs"
   },
   "devDependencies": {
     "playwright": "^1.50.0"

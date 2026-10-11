@@ -18,11 +18,31 @@ import { InvoicesPage } from './pages/InvoicesPage';
 import { TimePage } from './pages/TimePage';
 import { DocumentEditorPage } from './pages/DocumentEditorPage';
 
+import { AdminLayout } from './admin/AdminLayout';
+import { AdminLoginPage } from './admin/AdminLoginPage';
+import { AdminDashboardPage } from './admin/AdminDashboardPage';
+import { AdminCompaniesPage } from './admin/AdminCompaniesPage';
+import { AdminPlansPage } from './admin/AdminPlansPage';
+import { AdminInvoicesPage } from './admin/AdminInvoicesPage';
+import { AdminLogPage } from './admin/AdminLogPage';
+import { AdminSystemPage } from './admin/AdminSystemPage';
+
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterCompanyPage />} />
+
+      {/* Operator back office: separate login and token, independent of the customer app */}
+      <Route path="/admin/login" element={<AdminLoginPage />} />
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route index element={<AdminDashboardPage />} />
+        <Route path="companies" element={<AdminCompaniesPage />} />
+        <Route path="invoices" element={<AdminInvoicesPage />} />
+        <Route path="plans" element={<AdminPlansPage />} />
+        <Route path="log" element={<AdminLogPage />} />
+        <Route path="system" element={<AdminSystemPage />} />
+      </Route>
 
       <Route element={<ProtectedRoute />}>
         <Route element={<AppLayout />}>

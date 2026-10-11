@@ -8,6 +8,7 @@ export interface AuthUser {
   email: string;
   firstName: string;
   lastName: string;
+  impersonatedBy?: string; // name of the operator staff member when this is a support session
 }
 
 export interface AuthResponse {
@@ -33,6 +34,10 @@ export interface Company {
   logoPath: string | null;
   letterheadHeaderText: string | null;
   letterheadFooterText: string | null;
+  // subscription (set by the operator)
+  status?: 'TRIAL' | 'ACTIVE' | 'SUSPENDED' | 'CANCELLED';
+  trialEndsAt?: string | null;
+  plan?: { name: string } | null;
 }
 
 export interface CompanyUser {

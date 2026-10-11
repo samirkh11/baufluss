@@ -45,13 +45,13 @@ export class AuditService {
     return name;
   }
 
-  async log(actor: { id: string; companyId: string }, entry: AuditEntry): Promise<void> {
+  async log(actor: { id: string; companyId: string; impersonatedBy?: { id: string; name: string } }, entry: AuditEntry): Promise<void> {
     try {
       await this.prisma.auditLog.create({
         data: {
           companyId: actor.companyId,
           userId: actor.id,
-          userName: await this.userName(actor.id),
+          userName: actor.impersonatedBy ? `Support (${actor.impersonatedBy.name}) als ${await this.userName(actor.id)}` : await this.userName(actor.id),
           method: entry.method,
           route: entry.route,
           entityType: entry.entityType,

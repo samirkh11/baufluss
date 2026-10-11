@@ -39,6 +39,15 @@ export class UsersService {
       throw new ConflictException('E-Mail-Adresse wird bereits verwendet.');
     }
 
+    // Plan limit: the subscription may cap the number of active users.
+    const company = await this.prisma.company.findUnique({ where: { id: companyId }, include: { plan: true } });
+    if (company?.plan?.maxUsers != null) {
+      const active = await this.prisma.user.count({ where: { companyId, isActive: true } });
+      if (active >= company.plan.maxUsers) {
+        throw new ConflictException(`Der Tarif „${company.plan.name}“ erlaubt höchstens ${company.plan.maxUsers} aktive Nutzer. Bitte den Tarif wechseln.`);
+      }
+    }
+
     const passwordHash = await bcrypt.hash(dto.password, PASSWORD_SALT_ROUNDS);
     const user = await this.prisma.user.create({
       data: {

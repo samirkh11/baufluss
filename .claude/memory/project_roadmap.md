@@ -258,19 +258,26 @@ Aufgeteilt in vier Teilschritte:
   Einbehalt als Teilzahlung abbilden, XRechnung-Extension/CVD-Szenarien, Rechtsstand zur E-Rechnungspflicht (2027/2028)
   vor Kundenstart prüfen.
 
-### ⬜ Block 8 — Plattform-Admin / Betreiber-Backoffice (von Volker nachgefordert 2026-10-10)
-Unter der Backend-URL gibt es bisher nur die Swagger-Doku. Es braucht ein echtes
-**Betreiber-Backoffice** (getrennt von der Kunden-App): Mandanten-/Abonnentenverwaltung
-(Firmen ansehen, sperren, Testphase), Abo-Pläne & Abrechnung (Subscriptions, Zahlungsanbieter
-z.B. Stripe, Rechnungen an die Kunden), Nutzungsstatistiken, Support-Zugriffe (Impersonation
-mit Audit-Log), ggf. System-Monitoring.
-**Entwurfshinweise:** Eigene Rolle `PLATFORM_ADMIN` auf Nutzerebene, die NICHT an eine Company
-gebunden ist (heute hängt jeder `User` zwingend an einer `Company` — Schema-Änderung nötig, z.B.
-separate `PlatformAdmin`-Tabelle + eigener Auth-Guard/Token-Audience); eigene API unter
-`/admin/*`, eigene SPA (`admin-frontend/` oder Route-Bereich im Frontend mit separatem Guard).
-Mandanten-Status (`ACTIVE/TRIAL/SUSPENDED`) und Plan-Zuordnung am `Company`-Modell vorsehen; die
-App-Auth muss gesperrte Mandanten ablehnen. Sinnvoll nach Block 3, spätestens vor dem ersten
-zahlenden Kunden.
+### ✅ Block 8 — Betreiber-Backoffice (V1 fertig 2026-10-11)
+Eigener Bereich `/admin` in derselben SPA (`frontend/src/admin/`), eigene Anmeldung/Token (`meisterwerk.adminToken`), eigene API `/admin/*`
+(`backend/src/platform/`). **Trennung:** Tabelle `PlatformAdmin` (nicht an Company gebunden), JWT mit `kind:'platform'` + eigene Passport-Strategie
+`platform-jwt`; App-Token und Betreiber-Token werden gegenseitig abgelehnt. Login Seed: admin@meisterwerk.local / admin12345.
+- **Mandanten:** `Company.status` TRIAL/ACTIVE/SUSPENDED/CANCELLED, `statusReason`, `trialEndsAt`, `planId`, `operatorNotes` (intern; wird in der
+  Kunden-API ausgeblendet). Liste mit Nutzung (Nutzer, Belege, zuletzt aktiv, offene Betreiberrechnungen), Detail-Drawer: Status ändern
+  (sperren/kündigen mit Grund, aktivieren, Testphase +14 Tage), Tarif wählen, Notizen, Nutzer, Rechnungen. `common/company-access.ts`
+  (`blockedReason`) sperrt Login (403 mit Grund) UND laufende Sitzungen (JwtStrategy prüft pro Request); abgelaufene Testphase sperrt ebenfalls.
+  Neuregistrierung = TRIAL (Tage + Standardtarif aus `PlatformSettings`). Kunden-App zeigt Testphasen-Banner.
+- **Tarife** (`Plan`: key, Preis/Monat netto, maxUsers, buchbar): CRUD; Nutzerlimit wird beim Anlegen von Nutzern erzwungen (409). NICHT geprüft: Reaktivieren eines Nutzers über Limit.
+- **Abrechnung:** `PlatformInvoice` (PR-JJJJ-NNNN), Rechnungslauf je Monat (idempotent; nur ACTIVE mit Tarif, erste volle Monate nach Testphase), manuell „bezahlt“/Storno,
+  PDF (`PlatformSettings` = Absenderdaten, USt, Zahlungsziel). **Kein Zahlungsanbieter (Stripe etc.) angebunden** – bewusst offen.
+- **Support-Zugriff (Impersonation):** Token 1 h mit `imp`-Claim; Banner „Support-Zugriff … Beenden“ in der Kunden-App; Audit-Log der Firma zeigt
+  „Support (Name) als Nutzer“; Betreiber-Protokoll (`PlatformAuditLog`) für alle Betreiberaktionen.
+- **Übersicht/System:** MRR/ARR, Mandanten nach Status, offene/überfällige Rechnungen, Testphasen, Neuanmeldungen, Top-Nutzung; Systemzustand (DB-Latenz,
+  DB-/Dateigröße, Laufzeit, RAM). Betreiber-Einstellungen im Tab System.
+- Tests: jest 125, e2e smoke 142, responsive 59, **admin 39** (`npm run test:admin`; Teil von `npm test`).
+- ⬜ **Offen/Ideen:** Stripe/SEPA-Lastschrift + automatischer Rechnungslauf per Cron, Mahnwesen für Betreiberrechnungen, E-Mail-Versand (Willkommen,
+  Testphase endet, Rechnung), mehrere Betreiber-Admins verwalten (aktuell nur Seed), 2FA für Betreiber, Self-Service-Tarifwechsel durch Kunden,
+  Rechnung als E-Rechnung (XRechnung) erzeugen, Mandant endgültig löschen (DSGVO, Löschkonzept), Nutzungsstatistik je Modul.
 
 ### 🟡 Block 9 — Dashboard mit frei anordenbaren Widgets (Version 1 ✅ 2026-10-11)
 - ✅ **V1:** Startseite = Widget-Dashboard. `react-grid-layout` (12 Spalten, Zeile 60 px), Modus „Dashboard anpassen“:
@@ -336,8 +343,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1–4 ✅ (ausstellen, Abschlag/Schluss, Storno/Zahlungen); Mahnwesen ✅, Datenmodell EN16931-kompatibel halten
 6. Eingangsrechnungen — Teil 1 ✅ (Upload, Erfassung, Freigabe, Projektzuordnung); Mail-Eingang offen
 7. ✅ E-Rechnung/Compliance (Erzeugen+Lesen XRechnung/ZUGFeRD, GoBD-Archiv/Audit-Log, DSGVO, Steuerprüfer-/DATEV-Export)
-8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
-   vor dem ersten zahlenden Kunden
+8. ✅ Plattform-Admin / Betreiber-Backoffice (V1; Zahlungsanbieter offen)
 9. Dashboard mit Widgets — V1 ✅ (siehe Block 9), V2 offen
 10. ~~Zeiterfassung~~ ✅ (auf Wunsch vorgezogen) und 11. Urlaub — beide teilen sich die
     Mitarbeiterstammdaten (Eintritt, Wochenstunden, Urlaubstage kommen mit Block 11)
