@@ -97,6 +97,7 @@ model User {
   updatedAt        DateTime          @updatedAt
   uploadedInvoices IncomingInvoice[] @relation("InvoiceUploader")
   approvedInvoices IncomingInvoice[] @relation("InvoiceApprover")
+  dashboardLayout  DashboardLayout?
 
   @@index([companyId])
   @@map("users")
@@ -743,4 +744,19 @@ model IncomingInvoice {
   @@unique([companyId, fileHash])
   @@index([companyId, status])
   @@index([projectId])
+}
+
+// ---------------------------------------------------------------------------------------------
+// Dashboard
+// ---------------------------------------------------------------------------------------------
+
+// Per-user widget arrangement, stored server-side so it follows the user across devices.
+// items: [{ id: "open-items", x, y, w, h }] in grid units; widgets that are not listed are hidden.
+model DashboardLayout {
+  userId String @id
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  items Json
+
+  updatedAt DateTime @updatedAt
 }

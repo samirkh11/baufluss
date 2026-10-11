@@ -233,22 +233,20 @@ Mandanten-Status (`ACTIVE/TRIAL/SUSPENDED`) und Plan-Zuordnung am `Company`-Mode
 App-Auth muss gesperrte Mandanten ablehnen. Sinnvoll nach Block 3, spätestens vor dem ersten
 zahlenden Kunden.
 
-### ⬜ Block 9 — Dashboard mit frei anordenbaren Widgets (Wunsch von Volker 2026-10-11)
-Auf der Startseite soll der Benutzer sich ein Dashboard aus Widgets selbst zusammenstellen und
-anordnen können (Drag & Drop, Größe, ein-/ausblenden). Welche Widgets es gibt, wird später
-festgelegt — Beispiele: Auftragslage, Geldfluss (offene Posten/Zahlungseingänge), Angebotsquote,
-laufende Projekte, aktuelle Berichte, fällige Mahnungen, Mitarbeitereinsatz.
-**Vorgaben für die laufende Entwicklung (damit später nichts umgebaut werden muss):**
-- Jedes Feature-Modul soll seine Kennzahlen/Listen über eigene, schlanke Read-Endpunkte
-  bereitstellen können (z.B. `GET /projects/stats`), statt dass das Dashboard Rohlisten lädt.
-  Neue Module deshalb Aggregationen im Service kapseln (Status-Zählungen, Summen).
-- Frontend: Widgets sind eigenständige Komponenten (Titel, Inhalt, Ladezustand) ohne feste
-  Seiten-Abhängigkeit; Registry-Muster (`id → Komponente + Default-Größe`) beim Bau von Block 9.
-- Persistenz: Layout je Nutzer in der DB (z.B. Tabelle `DashboardLayout(userId, widgets Json)`),
-  nicht nur localStorage, damit es geräteübergreifend gilt.
-- Passende Bibliothek später prüfen (z.B. `react-grid-layout`).
-- Die Startseite (`DashboardPage`) ist bis dahin ein einfacher Platzhalter.
-Zeitpunkt: nach Block 5 (dann gibt es Geld-Kennzahlen), spätestens vor dem ersten Kunden.
+### 🟡 Block 9 — Dashboard mit frei anordenbaren Widgets (Version 1 ✅ 2026-10-11)
+- ✅ **V1:** Startseite = Widget-Dashboard. `react-grid-layout` (12 Spalten, Zeile 60 px), Modus „Dashboard anpassen“:
+  Drag & Drop, Größe ändern, ausblenden (×), „Widget hinzufügen“, „Standard“, Speichern; Layout je Nutzer in
+  `DashboardLayout(userId, items Json)` (`GET/PUT/DELETE /dashboard/layout`), Standardbelegung je Rolle im Frontend
+  (`components/dashboard/registry.tsx`, dort neue Widgets registrieren: id/Titel/officeOnly/Größe/Komponente).
+  Büro-Widgets nutzen EINEN Endpunkt `GET /dashboard/office` (OWNER/ADMIN; Service `dashboard.service.ts` bündelt
+  PaymentsService/DunningService/IncomingInvoicesService/DocumentsService.billing): Offene Posten, Mahnvorschlag,
+  Eingangsrechnungen, Liquidität (Wochen-Balken Einnahmen/Auszahlungen nach Fälligkeit), Angebote (Quote, Stau),
+  Aufträge nicht abgerechnet, Zeiten zur Freigabe. Für alle: Stoppuhr, Meine Stunden, Projekte, Letzte Berichte.
+  Handy: einspaltig in Layout-Reihenfolge, Anordnen nur ab Tablet. Tests: e2e smoke 123 / responsive 59.
+- ⬜ **V2 (Volker: später):** Umsatz je Monat (Diagramm, ggf. Vorjahr), Projekt-Wirtschaftlichkeit (Erlös vs. Kosten aus
+  Eingangsrechnungen + Stunden × Stundensatz; braucht Kostenübersicht je Projekt), Stunden je Projekt vs. Plan (Warnung
+  90 %), Urlaub/Abwesenheit (Block 11), Fristen (Gewährleistung, Einbehalt fällig), Wetter am Einsatzort, Termine.
+  Ideen: Widget-Einstellungen (z. B. Zeitraum), Anordnen auf dem Handy, Vorlagen-Layouts je Rolle durch Admin.
 
 ### ✅ Block 10 — Zeiterfassung (vorgezogen vor Block 5, fertig 2026-10-11)
 Backend `time-entries/`, Frontend `TimePage` (Menü „Zeiten", für ALLE Rollen), `TimerCard`,
@@ -301,7 +299,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
    vor dem ersten zahlenden Kunden
-9. Dashboard mit Widgets (ab Block 5 sinnvoll, Vorgaben siehe Block 9)
+9. Dashboard mit Widgets — V1 ✅ (siehe Block 9), V2 offen
 10. ~~Zeiterfassung~~ ✅ (auf Wunsch vorgezogen) und 11. Urlaub — beide teilen sich die
     Mitarbeiterstammdaten (Eintritt, Wochenstunden, Urlaubstage kommen mit Block 11)
 

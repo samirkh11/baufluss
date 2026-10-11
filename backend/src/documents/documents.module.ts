@@ -13,5 +13,6 @@ import { DocumentsService } from './documents.service';
   imports: [CompaniesModule], // provides NumberSequencesService for document numbers
   controllers: [DocumentsController, DunningController],
   providers: [DocumentsService, DocumentPdfService, GaebService, PaymentsService, DunningService, DunningPdfService],
+  exports: [DocumentsService, PaymentsService, DunningService], // used by the dashboard read models
 })
 export class DocumentsModule {}

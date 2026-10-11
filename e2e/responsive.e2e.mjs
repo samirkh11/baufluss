@@ -81,6 +81,7 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
   }
 
   await visit(page, 'dashboard', '/', tag);
+  await visit(page, 'dashboard', '/', tag, '[data-testid=widget-open-items] .ant-statistic');
   await visit(page, 'reports', '/reports', tag, 'tbody tr.ant-table-row');
   await visit(page, 'quotes', '/quotes', tag, 'tbody tr.ant-table-row');
   await visit(page, 'orders', '/orders', tag, 'tbody tr.ant-table-row');

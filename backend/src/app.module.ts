@@ -10,6 +10,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { ReportsModule } from './reports/reports.module';
 import { DocumentsModule } from './documents/documents.module';
 import { IncomingInvoicesModule } from './incoming-invoices/incoming-invoices.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
 
 @Module({
@@ -26,6 +27,7 @@ import { TimeEntriesModule } from './time-entries/time-entries.module';
     DocumentsModule,
     TimeEntriesModule,
     IncomingInvoicesModule,
+    DashboardModule,
   ],
 })
 export class AppModule {}

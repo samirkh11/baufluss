@@ -7,5 +7,6 @@ import { IncomingInvoicesService } from './incoming-invoices.service';
   imports: [CompaniesModule], // provides NumberSequencesService for the internal ER- numbers
   controllers: [IncomingInvoicesController],
   providers: [IncomingInvoicesService],
+  exports: [IncomingInvoicesService],
 })
 export class IncomingInvoicesModule {}

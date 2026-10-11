@@ -100,8 +100,9 @@ meisterwerk/
 
 - Mahnwesen: Mahnstufen, Verzugszinsen/Pauschale nach § 288 BGB, Mahn-PDF, Mahnvorschlag, Mahnsperre
 - Eingangsrechnungen: Beleg-Upload, Erfassung, Freigabe-Workflow, Projektzuordnung (Mail-Eingang folgt)
+- Dashboard: frei anordenbare Widgets (Drag & Drop, Größe, ein-/ausblenden), Layout je Nutzer gespeichert
 
-Die restlichen Funktionsblöcke ( E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
+Die restlichen Funktionsblöcke (E-Rechnung/Compliance, Betreiber-Backoffice, Urlaub) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 
 ## Testdaten

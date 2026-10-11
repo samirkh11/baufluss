@@ -56,6 +56,34 @@ for (const item of ['Projekte', 'Berichte', 'Kontakte', 'Leistungen & Artikel', 
   check(`menu item "${item}"`, await page.getByRole('menuitem', { name: item }).isVisible());
 }
 
+// ---- dashboard (Block 9)
+await page.waitForSelector('[data-testid=widget-open-items] .ant-statistic');
+await page.waitForTimeout(800);
+for (const id of ['open-items', 'liquidity', 'incoming', 'dunning', 'quotes', 'unbilled', 'projects', 'time-approvals', 'timer']) {
+  check(`dashboard widget "${id}" is shown`, await page.getByTestId('widget-' + id).isVisible());
+}
+check('widget "Offene Posten" shows 20.383,56 € open', (await page.getByTestId('widget-open-items').innerText()).includes('20.383,56'));
+check('widget "Mahnvorschlag" shows 1 invoice', (await page.getByTestId('widget-dunning').innerText()).includes('1'));
+check('widget "Liquidität" has week rows', (await page.getByTestId('liquidity-row').count()) >= 2);
+check('widget "Angebote" shows the acceptance rate', (await page.getByTestId('widget-quotes').innerText()).includes('75'));
+await page.screenshot({ path: shots + '00-dashboard.png', fullPage: true });
+await page.getByTestId('dashboard-edit').click();
+await page.getByRole('button', { name: 'Mahnvorschlag ausblenden' }).click();
+await page.getByRole('button', { name: 'Zeiten zur Freigabe ausblenden' }).click();
+check('widget can be hidden in edit mode', (await page.getByTestId('widget-dunning').count()) === 0);
+await page.getByTestId('dashboard-save').click();
+await page.waitForSelector('.ant-message-success');
+await page.reload();
+await page.waitForSelector('[data-testid=widget-open-items] .ant-statistic');
+check('hidden widgets stay hidden after reload (layout saved per user)', (await page.getByTestId('widget-dunning').count()) === 0 && (await page.getByTestId('widget-time-approvals').count()) === 0);
+await page.getByTestId('dashboard-edit').click();
+await page.getByTestId('dashboard-add').click();
+await page.getByRole('menuitem', { name: 'Mahnvorschlag' }).click();
+check('hidden widget can be added again', (await page.getByTestId('widget-dunning').count()) === 1);
+await page.getByRole('button', { name: 'Standard' }).click();
+await page.waitForSelector('[data-testid=widget-time-approvals]');
+check('"Standard" restores the default arrangement', (await page.getByTestId('widget-time-approvals').count()) === 1 && (await page.getByTestId('dashboard-edit').count()) === 1);
+
 // ---- projects list
 await page.getByRole('menuitem', { name: 'Projekte' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
@@ -575,6 +603,9 @@ check('worker cannot book into a released period', (await page.locator('.ant-mes
 await page.locator('.ant-modal:visible .ant-modal-close').click();
 await page.getByRole('menuitem', { name: 'Nutzer & Rollen' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
+await page.goto(BASE + '/');
+await page.waitForSelector('[data-testid=widget-timer]');
+check('worker dashboard shows only the general widgets', (await page.getByTestId('widget-timer').isVisible()) && (await page.getByTestId('widget-projects').isVisible()) && (await page.getByTestId('widget-open-items').count()) === 0);
 check('worker sees no "Nutzer einladen" button', (await page.getByRole('button', { name: 'Nutzer einladen' }).count()) === 0);
 
 // the invalid-GAEB-file and overlapping-time checks above intentionally provoke HTTP 400/403/409 (also the rejected issuing of an incomplete invoice)
