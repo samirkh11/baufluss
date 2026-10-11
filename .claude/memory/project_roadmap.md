@@ -14,7 +14,7 @@ halbfertigen Features zu hinterlassen.
 
 ### ✅ Block 1 — Firmenprofil und Konto (fertig, V1)
 Firmendaten, Logo-Upload, Briefpapier-Texte, Nummernkreise-Konfiguration, Nutzer & Rollen
-(Owner/Admin/Member). Backend: `companies/`, `users/`, `auth/`. Frontend:
+(Owner/Admin/Member), Mitarbeiter-Profilbild. Backend: `companies/`, `users/`, `auth/`. Frontend:
 `CompanyProfilePage`, `UsersPage`.
 
 ### ✅ Block 2 — Kontakte und Stammdaten (fertig, 2026-10-10)
@@ -27,6 +27,8 @@ Backend: `contacts/` und `catalog/`. Frontend: `ContactsPage`, `CatalogPage`.
   wandelt per `Number()`. Angebotspositionen (Block 4) sollen Werte beim Anlegen KOPIEREN.
 - Archivieren (`isActive=false`) ist der normale Weg; Löschen ist erlaubt, muss aber ab Block 3/4
   blockiert werden, sobald Projekte/Dokumente auf einen Kontakt/Artikel verweisen (FK Restrict).
+- Bilder (2026-10-11 nachgerüstet): Kontakt 1 Bild, Leistung/Artikel mehrere (max. 10), siehe
+  [[project_architecture]].
 - Listen-Endpunkte: Pagination (`page`,`pageSize`) + `q`-Suche über gemeinsames
   `PaginationQueryDto`; Antwort `{items,total,page,pageSize}`.
 - Offen/Ideen: Ansprechpartner je Kontakt, mehrere Adressen (Lieferadresse), CSV-Import,

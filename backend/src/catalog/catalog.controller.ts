@@ -1,8 +1,23 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.type';
+import { imageUploadOptions, publicUploadPath } from '../common/storage/uploads';
 import { CatalogService } from './catalog.service';
 import { CreateCatalogItemDto } from './dto/create-catalog-item.dto';
 import { UpdateCatalogItemDto } from './dto/update-catalog-item.dto';
@@ -38,5 +53,20 @@ export class CatalogController {
   @Delete(':id')
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.catalogService.remove(user.companyId, id);
+  }
+
+  // Several pictures per item: each request uploads one file and appends it.
+  @Post(':id/images')
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions('catalog')))
+  addImage(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Keine Datei empfangen.');
+    }
+    return this.catalogService.addImage(user.companyId, id, publicUploadPath('catalog', file.filename));
+  }
+
+  @Delete(':id/images/:imageId')
+  removeImage(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Param('imageId') imageId: string) {
+    return this.catalogService.removeImage(user.companyId, id, imageId);
   }
 }

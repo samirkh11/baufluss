@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../common/prisma/prisma.service';
+import { deleteUploadedFile } from '../common/storage/uploads';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -20,6 +21,7 @@ export class UsersService {
         lastName: true,
         role: true,
         isActive: true,
+        imagePath: true,
         createdAt: true,
       },
       orderBy: { createdAt: 'asc' },
@@ -55,8 +57,33 @@ export class UsersService {
   }
 
   async remove(companyId: string, userId: string) {
-    await this.ensureBelongsToCompany(companyId, userId);
+    const user = await this.ensureBelongsToCompany(companyId, userId);
     await this.prisma.user.delete({ where: { id: userId } });
+    await deleteUploadedFile(user.imagePath);
+  }
+
+  // Replaces the user's single profile picture; removes the new file again if the user isn't
+  // part of the caller's company (no orphan files from rejected requests).
+  async setImage(companyId: string, userId: string, imagePath: string) {
+    let previous;
+    try {
+      previous = await this.ensureBelongsToCompany(companyId, userId);
+    } catch (error) {
+      await deleteUploadedFile(imagePath);
+      throw error;
+    }
+    const user = await this.prisma.user.update({ where: { id: userId }, data: { imagePath } });
+    await deleteUploadedFile(previous.imagePath);
+    const { passwordHash: _omit, ...safeUser } = user;
+    return safeUser;
+  }
+
+  async removeImage(companyId: string, userId: string) {
+    const previous = await this.ensureBelongsToCompany(companyId, userId);
+    const user = await this.prisma.user.update({ where: { id: userId }, data: { imagePath: null } });
+    await deleteUploadedFile(previous.imagePath);
+    const { passwordHash: _omit, ...safeUser } = user;
+    return safeUser;
   }
 
   // Tenant-isolation guard: every mutation must confirm the target user belongs to the
@@ -66,5 +93,6 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException();
     }
+    return user;
   }
 }

@@ -1,5 +1,5 @@
 import { apiClient } from './client';
-import { CatalogItem, CatalogItemKind, Paginated } from '../types';
+import { CatalogItem, CatalogItemImage, CatalogItemKind, Paginated } from '../types';
 
 export interface ListCatalogParams {
   q?: string;
@@ -39,4 +39,16 @@ export async function updateCatalogItem(id: string, payload: CatalogItemPayload)
 
 export async function deleteCatalogItem(id: string): Promise<void> {
   await apiClient.delete(`/catalog-items/${id}`);
+}
+
+// Several pictures per item; each call appends one file.
+export async function addCatalogItemImage(id: string, file: File): Promise<CatalogItemImage> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await apiClient.post<CatalogItemImage>(`/catalog-items/${id}/images`, formData);
+  return data;
+}
+
+export async function removeCatalogItemImage(id: string, imageId: string): Promise<void> {
+  await apiClient.delete(`/catalog-items/${id}/images/${imageId}`);
 }

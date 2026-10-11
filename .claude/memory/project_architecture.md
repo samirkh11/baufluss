@@ -47,9 +47,23 @@ eine Service-Methode versehentlich den Filter vergisst.
   ausschließlich über die im JWT enthaltene `companyId` — verhindert, dass ein Client sich als
   anderer Mandant ausgeben kann.
 
-## Datei-Upload (Logos, später Belege/Eingangsrechnungen)
+## Datei-Upload & Bilder
 
-V1 speichert Uploads lokal auf Disk (`backend/uploads/`), über `multer` mit `diskStorage` und
-zufälligem Dateinamen (verhindert Path-Traversal/Überschreiben). Für Produktion/Cloud-Deployment
-sollte das auf Object Storage (z.B. S3-kompatibel) umgestellt werden, sobald ein Deployment-Ziel
-feststeht — siehe [[project_roadmap]].
+- Gemeinsamer Baustein: `backend/src/common/storage/uploads.ts` (`imageUploadOptions(subdir)`,
+  `publicUploadPath`, `deleteUploadedFile`). Dateien liegen unter `backend/uploads/<subdir>/` mit
+  Zufallsnamen (kein Überschreiben/Path-Traversal) und werden statisch unter `/uploads/...`
+  ausgeliefert. Pfad wird vom Arbeitsverzeichnis aufgelöst (`process.cwd()`), NICHT per
+  `__dirname` (kompilierter Code liegt in `dist/src`).
+- Bilder: Firmenlogo (`Company.logoPath`, SVG erlaubt), Kontakt (`Contact.imagePath`, genau 1),
+  Mitarbeiter (`User.imagePath`, genau 1; OWNER/ADMIN für alle, jeder für sich selbst),
+  Leistung/Artikel (Tabelle `CatalogItemImage`, bis zu 10, `sortOrder`).
+  Nutzer-Uploads erlauben nur PNG/JPG/WebP — **kein SVG** (Skriptausführung beim direkten Öffnen).
+- Services löschen beim Ersetzen/Entfernen/Löschen die alte Datei und räumen die neu hochgeladene
+  Datei wieder auf, wenn der Request abgelehnt wird (fremder Mandant, Limit) → keine Waisen.
+- **Bekannte Einschränkung:** `/uploads` ist ohne Login abrufbar (Schutz nur durch unratbare
+  UUID-Namen). Für Produktion/vertrauliche Dokumente (Eingangsrechnungen!) auf authentifizierte
+  Downloads bzw. Object Storage mit signierten URLs umstellen.
+- Frontend: `components/ImageUpload.tsx` (einzeln), `components/ImageGallery.tsx` (mehrere),
+  `utils/assets.ts` (`assetUrl`, `apiErrorMessage`).
+- Für Produktion/Cloud: Object Storage (S3-kompatibel) statt lokaler Platte — siehe
+  [[project_roadmap]].

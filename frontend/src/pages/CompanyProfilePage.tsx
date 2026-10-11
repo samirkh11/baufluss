@@ -5,6 +5,7 @@ import { UploadOutlined } from '@ant-design/icons';
 import { getOwnCompany, updateOwnCompany, uploadCompanyLogo } from '../api/companies';
 import { Company } from '../types';
 import { NumberSequencesPanel } from './NumberSequencesPanel';
+import { assetUrl } from '../utils/assets';
 
 export function CompanyProfilePage() {
   const queryClient = useQueryClient();
@@ -102,7 +103,7 @@ export function CompanyProfilePage() {
             <Card>
               {company?.logoPath && (
                 <img
-                  src={`${import.meta.env.VITE_API_BASE_URL}${company.logoPath}`}
+                  src={assetUrl(company.logoPath)}
                   alt="Firmenlogo"
                   style={{ maxWidth: 240, display: 'block', marginBottom: 16 }}
                 />

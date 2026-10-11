@@ -42,6 +42,7 @@ export interface CompanyUser {
   lastName: string;
   role: CompanyRole;
   isActive: boolean;
+  imagePath: string | null;
   createdAt: string;
 }
 
@@ -78,12 +79,19 @@ export interface Contact {
   bic: string | null;
   paymentTermDays: number | null;
   notes: string | null;
+  imagePath: string | null;
   isActive: boolean;
 }
 
 export type CatalogItemKind = 'SERVICE' | 'ARTICLE';
 
 // Prisma serializes Decimal columns as strings; convert with Number() when computing or editing.
+export interface CatalogItemImage {
+  id: string;
+  path: string;
+  sortOrder: number;
+}
+
 export interface CatalogItem {
   id: string;
   kind: CatalogItemKind;
@@ -95,4 +103,5 @@ export interface CatalogItem {
   purchasePrice: string | null;
   vatRate: string;
   isActive: boolean;
+  images: CatalogItemImage[];
 }

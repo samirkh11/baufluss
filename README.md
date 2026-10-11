@@ -37,7 +37,7 @@ cd backend
 cp .env.example .env
 npm install
 npm run prisma:migrate   # erstellt die Tabellen
-npm run seed              # legt einen Demo-Mandanten an (demo@meisterwerk.local / demo12345)
+npm run seed              # Demo-Daten: Dachdeckerei Schmidt (Login demo@meisterwerk.local / demo12345)
 npm run start:dev
 ```
 
@@ -66,7 +66,7 @@ meisterwerk/
 │       ├── users/      Nutzerverwaltung & Rollen
 │       ├── contacts/   Kunden, Lieferanten, Subunternehmer
 │       ├── catalog/    Leistungs- und Artikelstamm
-│       └── common/     Prisma-Service, Guards, Decorators
+│       └── common/     Prisma-Service, Guards, Decorators, Datei-Uploads
 ├── frontend/          React-SPA
 └── docker-compose.yml PostgreSQL + Adminer für die lokale Entwicklung
 ```
@@ -79,7 +79,16 @@ meisterwerk/
 - Nutzerverwaltung mit Rollen (Inhaber/Administrator/Mitarbeiter)
 - Kontakte (Kunden, Lieferanten, Subunternehmer) mit Suche, Filter, Archivierung
 - Leistungs- und Artikelstamm (Preise, USt, Einheiten)
+- Bilder: 1 Bild je Kontakt/Mitarbeiter, mehrere je Leistung/Artikel
 
 Die restlichen Funktionsblöcke (Projekte, Angebote, Rechnungen,
 Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
+
+## Testdaten
+
+`npm run seed` (in `backend/`) legt ein Dachdeckerei-Szenario an und setzt es bei jedem Lauf zurück:
+Dachdeckerei Schmidt GmbH (Chef, Bürokraft, 4 Arbeiter), Kunden/Lieferanten/Subunternehmer,
+Leistungs- und Artikelstamm mit Bildern, Nummernkreise sowie ein zweiter Mandant zum Testen der
+Mandanten-Isolation. Passwort aller Seed-Nutzer: `demo12345`. Jedes neue Feature erweitert den
+Seed (`backend/prisma/seed/`).

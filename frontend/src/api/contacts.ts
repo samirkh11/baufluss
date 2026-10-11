@@ -29,3 +29,16 @@ export async function updateContact(id: string, payload: ContactPayload): Promis
 export async function deleteContact(id: string): Promise<void> {
   await apiClient.delete(`/contacts/${id}`);
 }
+
+// One picture per contact; uploading again replaces it.
+export async function setContactImage(id: string, file: File): Promise<Contact> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const { data } = await apiClient.post<Contact>(`/contacts/${id}/image`, formData);
+  return data;
+}
+
+export async function removeContactImage(id: string): Promise<Contact> {
+  const { data } = await apiClient.delete<Contact>(`/contacts/${id}/image`);
+  return data;
+}

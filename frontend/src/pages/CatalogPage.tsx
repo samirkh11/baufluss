@@ -1,13 +1,23 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Checkbox, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Table, Tabs, message } from 'antd';
+import { Avatar, Button, Checkbox, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Table, Tabs, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { createCatalogItem, CatalogItemPayload, deleteCatalogItem, listCatalogItems, updateCatalogItem } from '../api/catalog';
+import {
+  addCatalogItemImage,
+  createCatalogItem,
+  CatalogItemPayload,
+  deleteCatalogItem,
+  listCatalogItems,
+  removeCatalogItemImage,
+  updateCatalogItem,
+} from '../api/catalog';
+import { ImageGallery } from '../components/ImageGallery';
+import { apiErrorMessage, assetUrl } from '../utils/assets';
 import { CatalogItem, CatalogItemKind } from '../types';
 
 const KIND_LABELS: Record<CatalogItemKind, string> = { SERVICE: 'Leistungen', ARTICLE: 'Artikel' };
 const NON_NULLABLE_FIELDS = ['kind', 'name', 'unit', 'netPrice', 'vatRate'];
-const UNIT_OPTIONS = ['Stk', 'h', 'm', 'm²', 'm³', 'kg', 'l', 'psch'].map((value) => ({ value }));
+const UNIT_OPTIONS = ['Stk', 'Pack', 'h', 'm', 'm²', 'm³', 'kg', 'l', 'psch'].map((value) => ({ value }));
 
 const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 
@@ -20,7 +30,7 @@ export function CatalogPage() {
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(1);
-  const [editing, setEditing] = useState<CatalogItem | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm<FormValues>();
 
@@ -31,6 +41,9 @@ export function CatalogPage() {
     placeholderData: keepPreviousData,
   });
 
+  // Derived from the list so pictures in the modal update right after an upload/removal.
+  const editing = data?.items.find((item) => item.id === editingId) ?? null;
+
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['catalog-items'] });
 
   const saveMutation = useMutation({
@@ -40,10 +53,7 @@ export function CatalogPage() {
       closeModal();
       refresh();
     },
-    onError: (error: any) => {
-      const detail = error?.response?.data?.message;
-      message.error(Array.isArray(detail) ? detail.join(', ') : (detail ?? 'Speichern fehlgeschlagen.'));
-    },
+    onError: (error) => message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
   });
 
   const archiveMutation = useMutation({
@@ -54,7 +64,7 @@ export function CatalogPage() {
   const deleteMutation = useMutation({ mutationFn: deleteCatalogItem, onSuccess: refresh });
 
   function openModal(item: CatalogItem | null) {
-    setEditing(item);
+    setEditingId(item?.id ?? null);
     form.resetFields();
     form.setFieldsValue(
       item
@@ -75,7 +85,7 @@ export function CatalogPage() {
 
   function closeModal() {
     setModalOpen(false);
-    setEditing(null);
+    setEditingId(null);
   }
 
   // See ContactsPage: cleared optional fields must be sent as null on update to remove the value.
@@ -132,6 +142,15 @@ export function CatalogPage() {
         dataSource={data?.items}
         pagination={{ current: page, pageSize: data?.pageSize ?? 25, total: data?.total ?? 0, onChange: setPage, showSizeChanger: false }}
         columns={[
+          {
+            title: '',
+            width: 72,
+            render: (_, item) => (
+              <Avatar shape="square" size={48} src={item.images[0] ? assetUrl(item.images[0].path) : undefined}>
+                {item.name[0]}
+              </Avatar>
+            ),
+          },
           { title: 'Nr.', dataIndex: 'sku', width: 100 },
           { title: 'Bezeichnung', render: (_, item) => <a onClick={() => openModal(item)}>{item.name}</a> },
           { title: 'Einheit', dataIndex: 'unit', width: 90 },
@@ -165,6 +184,23 @@ export function CatalogPage() {
         width={640}
         destroyOnClose
       >
+        {editing ? (
+          <Form.Item label="Bilder">
+            <ImageGallery
+              images={editing.images}
+              onAdd={async (file) => {
+                await addCatalogItemImage(editing.id, file);
+                await refresh();
+              }}
+              onRemove={async (imageId) => {
+                await removeCatalogItemImage(editing.id, imageId);
+                await refresh();
+              }}
+            />
+          </Form.Item>
+        ) : (
+          <p style={{ color: '#888' }}>Bilder können nach dem ersten Speichern hinzugefügt werden.</p>
+        )}
         <Form layout="vertical" form={form} onFinish={handleFinish}>
           <Row gutter={16}>
             <Col span={8}>

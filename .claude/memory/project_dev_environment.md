@@ -27,12 +27,21 @@ läuft, bevor an neuen Features weitergebaut wird — das Grundgerüst muss erst
 end-to-end getestet werden (Registrierung → Login → Firmenprofil bearbeiten → Logo hochladen →
 Nutzer anlegen), bevor es wie gewünscht nach GitHub gepusht wird (siehe [[reference_github]]).
 
-## Zugangsdaten (nur lokal, Demo-Daten)
+## Zugangsdaten & Testdaten (nur lokal)
 
-- Seed-Nutzer (`backend/prisma/seed.ts`): `demo@meisterwerk.local` / `demo12345`
-- Postgres: `meisterwerk` / `meisterwerk`, DB `meisterwerk`, Port 5432 (siehe
-  `docker-compose.yml`)
-- Adminer (DB-Web-UI): http://localhost:8080
+`npm run seed` (im Ordner `backend/`) setzt die Demo-Daten zurück und neu auf (siehe
+[[feedback_testdata_seed]]). Passwort für ALLE Seed-Nutzer: `demo12345`.
+
+- Chef (OWNER): `demo@meisterwerk.local` — Thomas Schmidt, Dachdeckerei Schmidt GmbH, Ulm
+- Bürokraft (ADMIN): `buero@dachdecker-schmidt.example` — Sabine Keller
+- Arbeiter (MEMBER): `j.hoffmann@`, `d.vogel@`, `m.yilmaz@`, `l.bauer@dachdecker-schmidt.example`
+- 2. Mandant (Isolationstest): `zimmerei@meisterwerk.local` — Zimmerei Beispiel GmbH
+- Postgres: `meisterwerk` / `meisterwerk`, DB `meisterwerk`, Port 5432 (`docker-compose.yml`)
+- Adminer (DB-Web-UI): http://localhost:8080 (Server `postgres`)
+
+Backend/Frontend starten: `cd backend && npm run start` bzw. `start:dev`; `cd frontend && npm run dev`.
+Achtung beim Neustart des Backends: nicht mit `pkill -f` auf Muster killen, das beendet die
+eigene Shell — PID über `ss -ltnp | grep :3000` ermitteln.
 
 ## Push-Workflow
 

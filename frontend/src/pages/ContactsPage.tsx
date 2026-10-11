@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  Avatar,
   Button,
   Checkbox,
   Col,
@@ -18,7 +19,9 @@ import {
   message,
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { createContact, deleteContact, listContacts, updateContact } from '../api/contacts';
+import { createContact, deleteContact, listContacts, removeContactImage, setContactImage, updateContact } from '../api/contacts';
+import { ImageUpload } from '../components/ImageUpload';
+import { apiErrorMessage, assetUrl } from '../utils/assets';
 import { Contact, ContactType } from '../types';
 
 const TYPE_LABELS: Record<ContactType, string> = {
@@ -52,7 +55,7 @@ export function ContactsPage() {
   const [search, setSearch] = useState('');
   const [showArchived, setShowArchived] = useState(false);
   const [page, setPage] = useState(1);
-  const [editing, setEditing] = useState<Contact | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [form] = Form.useForm<Partial<Contact>>();
 
@@ -68,6 +71,9 @@ export function ContactsPage() {
     placeholderData: keepPreviousData,
   });
 
+  // Derived from the list so the picture shown in the modal updates right after an upload.
+  const editing = data?.items.find((contact) => contact.id === editingId) ?? null;
+
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['contacts'] });
 
   const saveMutation = useMutation({
@@ -77,7 +83,7 @@ export function ContactsPage() {
       closeModal();
       refresh();
     },
-    onError: (error: any) => message.error(error?.response?.data?.message ?? 'Speichern fehlgeschlagen.'),
+    onError: (error) => message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
   });
 
   const archiveMutation = useMutation({
@@ -88,7 +94,7 @@ export function ContactsPage() {
   const deleteMutation = useMutation({ mutationFn: deleteContact, onSuccess: refresh });
 
   function openModal(contact: Contact | null) {
-    setEditing(contact);
+    setEditingId(contact?.id ?? null);
     form.resetFields();
     form.setFieldsValue(contact ?? { types: typeFilter === 'ALL' ? ['CUSTOMER'] : [typeFilter], isOrganization: true, country: 'DE' });
     setModalOpen(true);
@@ -96,7 +102,7 @@ export function ContactsPage() {
 
   function closeModal() {
     setModalOpen(false);
-    setEditing(null);
+    setEditingId(null);
   }
 
   // Cleared inputs arrive as '' / undefined / null. When editing they must be sent as null so the
@@ -154,6 +160,11 @@ export function ContactsPage() {
         dataSource={data?.items}
         pagination={{ current: page, pageSize: data?.pageSize ?? 25, total: data?.total ?? 0, onChange: setPage, showSizeChanger: false }}
         columns={[
+          {
+            title: '',
+            width: 56,
+            render: (_, c) => <Avatar shape="square" src={c.imagePath ? assetUrl(c.imagePath) : undefined}>{displayName(c)[0]}</Avatar>,
+          },
           { title: 'Nr.', dataIndex: 'number', width: 90 },
           { title: 'Name', render: (_, c) => <a onClick={() => openModal(c)}>{displayName(c)}</a> },
           { title: 'Rolle', dataIndex: 'types', render: (types: ContactType[]) => types.map((t) => <Tag key={t}>{TYPE_LABELS[t]}</Tag>) },
@@ -187,6 +198,23 @@ export function ContactsPage() {
         width={720}
         destroyOnClose
       >
+        {editing ? (
+          <Form.Item label="Bild">
+            <ImageUpload
+              path={editing.imagePath}
+              onUpload={async (file) => {
+                await setContactImage(editing.id, file);
+                await refresh();
+              }}
+              onRemove={async () => {
+                await removeContactImage(editing.id);
+                await refresh();
+              }}
+            />
+          </Form.Item>
+        ) : (
+          <p style={{ color: '#888' }}>Ein Bild kann nach dem ersten Speichern hinzugefügt werden.</p>
+        )}
         <Form layout="vertical" form={form} onFinish={handleFinish}>
           <Row gutter={16}>
             <Col span={16}>

@@ -17,7 +17,7 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:deploy": "prisma migrate deploy",
     "prisma:studio": "prisma studio",
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed/index.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.4.0",
@@ -60,6 +60,6 @@
     "typescript": "^5.5.4"
   },
   "prisma": {
-    "seed": "ts-node prisma/seed.ts"
+    "seed": "ts-node prisma/seed/index.ts"
   }
 }

@@ -10,8 +10,8 @@ build/
 .env.local
 
 # Uploaded files (user content, not source)
-backend/uploads/logos/*
-!backend/uploads/logos/.gitkeep
+backend/uploads/*/*
+!backend/uploads/*/.gitkeep
 
 # Logs
 *.log

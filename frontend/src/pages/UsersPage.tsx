@@ -1,7 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Form, Input, Modal, Popconfirm, Select, Switch, Table, Tag, message } from 'antd';
+import { Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
 import { useState } from 'react';
-import { createUser, CreateUserPayload, deleteUser, listUsers, updateUser } from '../api/users';
+import {
+  createUser,
+  CreateUserPayload,
+  deleteUser,
+  listUsers,
+  removeUserImage,
+  setUserImage,
+  updateUser,
+} from '../api/users';
+import { ImageUpload } from '../components/ImageUpload';
 
 const ROLE_OPTIONS = [
   { value: 'OWNER', label: 'Inhaber' },
@@ -30,6 +39,11 @@ export function UsersPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
   });
 
+  const removeImageMutation = useMutation({
+    mutationFn: removeUserImage,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
+  });
+
   const deleteMutation = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
@@ -45,7 +59,29 @@ export function UsersPage() {
         rowKey="id"
         dataSource={users}
         columns={[
-          { title: 'Name', render: (_, record) => `${record.firstName} ${record.lastName}` },
+          {
+            title: '',
+            width: 64,
+            render: (_, record) => (
+              <ImageUpload
+                compact
+                size={40}
+                path={record.imagePath}
+                onUpload={async (file) => {
+                  await setUserImage(record.id, file);
+                  await queryClient.invalidateQueries({ queryKey: ['users'] });
+                }}
+                onRemove={async () => {
+                  await removeUserImage(record.id);
+                  await queryClient.invalidateQueries({ queryKey: ['users'] });
+                }}
+              />
+            ),
+          },
+          {
+            title: 'Name',
+            render: (_, record) => `${record.firstName} ${record.lastName}`,
+          },
           { title: 'E-Mail', dataIndex: 'email' },
           {
             title: 'Rolle',
@@ -56,17 +92,32 @@ export function UsersPage() {
             title: 'Aktiv',
             dataIndex: 'isActive',
             render: (isActive: boolean, record) => (
-              <Switch checked={isActive} onChange={(checked) => toggleActiveMutation.mutate({ id: record.id, isActive: checked })} />
+              <Switch
+                checked={isActive}
+                onChange={(checked) =>
+                  toggleActiveMutation.mutate({
+                    id: record.id,
+                    isActive: checked,
+                  })
+                }
+              />
             ),
           },
           {
             title: '',
             render: (_, record) => (
-              <Popconfirm title="Nutzer entfernen?" onConfirm={() => deleteMutation.mutate(record.id)}>
-                <Button danger size="small">
-                  Entfernen
-                </Button>
-              </Popconfirm>
+              <Space>
+                {record.imagePath && (
+                  <Button size="small" onClick={() => removeImageMutation.mutate(record.id)}>
+                    Bild löschen
+                  </Button>
+                )}
+                <Popconfirm title="Nutzer entfernen?" onConfirm={() => deleteMutation.mutate(record.id)}>
+                  <Button danger size="small">
+                    Entfernen
+                  </Button>
+                </Popconfirm>
+              </Space>
             ),
           },
         ]}

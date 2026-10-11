@@ -72,6 +72,7 @@ model User {
   lastName     String
   role         CompanyRole @default(MEMBER)
   isActive     Boolean     @default(true)
+  imagePath    String? // profile picture (single image), relative path under /uploads
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -154,8 +155,9 @@ model Contact {
   bic             String?
   paymentTermDays Int? // default Zahlungsziel in Tagen
 
-  notes    String? @db.Text
-  isActive Boolean @default(true)
+  notes     String? @db.Text
+  imagePath String? // single picture/logo, relative path under /uploads
+  isActive  Boolean @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -184,10 +186,25 @@ model CatalogItem {
 
   isActive Boolean @default(true)
 
+  images CatalogItemImage[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([companyId, sku])
   @@index([companyId, kind])
   @@map("catalog_items")
+}
+
+// Pictures of a service/article (several per item). Tenant ownership is derived via the item.
+model CatalogItemImage {
+  id            String      @id @default(uuid())
+  catalogItemId String
+  catalogItem   CatalogItem @relation(fields: [catalogItemId], references: [id], onDelete: Cascade)
+  path          String // relative path under /uploads
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+
+  @@index([catalogItemId])
+  @@map("catalog_item_images")
 }

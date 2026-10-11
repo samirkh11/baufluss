@@ -1,8 +1,23 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.type';
+import { imageUploadOptions, publicUploadPath } from '../common/storage/uploads';
 import { ContactsService } from './contacts.service';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
@@ -38,5 +53,20 @@ export class ContactsController {
   @Delete(':id')
   remove(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.contactsService.remove(user.companyId, id);
+  }
+
+  // A contact has exactly one picture; uploading again replaces it.
+  @Post(':id/image')
+  @UseInterceptors(FileInterceptor('file', imageUploadOptions('contacts')))
+  setImage(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @UploadedFile() file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('Keine Datei empfangen.');
+    }
+    return this.contactsService.setImage(user.companyId, id, publicUploadPath('contacts', file.filename));
+  }
+
+  @Delete(':id/image')
+  removeImage(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.contactsService.removeImage(user.companyId, id);
   }
 }
