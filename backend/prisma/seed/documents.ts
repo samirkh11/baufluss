@@ -1,5 +1,5 @@
 // Block 4 test data: quotes of the roofing company in every status (draft, sent, accepted, rejected).
-import { DocumentItemKind, DocumentStatus, DocumentType, InvoiceKind, Prisma, PrismaClient } from '@prisma/client';
+import { DocumentItemKind, DocumentStatus, DocumentType, DunningLevel, InvoiceKind, Prisma, PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { calculateTotals, lineTotal } from '../../src/documents/calculations';
@@ -531,7 +531,7 @@ async function seedCancelledInvoice(prisma: PrismaClient, companyId: string): Pr
 // first partial invoice RE-00003 is overdue and unpaid, the second one RE-00004 is partly paid.
 async function seedPayments(prisma: PrismaClient, companyId: string): Promise<void> {
   const byNumber = (number: string) => prisma.document.findFirstOrThrow({ where: { companyId, number } });
-  const [cancelled, school, partial2] = await Promise.all([byNumber('RE-00001'), byNumber('RE-00002'), byNumber('RE-00004')]);
+  const [cancelled, school, partial1, partial2] = await Promise.all([byNumber('RE-00001'), byNumber('RE-00002'), byNumber('RE-00003'), byNumber('RE-00004')]);
   await prisma.payment.createMany({
     data: [
       { companyId, documentId: cancelled.id, paidAt: new Date('2026-06-24'), amount: cancelled.grossTotal, reference: 'RE-00001 Flachdach Garagen' },
@@ -539,4 +539,22 @@ async function seedPayments(prisma: PrismaClient, companyId: string): Promise<vo
       { companyId, documentId: partial2.id, paidAt: new Date('2026-10-09'), amount: 5000, reference: 'RE-00004 Abschlag 2, Teilzahlung' },
     ],
   });
+
+  // Dunning: the first partial invoice got a payment reminder on 5 Oct whose deadline (9 Oct) has
+  // expired, so the 1st dunning shows up in the proposals. (The reminder itself is free of charge.)
+  const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
+  await prisma.dunning.create({
+    data: {
+      companyId,
+      documentId: partial1.id,
+      number: 'MA-0001',
+      level: DunningLevel.REMINDER,
+      dunningDate: new Date('2026-10-05'),
+      dueDate: new Date('2026-10-09'),
+      openAmount: partial1.grossTotal,
+      totalAmount: partial1.grossTotal,
+      issuerSnapshot: issuerSnapshotOf(company),
+    },
+  });
+  await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'DUNNING' }, data: { nextNumber: 2 } });
 }

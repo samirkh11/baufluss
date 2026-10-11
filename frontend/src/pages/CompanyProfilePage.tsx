@@ -4,6 +4,7 @@ import { Button, Card, Form, Input, Tabs, Upload, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { getOwnCompany, updateOwnCompany, uploadCompanyLogo } from '../api/companies';
 import { Company } from '../types';
+import { DunningSettingsPanel } from '../components/DunningSettingsPanel';
 import { NumberSequencesPanel } from './NumberSequencesPanel';
 import { assetUrl } from '../utils/assets';
 
@@ -128,6 +129,7 @@ export function CompanyProfilePage() {
           label: 'Nummernkreise',
           children: <NumberSequencesPanel />,
         },
+        { key: 'dunning', label: 'Mahnwesen', children: <DunningSettingsPanel /> },
       ]}
     />
   );

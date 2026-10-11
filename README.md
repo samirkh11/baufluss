@@ -98,8 +98,9 @@ meisterwerk/
 - GAEB: Leistungsverzeichnis (DA XML, z.B. .x83) als Angebotsentwurf importieren, Angebot als .x84 exportieren;
   Testdateien in [`docs/gaeb-samples/`](docs/gaeb-samples/)
 
-Die restlichen Funktionsblöcke (Mahnwesen,
-Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
+- Mahnwesen: Mahnstufen, Verzugszinsen/Pauschale nach § 288 BGB, Mahn-PDF, Mahnvorschlag, Mahnsperre
+
+Die restlichen Funktionsblöcke (Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 
 ## Testdaten

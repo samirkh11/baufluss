@@ -63,6 +63,8 @@ model Company {
   reports         Report[]
   documents       Document[]
   payments        Payment[]
+  dunnings        Dunning[]
+  dunningSettings DunningSettings?
   timeEntries     TimeEntry[]
 
   @@map("companies")
@@ -421,6 +423,7 @@ model Document {
   items          DocumentItem[]  @relation("DocumentItems")
   invoiceDetails InvoiceDetails?
   payments       Payment[]
+  dunnings       Dunning[]
   deductedIn     DocumentItem[]  @relation("DeductedBy")
 
   createdAt DateTime @default(now())
@@ -555,6 +558,10 @@ model InvoiceDetails {
   orderReference String? // Bestellnummer / Auftragsnummer des Kunden
   buyerReference String? // Leitweg-ID (XRechnung, public bodies)
 
+  // Mahnsperre: no dunning letters while the invoice is disputed or a payment arrangement exists
+  dunningBlocked     Boolean @default(false)
+  dunningBlockReason String?
+
   @@map("invoice_details")
 }
 
@@ -597,4 +604,66 @@ model Payment {
   @@index([documentId])
   @@index([companyId, paidAt])
   @@map("payments")
+}
+
+// Escalation steps of the dunning process.
+enum DunningLevel {
+  REMINDER // Zahlungserinnerung (friendly, no fees)
+  FIRST // 1. Mahnung
+  SECOND // 2. Mahnung
+  FINAL // letzte Mahnung (announces collection/legal steps)
+}
+
+// Company-wide dunning rules. One row per company, created with defaults on first use.
+model DunningSettings {
+  companyId String  @id
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  reminderAfterDays Int @default(3) // days past the due date before a reminder is suggested
+  graceDays         Int @default(7) // payment deadline given in every letter (days after the letter)
+
+  feeFirst  Decimal @default(5) @db.Decimal(8, 2) // Mahngebühr per level (reminder is free)
+  feeSecond Decimal @default(10) @db.Decimal(8, 2)
+  feeFinal  Decimal @default(15) @db.Decimal(8, 2)
+
+  interestEnabled Boolean @default(true)
+  // Basiszinssatz of the Bundesbank (changes every 1 Jan / 1 Jul): keep it current! Default rate =
+  // base + 9 points for business customers, + 5 points for consumers (§ 288 BGB).
+  baseRatePercent Decimal @default(1.27) @db.Decimal(6, 3)
+  lumpSumB2B      Decimal @default(40) @db.Decimal(8, 2) // Verzugspauschale § 288 Abs. 5 BGB (business customers only)
+
+  updatedAt DateTime @updatedAt
+
+  @@map("dunning_settings")
+}
+
+// A dunning letter that was issued for an invoice. The amounts are frozen when it is issued.
+model Dunning {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  documentId String
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Restrict)
+
+  number      String? // reference number from the DUNNING number range
+  level       DunningLevel
+  dunningDate DateTime     @db.Date
+  dueDate     DateTime     @db.Date // new payment deadline
+
+  openAmount     Decimal @db.Decimal(14, 2) // unpaid invoice amount at that time
+  feeAmount      Decimal @default(0) @db.Decimal(14, 2)
+  interestRate   Decimal @default(0) @db.Decimal(6, 3) // annual rate in percent
+  interestDays   Int     @default(0)
+  interestAmount Decimal @default(0) @db.Decimal(14, 2)
+  lumpSumAmount  Decimal @default(0) @db.Decimal(14, 2)
+  totalAmount    Decimal @db.Decimal(14, 2) // open + fee + interest + lump sum
+
+  issuerSnapshot Json
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  @@index([documentId])
+  @@index([companyId, dunningDate])
+  @@map("dunnings")
 }

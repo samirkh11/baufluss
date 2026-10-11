@@ -230,6 +230,8 @@ export type InvoiceKind = 'STANDARD' | 'PARTIAL' | 'FINAL';
 export interface InvoiceDetails {
   kind: InvoiceKind;
   partialNumber: number | null;
+  dunningBlocked: boolean; // Mahnsperre
+  dunningBlockReason: string | null;
   retentionPercent: string | null; // Sicherheitseinbehalt in percent
   retentionAmount: string | null; // fixed when issued
   retentionDueDate: string | null;
@@ -355,9 +357,74 @@ export interface Receivable {
   amount: string;
   open: string; // negative for refunds
   overdueDays: number;
+  dunningLevel: DunningLevel | null; // latest dunning letter sent
+  dunningBlocked: boolean;
 }
 
 export interface Receivables {
   items: Receivable[];
   totals: { open: string; overdue: string; retention: string; refunds: string };
+}
+
+export type DunningLevel = 'REMINDER' | 'FIRST' | 'SECOND' | 'FINAL';
+
+export interface DunningLetter {
+  id: string;
+  number: string | null;
+  level: DunningLevel;
+  dunningDate: string;
+  dueDate: string;
+  openAmount: string;
+  feeAmount: string;
+  interestRate: string;
+  interestDays: number;
+  interestAmount: string;
+  lumpSumAmount: string;
+  totalAmount: string;
+}
+
+// What the next letter of an invoice would contain (decimal strings).
+export interface DunningPreview {
+  level: DunningLevel;
+  suggestedLevel: DunningLevel | null;
+  lastLevel: DunningLevel | null;
+  overdueDays: number;
+  isBusiness: boolean;
+  blocked: boolean;
+  blockReason: string | null;
+  dunningDate: string;
+  dueDate: string;
+  openAmount: string;
+  fee: string;
+  interestRate: string;
+  interestDays: number;
+  interest: string;
+  lumpSum: string;
+  total: string;
+}
+
+export interface DunningProposal {
+  documentId: string;
+  number: string | null;
+  recipientName: string | null;
+  project: { id: string; number: string; name: string };
+  invoiceDate: string;
+  dueDate: string | null;
+  overdueDays: number;
+  open: string;
+  lastLevel: DunningLevel | null;
+  lastDunningDate: string | null;
+  suggestedLevel: DunningLevel | null; // null = final dunning already sent
+  amounts: { openAmount: string; fee: string; interest: string; lumpSum: string; total: string; interestRate: string; interestDays: number } | null;
+}
+
+export interface DunningSettings {
+  reminderAfterDays: number;
+  graceDays: number;
+  feeFirst: string;
+  feeSecond: string;
+  feeFinal: string;
+  interestEnabled: boolean;
+  baseRatePercent: string;
+  lumpSumB2B: string;
 }

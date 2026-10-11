@@ -185,9 +185,13 @@ Aufgeteilt in vier Teilschritte:
   - Offen/Ideen: **Skonto**, Zahlungsabgleich per Kontoauszug (CAMT/CSV-Import), Teilstorno/Gutschrift mit
     freien Positionen, Rechnung korrigieren = Storno + neue Rechnung als Ein-Klick-Aktion, Debitorenkonto
     je Kunde.
-- ⬜ **4. Mahnwesen.** Mahnstufen (Zahlungserinnerung, 1./2./3. Mahnung), Fristen, Verzugszinsen
-  (§ 288 BGB: Basiszins + 9 Prozentpunkte B2B, 5 PP Verbraucher) und Pauschale (40 € B2B), Mahn-PDF,
-  Mahnvorschlagsliste, Mahnsperre, Protokoll.
+- ✅ **4. Mahnwesen.** Stufen Zahlungserinnerung → 1. → 2. → letzte Mahnung (nächster Brief erst nach Ablauf
+  der vorigen Frist), Einstellungen je Firma (Tage, Gebühren, Basiszinssatz, Pauschale 40 € B2B einmalig je
+  Rechnung), Verzugszinsen § 288 BGB (Basis + 9 PP B2B / + 5 PP Verbraucher = Kontakt ohne Organisation, tagesgenau/365),
+  Mahn-PDF je Stufe (Nummernkreis `MA-`), Mahnvorschlagsliste (Tab „Mahnwesen“ in Rechnungen), Bestätigungsdialog mit
+  Betragsvorschau, Mahnkarte im Rechnungseditor (Verlauf, nur letzte löschbar, Mahnsperre), Mahnstufe in Offene Posten.
+  Nur OWNER/ADMIN. Hinweise: Nebenforderungen (Gebühren/Zinsen) werden NICHT als Zahlung gebucht; Basiszinssatz
+  muss manuell aktuell gehalten werden (1.1./1.7.). Tests: jest dunning-calc (10), e2e smoke 94, responsive 53.
 - Ideen/offen: Lohn-/Materialkostenausweis für Privatkunden (§ 35a EStG, Handwerkerleistungen),
   Kleinunternehmer (§ 19 UStG) ohne USt-Ausweis, Skonto, Zahlungslink/QR-Code (GiroCode), Versand per
   E-Mail, Rechnungs-Textbausteine, Teilleistungen/Aufmaß-Abrechnung.
@@ -282,7 +286,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 2. ~~Kontakte & Stammdaten~~ ✅
 3. ~~Projekte (inkl. Berichte)~~ ✅
 4. ~~Angebote (Editor, PDF, Übernahme, GAEB)~~ ✅
-5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1–3/4 ✅ (ausstellen, Abschlag/Schluss, Storno/Zahlungen); Mahnwesen offen, Datenmodell EN16931-kompatibel halten
+5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1–4 ✅ (ausstellen, Abschlag/Schluss, Storno/Zahlungen); Mahnwesen ✅, Datenmodell EN16931-kompatibel halten
 6. Eingangsrechnungen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens

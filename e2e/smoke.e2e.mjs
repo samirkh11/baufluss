@@ -174,6 +174,24 @@ await modal.getByRole('button', { name: 'OK' }).click();
 await page.waitForSelector('text=Dennis Vogel-E2E');
 check('user edited via dialog', true);
 
+// ---- dunning (Block 5, step 4)
+await page.goto(BASE + '/invoices');
+await page.getByRole('tab', { name: 'Mahnwesen' }).click();
+await page.waitForSelector('text=Rechnungen zu mahnen');
+await page.waitForSelector('.ant-tabs-tabpane-active tbody tr.ant-table-row');
+check('dunning proposals list RE-00003 with next step "1. Mahnung"', (await page.locator('.ant-tabs-tabpane-active tr:has-text("RE-00003")').innerText()).includes('1. Mahnung'));
+await page.locator('.ant-tabs-tabpane-active tr:has-text("RE-00003")').getByRole('button', { name: 'Mahnung erstellen' }).click();
+await page.waitForSelector('[data-testid=dunning-total]');
+check('dunning dialog shows interest, fee and lump sum', (await page.getByRole('dialog', { name: /Mahnung zu/ }).innerText()).includes('Verzugspauschale') && (await page.getByRole('dialog', { name: /Mahnung zu/ }).innerText()).includes('Verzugszinsen'));
+await page.getByRole('dialog', { name: /Mahnung zu/ }).getByRole('button', { name: 'Abbrechen' }).click();
+await page.goto(BASE + '/invoices');
+await page.getByRole('tab', { name: 'Offene Posten' }).click();
+await page.waitForSelector('.ant-tabs-tabpane-active tbody tr.ant-table-row');
+check('open items show the dunning level of RE-00003', (await page.locator('.ant-tabs-tabpane-active tr:has-text("RE-00003")').innerText()).includes('Zahlungserinnerung'));
+await page.locator('.ant-tabs-tabpane-active tr:has-text("RE-00003") a').first().click();
+await page.waitForSelector('[data-testid=dunning-card]');
+check('invoice shows the seeded reminder MA-0001', (await page.getByTestId('dunning-card').innerText()).includes('MA-0001'));
+
 // ---- payments, open items and cancellation (Block 5, step 3)
 await page.goto(BASE + '/invoices');
 await page.getByRole('tab', { name: 'Offene Posten' }).click();

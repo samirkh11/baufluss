@@ -13,6 +13,7 @@ const DOCUMENT_TYPE_OPTIONS = [
   { value: 'ORDER', label: 'Auftragsbestätigung' },
   { value: 'INVOICE', label: 'Rechnung' },
   { value: 'CREDIT_NOTE', label: 'Gutschrift' },
+  { value: 'DUNNING', label: 'Mahnung' },
   { value: 'REPORT', label: 'Bericht' },
 ];
 

@@ -87,6 +87,12 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
   await visit(page, 'invoices', '/invoices', tag, 'tbody tr.ant-table-row');
   await page.getByRole('tab', { name: 'Offene Posten' }).click();
   await page.waitForSelector('text=Offen gesamt');
+  await page.getByRole('tab', { name: 'Mahnwesen' }).click();
+  await page.waitForSelector('text=Rechnungen zu mahnen');
+  await page.waitForTimeout(500);
+  check(`${tag} dunning proposals: fits the screen width`, await fitsWidth(page));
+  await page.getByRole('tab', { name: 'Offene Posten' }).click();
+  await page.waitForSelector('text=Offen gesamt');
   await page.waitForTimeout(500);
   check(`${tag} open items: fits the screen width`, await fitsWidth(page));
   await page.screenshot({ path: shots + `r-${tag}-open-items.png` });

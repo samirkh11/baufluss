@@ -27,6 +27,7 @@ import {
   Typography,
   message,
 } from 'antd';
+import { DunningCard } from '../components/DunningCard';
 import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined } from '@ant-design/icons';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { listCatalogItems } from '../api/catalog';
@@ -910,6 +911,17 @@ export function DocumentEditorPage() {
           )}
           {renderPaymentsTable()}
         </Card>
+      )}
+
+      {invoiceSummary && document.status === 'SENT' && (
+        <DunningCard
+          documentId={document.id}
+          invoiceNumber={document.number}
+          blocked={!!document.invoiceDetails?.dunningBlocked}
+          blockReason={document.invoiceDetails?.dunningBlockReason}
+          canDunn={Number(invoiceSummary.open) > 0}
+          onChanged={() => queryClient.invalidateQueries({ queryKey: ['documents', 'detail', document.id] })}
+        />
       )}
 
       {refundSummary && (

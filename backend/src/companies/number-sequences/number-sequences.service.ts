@@ -11,6 +11,7 @@ const DEFAULT_PREFIXES: Record<string, string> = {
   ORDER: 'AB-',
   INVOICE: 'RE-',
   CREDIT_NOTE: 'GS-',
+  DUNNING: 'MA-',
 };
 
 @Injectable()

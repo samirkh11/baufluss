@@ -23,6 +23,7 @@ const NUMBER_SEQUENCES = [
   { documentType: 'CREDIT_NOTE', prefix: 'GS-', digits: 5 },
   { documentType: 'REPORT', prefix: 'BE-', digits: 4 },
   { documentType: 'PROJECT', prefix: 'P-', digits: 4 },
+  { documentType: 'DUNNING', prefix: 'MA-', digits: 4 },
 ];
 
 export interface SeededCompany {

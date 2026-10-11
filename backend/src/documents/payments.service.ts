@@ -1,5 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { DocumentStatus, DocumentType, InvoiceKind, PaymentTarget, Prisma } from '@prisma/client';
+import { DocumentStatus, DocumentType, DunningLevel, InvoiceKind, PaymentTarget, Prisma } from '@prisma/client';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { localNow } from '../time-entries/time-utils';
@@ -130,10 +130,23 @@ export class PaymentsService {
       amount: Prisma.Decimal;
       open: Prisma.Decimal;
       overdueDays: number;
+      // latest dunning level sent for the invoice, and whether dunning is paused
+      dunningLevel: DunningLevel | null;
+      dunningBlocked: boolean;
     }[] = [];
+
+    // Latest dunning level per invoice, for the "Mahnstufe" column of the open-items list.
+    const dunnings = await this.prisma.dunning.findMany({
+      where: { companyId, documentId: { in: documents.map((document) => document.id) } },
+      orderBy: { createdAt: 'asc' },
+      select: { documentId: true, level: true },
+    });
+    const lastLevel = new Map(dunnings.map((dunning) => [dunning.documentId, dunning.level]));
 
     for (const document of documents) {
       const common = {
+        dunningLevel: lastLevel.get(document.id) ?? null,
+        dunningBlocked: document.invoiceDetails?.dunningBlocked ?? false,
         documentId: document.id,
         documentType: document.type,
         number: document.number,

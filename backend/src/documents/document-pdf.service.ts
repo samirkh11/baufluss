@@ -9,9 +9,9 @@ import { UPLOAD_ROOT } from '../common/storage/uploads';
 import { buildOrdinals, calculateTotals } from './calculations';
 
 // A4 layout in points (1 pt = 1/72 inch).
-const PAGE = { width: 595.28, height: 841.89, left: 56, right: 56, top: 50, bottom: 96 };
-const CONTENT_WIDTH = PAGE.width - PAGE.left - PAGE.right;
-const COLORS = { text: '#222222', muted: '#666666', line: '#bbbbbb', band: '#eeeeee', accent: '#7b241c' };
+export const PAGE = { width: 595.28, height: 841.89, left: 56, right: 56, top: 50, bottom: 96 };
+export const CONTENT_WIDTH = PAGE.width - PAGE.left - PAGE.right;
+export const COLORS = { text: '#222222', muted: '#666666', line: '#bbbbbb', band: '#eeeeee', accent: '#7b241c' };
 
 // Table columns (sum = CONTENT_WIDTH).
 const COLUMNS = { ordinal: 36, name: 229, quantity: 52, unit: 38, price: 62, total: 66 };
@@ -302,7 +302,7 @@ export class DocumentPdfService {
   }
 
   // Logo (PNG/JPG via pdfkit, SVG via svg-to-pdfkit) top left, company contact block top right.
-  private async drawLetterhead(pdf: PDFKit.PDFDocument, company: Company) {
+  async drawLetterhead(pdf: PDFKit.PDFDocument, company: Company) {
     if (company.logoPath?.startsWith('/uploads/')) {
       const file = resolve(UPLOAD_ROOT, company.logoPath.slice('/uploads/'.length));
       if (file.startsWith(UPLOAD_ROOT + sep)) {
@@ -510,7 +510,7 @@ export class DocumentPdfService {
   }
 
   // Footer, page numbers and the draft watermark on every page (needs bufferPages).
-  private decoratePages(pdf: PDFKit.PDFDocument, company: Company, isDraft: boolean) {
+  decoratePages(pdf: PDFKit.PDFDocument, company: Company, isDraft: boolean) {
     const range = pdf.bufferedPageRange();
     for (let index = 0; index < range.count; index++) {
       pdf.switchToPage(range.start + index);

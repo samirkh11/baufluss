@@ -1,6 +1,7 @@
 import {
   DocumentStatus,
   DocumentType,
+  DunningLevel,
   PaymentMethod,
   PaymentStatus,
   Project,
@@ -70,6 +71,13 @@ export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; color: strin
   PAID: { label: 'Bezahlt', color: 'green' },
   OVERDUE: { label: 'Überfällig', color: 'red' },
   CANCELLED: { label: 'Storniert', color: 'default' },
+};
+
+export const DUNNING_LEVEL: Record<DunningLevel, { label: string; color: string }> = {
+  REMINDER: { label: 'Zahlungserinnerung', color: 'blue' },
+  FIRST: { label: '1. Mahnung', color: 'gold' },
+  SECOND: { label: '2. Mahnung', color: 'orange' },
+  FINAL: { label: 'Letzte Mahnung', color: 'red' },
 };
 
 export const PAYMENT_METHOD: Record<PaymentMethod, { label: string }> = {

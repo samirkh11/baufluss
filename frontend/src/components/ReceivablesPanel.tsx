@@ -4,7 +4,7 @@ import { Button, Card, Checkbox, Space, Statistic, Table, Tag } from 'antd';
 import { Link } from 'react-router-dom';
 import { getReceivables } from '../api/payments';
 import { Receivable } from '../types';
-import { formatDate, formatMoney, documentPath } from '../utils/labels';
+import { DUNNING_LEVEL, formatDate, formatMoney, documentPath } from '../utils/labels';
 import { PaymentModal } from './PaymentModal';
 
 const KIND_LABEL = { INVOICE: 'Rechnung', RETENTION: 'Einbehalt', REFUND: 'Erstattung' } as const;
@@ -68,6 +68,16 @@ export function ReceivablesPanel() {
           {
             title: 'Überfällig',
             render: (_, row) => (row.overdueDays > 0 ? <Tag color="red">{row.overdueDays} Tage</Tag> : ''),
+          },
+          {
+            title: 'Mahnstufe',
+            responsive: ['md'],
+            render: (_, row) => (
+              <>
+                {row.dunningLevel && <Tag color={DUNNING_LEVEL[row.dunningLevel].color}>{DUNNING_LEVEL[row.dunningLevel].label}</Tag>}
+                {row.dunningBlocked && <Tag>Mahnsperre</Tag>}
+              </>
+            ),
           },
           { title: 'Offen', align: 'right', render: (_, row) => <strong>{formatMoney(row.open)}</strong> },
           {
