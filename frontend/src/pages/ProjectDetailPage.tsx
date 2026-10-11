@@ -97,7 +97,7 @@ export function ProjectDetailPage() {
           <Descriptions.Item label="Projektleiter">
             {project.manager ? `${project.manager.firstName} ${project.manager.lastName}` : '—'}
           </Descriptions.Item>
-          <Descriptions.Item label="Team" span={2}>
+          <Descriptions.Item label="Team" span="filled">
             <Avatar.Group size="small">
               {project.members.map((member) => (
                 <Tooltip key={member.id} title={`${member.firstName} ${member.lastName}`}>
@@ -110,7 +110,7 @@ export function ProjectDetailPage() {
             {project.members.length === 0 && '—'}
           </Descriptions.Item>
           {project.description && (
-            <Descriptions.Item label="Beschreibung" span={2}>
+            <Descriptions.Item label="Beschreibung" span="filled">
               {project.description}
             </Descriptions.Item>
           )}

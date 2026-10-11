@@ -19,7 +19,14 @@ import {
   message,
 } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import { createContact, deleteContact, listContacts, removeContactImage, setContactImage, updateContact } from '../api/contacts';
+import {
+  createContact,
+  deleteContact,
+  listContacts,
+  removeContactImage,
+  setContactImage,
+  updateContact,
+} from '../api/contacts';
 import { ImageUpload } from '../components/ImageUpload';
 import { apiErrorMessage, assetUrl } from '../utils/assets';
 import { Contact, ContactType } from '../types';
@@ -77,7 +84,8 @@ export function ContactsPage() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['contacts'] });
 
   const saveMutation = useMutation({
-    mutationFn: (values: Partial<Contact>) => (editing ? updateContact(editing.id, values) : createContact(values)),
+    mutationFn: (values: Partial<Contact>) =>
+      editing ? updateContact(editing.id, values) : createContact(values),
     onSuccess: () => {
       message.success('Kontakt gespeichert.');
       closeModal();
@@ -96,7 +104,13 @@ export function ContactsPage() {
   function openModal(contact: Contact | null) {
     setEditingId(contact?.id ?? null);
     form.resetFields();
-    form.setFieldsValue(contact ?? { types: typeFilter === 'ALL' ? ['CUSTOMER'] : [typeFilter], isOrganization: true, country: 'DE' });
+    form.setFieldsValue(
+      contact ?? {
+        types: typeFilter === 'ALL' ? ['CUSTOMER'] : [typeFilter],
+        isOrganization: true,
+        country: 'DE',
+      },
+    );
     setModalOpen(true);
   }
 
@@ -128,7 +142,10 @@ export function ContactsPage() {
           setTypeFilter(key as ContactType | 'ALL');
           setPage(1);
         }}
-        items={[{ key: 'ALL', label: 'Alle' }, ...TYPE_OPTIONS.map((o) => ({ key: o.value, label: TAB_LABELS[o.value] }))]}
+        items={[
+          { key: 'ALL', label: 'Alle' },
+          ...TYPE_OPTIONS.map((o) => ({ key: o.value, label: TAB_LABELS[o.value] })),
+        ]}
       />
       <Space style={{ marginBottom: 16 }} wrap>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal(null)}>
@@ -141,7 +158,7 @@ export function ContactsPage() {
             setSearch(value);
             setPage(1);
           }}
-          style={{ width: 320 }}
+          style={{ width: 320, maxWidth: '100%' }}
         />
         <Checkbox
           checked={showArchived}
@@ -155,27 +172,49 @@ export function ContactsPage() {
       </Space>
 
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         loading={isLoading}
         dataSource={data?.items}
-        pagination={{ current: page, pageSize: data?.pageSize ?? 25, total: data?.total ?? 0, onChange: setPage, showSizeChanger: false }}
+        pagination={{
+          current: page,
+          pageSize: data?.pageSize ?? 25,
+          total: data?.total ?? 0,
+          onChange: setPage,
+          showSizeChanger: false,
+        }}
         columns={[
           {
             title: '',
             width: 56,
-            render: (_, c) => <Avatar shape="square" src={c.imagePath ? assetUrl(c.imagePath) : undefined}>{displayName(c)[0]}</Avatar>,
+            render: (_, c) => (
+              <Avatar shape="square" src={c.imagePath ? assetUrl(c.imagePath) : undefined}>
+                {displayName(c)[0]}
+              </Avatar>
+            ),
           },
-          { title: 'Nr.', dataIndex: 'number', width: 90 },
+          { title: 'Nr.', responsive: ['md'], dataIndex: 'number', width: 90 },
           { title: 'Name', render: (_, c) => <a onClick={() => openModal(c)}>{displayName(c)}</a> },
-          { title: 'Rolle', dataIndex: 'types', render: (types: ContactType[]) => types.map((t) => <Tag key={t}>{TYPE_LABELS[t]}</Tag>) },
-          { title: 'Ort', render: (_, c) => [c.zipCode, c.city].filter(Boolean).join(' ') },
-          { title: 'E-Mail', dataIndex: 'email' },
+          {
+            title: 'Rolle',
+            dataIndex: 'types',
+            render: (types: ContactType[]) => types.map((t) => <Tag key={t}>{TYPE_LABELS[t]}</Tag>),
+          },
+          {
+            title: 'Ort',
+            responsive: ['md'],
+            render: (_, c) => [c.zipCode, c.city].filter(Boolean).join(' '),
+          },
+          { title: 'E-Mail', responsive: ['md'], dataIndex: 'email' },
           { title: 'Telefon', render: (_, c) => c.phone || c.mobile },
           {
             title: '',
             render: (_, c) => (
               <Space>
-                <Button size="small" onClick={() => archiveMutation.mutate({ id: c.id, isActive: !c.isActive })}>
+                <Button
+                  size="small"
+                  onClick={() => archiveMutation.mutate({ id: c.id, isActive: !c.isActive })}
+                >
                   {c.isActive ? 'Archivieren' : 'Reaktivieren'}
                 </Button>
                 <Popconfirm title="Kontakt endgültig löschen?" onConfirm={() => deleteMutation.mutate(c.id)}>
@@ -217,12 +256,16 @@ export function ContactsPage() {
         )}
         <Form layout="vertical" form={form} onFinish={handleFinish}>
           <Row gutter={16}>
-            <Col span={16}>
-              <Form.Item name="types" label="Rolle(n)" rules={[{ required: true, message: 'Mindestens eine Rolle wählen' }]}>
+            <Col xs={24} sm={16}>
+              <Form.Item
+                name="types"
+                label="Rolle(n)"
+                rules={[{ required: true, message: 'Mindestens eine Rolle wählen' }]}
+              >
                 <Select mode="multiple" options={TYPE_OPTIONS} />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item name="number" label="Nummer">
                 <Input />
               </Form.Item>
@@ -235,17 +278,17 @@ export function ContactsPage() {
             <Input />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={6}>
+            <Col xs={12} sm={6}>
               <Form.Item name="salutation" label="Anrede">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={9}>
+            <Col xs={24} sm={9}>
               <Form.Item name="firstName" label="Vorname">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={9}>
+            <Col xs={24} sm={9}>
               <Form.Item name="lastName" label="Nachname">
                 <Input />
               </Form.Item>
@@ -255,64 +298,64 @@ export function ContactsPage() {
             <Input />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={6}>
+            <Col xs={12} sm={6}>
               <Form.Item name="zipCode" label="PLZ">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="city" label="Ort">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={12} sm={6}>
               <Form.Item name="country" label="Land">
                 <Input />
               </Form.Item>
             </Col>
           </Row>
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="email" label="E-Mail" rules={[{ type: 'email' }]}>
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="website" label="Website">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="phone" label="Telefon">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="mobile" label="Mobil">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="vatId" label="USt-IdNr.">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="taxId" label="Steuernummer">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="iban" label="IBAN">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="bic" label="BIC">
                 <Input />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="paymentTermDays" label="Zahlungsziel (Tage)">
                 <InputNumber min={0} style={{ width: '100%' }} />
               </Form.Item>

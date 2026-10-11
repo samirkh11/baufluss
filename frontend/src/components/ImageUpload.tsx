@@ -41,7 +41,13 @@ export function ImageUpload({ path, size = 80, compact = false, onUpload, onRemo
       }}
     >
       {compact ? (
-        <Avatar shape="square" size={size} src={path ? assetUrl(path) : undefined} icon={<UserOutlined />} style={{ cursor: 'pointer', opacity: busy ? 0.5 : 1 }} />
+        <Avatar
+          shape="square"
+          size={size}
+          src={path ? assetUrl(path) : undefined}
+          icon={<UserOutlined />}
+          style={{ cursor: 'pointer', opacity: busy ? 0.5 : 1 }}
+        />
       ) : (
         <Button icon={<UploadOutlined />} loading={busy}>
           {path ? 'Bild ersetzen' : 'Bild hochladen'}

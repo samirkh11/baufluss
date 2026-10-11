@@ -1,0 +1,18 @@
+/* Global responsive helpers. Layout breakpoints themselves live in the components (useIsPhone / useIsCompact). */
+html,
+body {
+  margin: 0;
+}
+
+/* Long unbroken strings (e-mail addresses, IBANs) must wrap instead of widening the page. */
+.ant-table-cell,
+.ant-descriptions-item-content {
+  overflow-wrap: anywhere;
+}
+
+/* Comfortable tap targets for the form fields of modals on touch devices. */
+@media (pointer: coarse) {
+  .ant-select-item-option {
+    min-height: 40px;
+  }
+}

@@ -76,6 +76,7 @@ meisterwerk/
 
 ## Umgesetzter Stand (V1)
 
+- Responsive Oberfläche für Desktop, Tablet und Smartphone (Baustellen-Einsatz)
 - Firmenregistrierung (Mandant + erster Nutzer), Login via JWT
 - Firmenprofil: Stammdaten, Logo-Upload, Briefpapier-Texte
 - Nummernkreise (Konfiguration je Dokumenttyp, wird von späteren Modulen konsumiert)

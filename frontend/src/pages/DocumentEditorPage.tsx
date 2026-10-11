@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { ReactNode, useEffect, useMemo, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Alert,
@@ -7,6 +7,7 @@ import {
   Checkbox,
   Col,
   Descriptions,
+  Empty,
   Form,
   Input,
   InputNumber,
@@ -36,6 +37,7 @@ import {
   updateDocument,
 } from '../api/documents';
 import { BusinessDocument, CatalogItem, DocumentItemKind } from '../types';
+import { useIsPhone } from '../hooks/useMediaQuery';
 import { apiErrorMessage } from '../utils/assets';
 import { buildOrdinals, calculateTotals, lineTotal } from '../utils/documentCalc';
 import {
@@ -133,6 +135,7 @@ export function DocumentEditorPage() {
   const [lines, setLines] = useState<EditorLine[]>([]);
   const [dirty, setDirty] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState('');
+  const phone = useIsPhone();
 
   const {
     data: document,
@@ -456,6 +459,57 @@ export function DocumentEditorPage() {
     },
   ];
 
+  // Phone layout: one card per line instead of a wide table. Reuses the table's cell renderers
+  // (indices: 1 name, 2 quantity, 3 unit, 4 price, 5 VAT, 6 discount, 7 optional, 8 sum, 9 actions).
+  const cell = (columnIndex: number, line: EditorLine, index: number) =>
+    (
+      lineColumns[columnIndex] as unknown as {
+        render: (value: unknown, line: EditorLine, index: number) => ReactNode;
+      }
+    ).render(null, line, index);
+  const field = (label: string, columnIndex: number, line: EditorLine, index: number) => (
+    <Col xs={12}>
+      <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+        {label}
+      </Typography.Text>
+      {cell(columnIndex, line, index)}
+    </Col>
+  );
+  const lineCards = lines.map((line, index) => (
+    <Card
+      key={line.key}
+      size="small"
+      style={{ marginBottom: 8, background: line.kind === 'HEADING' ? '#fafafa' : undefined }}
+      title={
+        <Space>
+          {ordinals[index] && <Tag>{ordinals[index]}</Tag>}
+          <span>{{ POSITION: 'Position', HEADING: 'Titel', TEXT: 'Text' }[line.kind]}</span>
+        </Space>
+      }
+      extra={cell(9, line, index)}
+    >
+      {cell(1, line, index)}
+      {line.kind === 'POSITION' && (
+        <>
+          <Row gutter={[8, 8]} style={{ marginTop: 8 }}>
+            {field('Menge', 2, line, index)}
+            {field('Einheit', 3, line, index)}
+            {field('Einzelpreis (netto)', 4, line, index)}
+            {field('USt', 5, line, index)}
+            {field('Rabatt %', 6, line, index)}
+            <Col xs={12}>
+              <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                Optional
+              </Typography.Text>
+              <div style={{ paddingTop: 6 }}>{cell(7, line, index)}</div>
+            </Col>
+          </Row>
+          <div style={{ textAlign: 'right', marginTop: 8, fontWeight: 'bold' }}>{cell(8, line, index)}</div>
+        </>
+      )}
+    </Card>
+  ));
+
   return (
     <div>
       <style>{'.document-heading-row td { background: #fafafa; }'}</style>
@@ -592,7 +646,7 @@ export function DocumentEditorPage() {
                 filterOption={false}
                 value={null}
                 placeholder="Position aus Leistungs-/Artikelstamm hinzufügen …"
-                style={{ width: 380 }}
+                style={{ width: 380, maxWidth: '100%' }}
                 loading={searchingCatalog}
                 onSearch={setCatalogSearch}
                 onChange={(value) => value && addFromCatalog(value)}
@@ -606,16 +660,20 @@ export function DocumentEditorPage() {
               <Button onClick={() => addLine(blankLine('TEXT'))}>Textzeile</Button>
             </Space>
           )}
-          <Table
-            rowKey="key"
-            size="small"
-            pagination={false}
-            dataSource={lines}
-            columns={lineColumns}
-            scroll={{ x: 1100 }}
-            locale={{ emptyText: 'Noch keine Positionen' }}
-            rowClassName={(line) => (line.kind === 'HEADING' ? 'document-heading-row' : '')}
-          />
+          {phone ? (
+            <div>{lines.length === 0 ? <Empty description="Noch keine Positionen" /> : lineCards}</div>
+          ) : (
+            <Table
+              rowKey="key"
+              size="small"
+              pagination={false}
+              dataSource={lines}
+              columns={lineColumns}
+              scroll={{ x: 1100 }}
+              locale={{ emptyText: 'Noch keine Positionen' }}
+              rowClassName={(line) => (line.kind === 'HEADING' ? 'document-heading-row' : '')}
+            />
+          )}
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
             <table style={{ minWidth: 300 }}>

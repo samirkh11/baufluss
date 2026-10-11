@@ -35,7 +35,12 @@ export function ImageGallery({ images, maxImages = 10, onAdd, onRemove }: ImageG
       <Image.PreviewGroup>
         {images.map((image) => (
           <div key={image.id} style={{ position: 'relative' }}>
-            <Image src={assetUrl(image.path)} width={96} height={72} style={{ objectFit: 'cover', borderRadius: 4 }} />
+            <Image
+              src={assetUrl(image.path)}
+              width={96}
+              height={72}
+              style={{ objectFit: 'cover', borderRadius: 4 }}
+            />
             <Button
               size="small"
               danger

@@ -26,8 +26,17 @@ export function RegisterCompanyPage() {
   }
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh' }}>
-      <Card style={{ width: 440 }}>
+    <div
+      style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        padding: 16,
+        boxSizing: 'border-box',
+      }}
+    >
+      <Card style={{ width: 440, maxWidth: '100%' }}>
         <Typography.Title level={3}>Firma registrieren</Typography.Title>
         {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
         <Form layout="vertical" onFinish={handleFinish}>

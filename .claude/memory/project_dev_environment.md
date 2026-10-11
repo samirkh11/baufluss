@@ -46,8 +46,12 @@ eigene Shell — PID über `ss -ltnp | grep :3000` ermitteln.
 ## UI-Tests im Browser (E2E)
 
 `e2e/` im Repo (Playwright, Chromium liegt in `~/.cache/ms-playwright`). Ablauf: Stack läuft →
-`cd backend && npm run seed` → `cd e2e && npm test` (38 Checks: Login, Projekte, Berichte+Fotos,
-Kontakte, Katalog, Nutzer, Angebote/Editor/PDF, Arbeiter-Rechte). Einrichtung/Details: `e2e/README.md`.
+`cd backend && npm run seed` → `cd e2e && npm test` (`smoke.e2e.mjs` 38 Checks: Login, Projekte,
+Berichte+Fotos, Kontakte, Katalog, Nutzer, Angebote/Editor/PDF, Arbeiter-Rechte; danach
+`responsive.e2e.mjs` 36 Checks auf Phone 390 px/Tablet 820 px: Drawer-Menü, kein Seiten-Überlauf,
+Dialoge, Arbeiter-Bericht mit Foto). Einzeln: `npm run test:smoke` / `npm run test:responsive`.
+Falls der Vite-Dev-Server leere Module liefert (Cache nach vielen Änderungen): Prozess auf :5173
+beenden und `npm run dev` neu starten. Einrichtung/Details: `e2e/README.md`.
 **Regel:** Jedes neue Feature erweitert `e2e/smoke.e2e.mjs` (oder eine neue `*.e2e.mjs`) um
 UI-Prüfungen und wird vor dem Push damit getestet (Volker hat das Skript ausdrücklich im Repo
 gewünscht, 2026-10-11).

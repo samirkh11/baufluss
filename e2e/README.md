@@ -12,6 +12,7 @@ cd backend && npm run seed
 cd ../e2e && npm test
 ```
 
+- `npm test` führt `smoke.e2e.mjs` (Funktionen) und `responsive.e2e.mjs` (Smartphone/Tablet) aus.
 - Das Skript legt Test-Daten an (z.B. ein Projekt, einen Bericht) und ändert Seed-Daten
   (Nachname von Dennis Vogel) → danach wieder `npm run seed`.
 - Screenshots landen in `e2e/shots/` (nicht im Git).

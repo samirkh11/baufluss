@@ -7,3 +7,4 @@
 - [Dev-Environment](project_dev_environment.md) — lokales Setup läuft (Docker/Migration/Seed ✅), Zugangsdaten, Push-Policy
 - [GitHub](reference_github.md) — Repo-URL, Account, Push-Policy
 - [Testdaten-Regel](feedback_testdata_seed.md) — Jedes neue Feature erweitert sofort den Seed (Dachdeckerei Schmidt)
+- [Responsive-Pflicht](feedback_responsive.md) — Smartphone/Tablet-tauglich für Baustellen-Mitarbeiter, Muster + Test

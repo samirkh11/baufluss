@@ -98,12 +98,12 @@ export function ProjectFormModal({ open, project, onClose, onSaved }: ProjectFor
     >
       <Form layout="vertical" form={form} onFinish={handleFinish}>
         <Row gutter={16}>
-          <Col span={16}>
+          <Col xs={24} sm={16}>
             <Form.Item name="name" label="Projektname" rules={[{ required: true }]}>
               <Input />
             </Form.Item>
           </Col>
-          <Col span={8}>
+          <Col xs={24} sm={8}>
             <Form.Item name="status" label="Status">
               <Select options={optionsOf(PROJECT_STATUS)} />
             </Form.Item>
@@ -125,22 +125,22 @@ export function ProjectFormModal({ open, project, onClose, onSaved }: ProjectFor
           <Input />
         </Form.Item>
         <Row gutter={16}>
-          <Col span={8}>
+          <Col xs={24} sm={8}>
             <Form.Item name="siteZipCode" label="PLZ">
               <Input />
             </Form.Item>
           </Col>
-          <Col span={16}>
+          <Col xs={24} sm={16}>
             <Form.Item name="siteCity" label="Ort">
               <Input />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item name="startDate" label="Beginn">
               <Input type="date" />
             </Form.Item>
           </Col>
-          <Col span={12}>
+          <Col xs={24} sm={12}>
             <Form.Item name="endDate" label="Fertigstellung (geplant)">
               <Input type="date" />
             </Form.Item>

@@ -37,9 +37,18 @@ export function NumberSequencesPanel() {
 
   return (
     <div>
-      <Form layout="inline" form={form} onFinish={(values) => upsertMutation.mutate(values)} style={{ marginBottom: 16 }}>
+      <Form
+        layout="inline"
+        form={form}
+        onFinish={(values) => upsertMutation.mutate(values)}
+        style={{ marginBottom: 16 }}
+      >
         <Form.Item name="documentType" rules={[{ required: true }]}>
-          <Select placeholder="Dokumenttyp" options={DOCUMENT_TYPE_OPTIONS} style={{ width: 200 }} />
+          <Select
+            placeholder="Dokumenttyp"
+            options={DOCUMENT_TYPE_OPTIONS}
+            style={{ width: 200, maxWidth: '100%' }}
+          />
         </Form.Item>
         <Form.Item name="prefix">
           <Input placeholder="Präfix, z.B. RE-" />
@@ -59,6 +68,7 @@ export function NumberSequencesPanel() {
       </Form>
 
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         dataSource={sequences}
         pagination={false}
@@ -71,11 +81,18 @@ export function NumberSequencesPanel() {
           { title: 'Präfix', dataIndex: 'prefix' },
           { title: 'Nächste Nummer', dataIndex: 'nextNumber' },
           { title: 'Stellen', dataIndex: 'digits' },
-          { title: 'Jährlich zurücksetzen', dataIndex: 'resetYearly', render: (v: boolean) => (v ? 'Ja' : 'Nein') },
+          {
+            title: 'Jährlich zurücksetzen',
+            dataIndex: 'resetYearly',
+            render: (v: boolean) => (v ? 'Ja' : 'Nein'),
+          },
           {
             title: '',
             render: (_, record) => (
-              <Popconfirm title="Nummernkreis löschen?" onConfirm={() => deleteMutation.mutate(record.documentType)}>
+              <Popconfirm
+                title="Nummernkreis löschen?"
+                onConfirm={() => deleteMutation.mutate(record.documentType)}
+              >
                 <Button danger size="small">
                   Löschen
                 </Button>

@@ -49,7 +49,7 @@ export function ProjectsPage() {
         <Input.Search
           placeholder="Suchen (Name, Nr., Kunde, Ort)"
           allowClear
-          style={{ width: 320 }}
+          style={{ width: 320, maxWidth: '100%' }}
           onSearch={(value) => {
             setSearch(value);
             setPage(1);
@@ -58,6 +58,7 @@ export function ProjectsPage() {
       </Space>
 
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         loading={isLoading}
         dataSource={data?.items}
@@ -75,7 +76,7 @@ export function ProjectsPage() {
             render: (_, project: Project) => <Link to={`/projects/${project.id}`}>{project.name}</Link>,
           },
           { title: 'Kunde', render: (_, project: Project) => customerName(project.customer) },
-          { title: 'Baustelle', render: (_, project: Project) => siteAddress(project) },
+          { title: 'Baustelle', responsive: ['md'], render: (_, project: Project) => siteAddress(project) },
           {
             title: 'Status',
             dataIndex: 'status',
@@ -85,6 +86,7 @@ export function ProjectsPage() {
           },
           {
             title: 'Zeitraum',
+            responsive: ['md'],
             render: (_, project: Project) =>
               project.startDate || project.endDate
                 ? `${formatDate(project.startDate)} – ${formatDate(project.endDate)}`
@@ -92,6 +94,7 @@ export function ProjectsPage() {
           },
           {
             title: 'Team',
+            responsive: ['md'],
             render: (_, project: Project) => (
               <Avatar.Group size="small" max={{ count: 4 }}>
                 {project.members.map((member) => (

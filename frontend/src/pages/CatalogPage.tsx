@@ -1,6 +1,22 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Avatar, Button, Checkbox, Col, Form, Input, InputNumber, Modal, Popconfirm, Row, Select, Space, Table, Tabs, message } from 'antd';
+import {
+  Avatar,
+  Button,
+  Checkbox,
+  Col,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Row,
+  Select,
+  Space,
+  Table,
+  Tabs,
+  message,
+} from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import {
   addCatalogItemImage,
@@ -47,7 +63,8 @@ export function CatalogPage() {
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['catalog-items'] });
 
   const saveMutation = useMutation({
-    mutationFn: (values: CatalogItemPayload) => (editing ? updateCatalogItem(editing.id, values) : createCatalogItem(values)),
+    mutationFn: (values: CatalogItemPayload) =>
+      editing ? updateCatalogItem(editing.id, values) : createCatalogItem(values),
     onSuccess: () => {
       message.success('Gespeichert.');
       closeModal();
@@ -110,7 +127,10 @@ export function CatalogPage() {
           setKind(key as CatalogItemKind);
           setPage(1);
         }}
-        items={(Object.keys(KIND_LABELS) as CatalogItemKind[]).map((k) => ({ key: k, label: KIND_LABELS[k] }))}
+        items={(Object.keys(KIND_LABELS) as CatalogItemKind[]).map((k) => ({
+          key: k,
+          label: KIND_LABELS[k],
+        }))}
       />
       <Space style={{ marginBottom: 16 }} wrap>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => openModal(null)}>
@@ -123,7 +143,7 @@ export function CatalogPage() {
             setSearch(value);
             setPage(1);
           }}
-          style={{ width: 280 }}
+          style={{ width: 280, maxWidth: '100%' }}
         />
         <Checkbox
           checked={showArchived}
@@ -137,31 +157,56 @@ export function CatalogPage() {
       </Space>
 
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         loading={isLoading}
         dataSource={data?.items}
-        pagination={{ current: page, pageSize: data?.pageSize ?? 25, total: data?.total ?? 0, onChange: setPage, showSizeChanger: false }}
+        pagination={{
+          current: page,
+          pageSize: data?.pageSize ?? 25,
+          total: data?.total ?? 0,
+          onChange: setPage,
+          showSizeChanger: false,
+        }}
         columns={[
           {
             title: '',
             width: 72,
             render: (_, item) => (
-              <Avatar shape="square" size={48} src={item.images[0] ? assetUrl(item.images[0].path) : undefined}>
+              <Avatar
+                shape="square"
+                size={48}
+                src={item.images[0] ? assetUrl(item.images[0].path) : undefined}
+              >
                 {item.name[0]}
               </Avatar>
             ),
           },
-          { title: 'Nr.', dataIndex: 'sku', width: 100 },
+          { title: 'Nr.', responsive: ['md'], dataIndex: 'sku', width: 100 },
           { title: 'Bezeichnung', render: (_, item) => <a onClick={() => openModal(item)}>{item.name}</a> },
-          { title: 'Einheit', dataIndex: 'unit', width: 90 },
-          { title: 'Netto', dataIndex: 'netPrice', align: 'right', render: (v: string) => euro.format(Number(v)) },
-          { title: 'EK netto', dataIndex: 'purchasePrice', align: 'right', render: (v: string | null) => (v === null ? '' : euro.format(Number(v))) },
+          { title: 'Einheit', responsive: ['md'], dataIndex: 'unit', width: 90 },
+          {
+            title: 'Netto',
+            dataIndex: 'netPrice',
+            align: 'right',
+            render: (v: string) => euro.format(Number(v)),
+          },
+          {
+            title: 'EK netto',
+            responsive: ['md'],
+            dataIndex: 'purchasePrice',
+            align: 'right',
+            render: (v: string | null) => (v === null ? '' : euro.format(Number(v))),
+          },
           { title: 'USt', dataIndex: 'vatRate', align: 'right', render: (v: string) => `${Number(v)} %` },
           {
             title: '',
             render: (_, item) => (
               <Space>
-                <Button size="small" onClick={() => archiveMutation.mutate({ id: item.id, isActive: !item.isActive })}>
+                <Button
+                  size="small"
+                  onClick={() => archiveMutation.mutate({ id: item.id, isActive: !item.isActive })}
+                >
                   {item.isActive ? 'Archivieren' : 'Reaktivieren'}
                 </Button>
                 <Popconfirm title="Endgültig löschen?" onConfirm={() => deleteMutation.mutate(item.id)}>
@@ -203,12 +248,17 @@ export function CatalogPage() {
         )}
         <Form layout="vertical" form={form} onFinish={handleFinish}>
           <Row gutter={16}>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item name="kind" label="Art" rules={[{ required: true }]}>
-                <Select options={(Object.keys(KIND_LABELS) as CatalogItemKind[]).map((k) => ({ value: k, label: KIND_LABELS[k] }))} />
+                <Select
+                  options={(Object.keys(KIND_LABELS) as CatalogItemKind[]).map((k) => ({
+                    value: k,
+                    label: KIND_LABELS[k],
+                  }))}
+                />
               </Form.Item>
             </Col>
-            <Col span={16}>
+            <Col xs={24} sm={16}>
               <Form.Item name="sku" label="Nummer">
                 <Input />
               </Form.Item>
@@ -221,22 +271,34 @@ export function CatalogPage() {
             <Input.TextArea rows={3} />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={6}>
+            <Col xs={12} sm={6}>
               <Form.Item name="unit" label="Einheit" rules={[{ required: true }]}>
                 <Select showSearch options={UNIT_OPTIONS} />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={12} sm={6}>
               <Form.Item name="netPrice" label="Preis netto (€)" rules={[{ required: true }]}>
-                <InputNumber min={0} step={0.01} precision={2} decimalSeparator="," style={{ width: '100%' }} />
+                <InputNumber
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  decimalSeparator=","
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={12} sm={6}>
               <Form.Item name="purchasePrice" label="EK netto (€)">
-                <InputNumber min={0} step={0.01} precision={2} decimalSeparator="," style={{ width: '100%' }} />
+                <InputNumber
+                  min={0}
+                  step={0.01}
+                  precision={2}
+                  decimalSeparator=","
+                  style={{ width: '100%' }}
+                />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col xs={12} sm={6}>
               <Form.Item name="vatRate" label="USt (%)" rules={[{ required: true }]}>
                 <Select options={[19, 7, 0].map((value) => ({ value, label: `${value} %` }))} />
               </Form.Item>

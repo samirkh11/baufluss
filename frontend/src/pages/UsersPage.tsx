@@ -101,6 +101,7 @@ export function UsersPage() {
       )}
 
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         dataSource={users}
         columns={[
@@ -134,7 +135,7 @@ export function UsersPage() {
                 `${record.firstName} ${record.lastName}`
               ),
           },
-          { title: 'E-Mail', dataIndex: 'email' },
+          { title: 'E-Mail', responsive: ['md'], dataIndex: 'email' },
           {
             title: 'Rolle',
             dataIndex: 'role',

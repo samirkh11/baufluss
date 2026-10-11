@@ -61,7 +61,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
         <Select
           allowClear
           placeholder="Alle Status"
-          style={{ width: 170 }}
+          style={{ width: 170, maxWidth: '100%' }}
           options={optionsOf(DOCUMENT_STATUS)}
           value={status}
           onChange={(value) => {
@@ -72,7 +72,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
         <Input.Search
           placeholder="Suchen (Nr., Betreff, Empfänger)"
           allowClear
-          style={{ width: 300 }}
+          style={{ width: 300, maxWidth: '100%' }}
           onSearch={(value) => {
             setSearch(value);
             setPage(1);
@@ -81,6 +81,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
       </Space>
 
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         loading={isLoading}
         dataSource={data?.items}
@@ -99,9 +100,9 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
               <Link to={`/documents/${document.id}`}>{document.number ?? 'Entwurf'}</Link>
             ),
           },
-          { title: 'Datum', dataIndex: 'documentDate', width: 100, render: formatDate },
+          { title: 'Datum', responsive: ['md'], dataIndex: 'documentDate', width: 100, render: formatDate },
           { title: 'Betreff', dataIndex: 'subject' },
-          { title: 'Empfänger', dataIndex: 'recipientName' },
+          { title: 'Empfänger', responsive: ['md'], dataIndex: 'recipientName' },
           ...(projectId
             ? []
             : [
@@ -121,7 +122,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
               <Tag color={DOCUMENT_STATUS[value].color}>{DOCUMENT_STATUS[value].label}</Tag>
             ),
           },
-          { title: 'Netto', dataIndex: 'netTotal', align: 'right', render: formatMoney },
+          { title: 'Netto', responsive: ['md'], dataIndex: 'netTotal', align: 'right', render: formatMoney },
           { title: 'Brutto', dataIndex: 'grossTotal', align: 'right', render: formatMoney },
         ]}
       />

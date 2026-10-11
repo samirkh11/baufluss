@@ -145,7 +145,7 @@ export function ReportsPanel({ projectId }: ReportsPanelProps) {
         <Select
           allowClear
           placeholder="Alle Berichtsarten"
-          style={{ width: 200 }}
+          style={{ width: 200, maxWidth: '100%' }}
           options={optionsOf(REPORT_TYPE)}
           value={typeFilter}
           onChange={(value) => {
@@ -156,7 +156,7 @@ export function ReportsPanel({ projectId }: ReportsPanelProps) {
         <Input.Search
           placeholder="Suchen (Titel, Nr., Inhalt)"
           allowClear
-          style={{ width: 280 }}
+          style={{ width: 280, maxWidth: '100%' }}
           onSearch={(value) => {
             setSearch(value);
             setPage(1);
@@ -165,6 +165,7 @@ export function ReportsPanel({ projectId }: ReportsPanelProps) {
       </Space>
 
       <Table
+        scroll={{ x: 'max-content' }}
         rowKey="id"
         loading={isLoading}
         dataSource={data?.items}
@@ -198,15 +199,21 @@ export function ReportsPanel({ projectId }: ReportsPanelProps) {
                   ),
                 },
               ]),
-          { title: 'Verfasser', dataIndex: 'authorName' },
+          { title: 'Verfasser', responsive: ['md'], dataIndex: 'authorName' },
           {
             title: 'Fortschritt',
+            responsive: ['md'],
             dataIndex: 'progressPercent',
             width: 130,
             render: (value: number | null) =>
               value === null ? '' : <Progress percent={value} size="small" />,
           },
-          { title: 'Fotos', width: 70, render: (_, report) => report.photos.length || '' },
+          {
+            title: 'Fotos',
+            responsive: ['md'],
+            width: 70,
+            render: (_, report) => report.photos.length || '',
+          },
           {
             title: '',
             render: (_, report) =>
@@ -267,12 +274,12 @@ export function ReportsPanel({ projectId }: ReportsPanelProps) {
             </Form.Item>
           )}
           <Row gutter={16}>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="type" label="Art">
                 <Select options={optionsOf(REPORT_TYPE)} />
               </Form.Item>
             </Col>
-            <Col span={12}>
+            <Col xs={24} sm={12}>
               <Form.Item name="reportDate" label="Datum" rules={[{ required: true }]}>
                 <Input type="date" />
               </Form.Item>
@@ -282,12 +289,12 @@ export function ReportsPanel({ projectId }: ReportsPanelProps) {
             <Input />
           </Form.Item>
           <Row gutter={16}>
-            <Col span={16}>
+            <Col xs={24} sm={16}>
               <Form.Item name="weather" label="Wetter">
                 <Input placeholder="z.B. sonnig, 18 °C" />
               </Form.Item>
             </Col>
-            <Col span={8}>
+            <Col xs={24} sm={8}>
               <Form.Item name="progressPercent" label="Baufortschritt (%)">
                 <InputNumber min={0} max={100} style={{ width: '100%' }} />
               </Form.Item>
