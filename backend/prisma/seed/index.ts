@@ -11,6 +11,7 @@ import { seedContacts } from './contacts';
 import { seedCatalog } from './catalog';
 import { seedProjects } from './projects';
 import { seedDocuments } from './documents';
+import { seedIncomingInvoices } from './incoming-invoices';
 import { seedTimeEntries } from './time-entries';
 import { SECOND_TENANT_OWNER_EMAIL, seedSecondTenant } from './second-tenant';
 
@@ -44,6 +45,11 @@ async function removeExistingDemoTenants() {
     }
   }
 
+  // Original incoming-invoice files are stored outside uploads/ (per company folder).
+  for (const companyId of companyIds) {
+    rmSync(join(process.cwd(), 'storage', 'incoming-invoices', companyId), { recursive: true, force: true });
+  }
+
   // Deleting a company cascades to users, contacts, catalog items, number sequences, ...
   await prisma.company.deleteMany({ where: { id: { in: companyIds } } });
 }
@@ -57,6 +63,7 @@ async function main() {
   await seedProjects(prisma, companyId, userIds, contactIds);
   await seedDocuments(prisma, companyId, catalog);
   await seedTimeEntries(prisma, companyId, userIds);
+  await seedIncomingInvoices(prisma, companyId, userIds, contactIds);
   await seedSecondTenant(prisma);
 
   console.log('Demo-Daten angelegt (Dachdeckerei Schmidt GmbH + Zimmerei Beispiel GmbH).');

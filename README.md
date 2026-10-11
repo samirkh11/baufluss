@@ -99,8 +99,9 @@ meisterwerk/
   Testdateien in [`docs/gaeb-samples/`](docs/gaeb-samples/)
 
 - Mahnwesen: Mahnstufen, Verzugszinsen/Pauschale nach § 288 BGB, Mahn-PDF, Mahnvorschlag, Mahnsperre
+- Eingangsrechnungen: Beleg-Upload, Erfassung, Freigabe-Workflow, Projektzuordnung (Mail-Eingang folgt)
 
-Die restlichen Funktionsblöcke (Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
+Die restlichen Funktionsblöcke ( E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 
 ## Testdaten

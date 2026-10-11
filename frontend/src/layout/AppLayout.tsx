@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Button, Drawer, Layout, Menu, Typography } from 'antd';
 import {
+  InboxOutlined,
   AuditOutlined,
   ClockCircleOutlined,
   ContactsOutlined,
@@ -36,6 +37,7 @@ const MENU_ITEMS: { key: string; icon: ReactNode; label: ReactNode; officeOnly?:
     label: <Link to="/invoices">Rechnungen</Link>,
     officeOnly: true,
   },
+  { key: '/incoming-invoices', icon: <InboxOutlined />, label: <Link to="/incoming-invoices">Eingangsrechnungen</Link>, officeOnly: true },
   { key: '/reports', icon: <FileTextOutlined />, label: <Link to="/reports">Berichte</Link> },
   { key: '/contacts', icon: <ContactsOutlined />, label: <Link to="/contacts">Kontakte</Link> },
   { key: '/catalog', icon: <ToolOutlined />, label: <Link to="/catalog">Leistungen &amp; Artikel</Link> },

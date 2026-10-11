@@ -428,3 +428,36 @@ export interface DunningSettings {
   baseRatePercent: string;
   lumpSumB2B: string;
 }
+
+export type IncomingInvoiceStatus = 'RECEIVED' | 'APPROVED' | 'REJECTED' | 'PAID';
+
+export interface IncomingInvoice {
+  id: string;
+  number: string; // internal ER-0001
+  supplierId: string | null;
+  supplierName: string | null;
+  supplier: { id: string; number: string | null; organizationName: string | null; firstName: string | null; lastName: string | null } | null;
+  invoiceNumber: string | null;
+  invoiceDate: string | null;
+  serviceDate: string | null;
+  dueDate: string | null;
+  description: string | null;
+  netAmount: string;
+  vatAmount: string;
+  grossAmount: string;
+  reverseCharge: boolean;
+  projectId: string | null;
+  project: { id: string; number: string; name: string } | null;
+  status: IncomingInvoiceStatus;
+  source: 'UPLOAD' | 'EMAIL' | 'MANUAL';
+  rejectionReason: string | null;
+  fileName: string | null;
+  mimeType: string | null;
+  uploadedBy: { firstName: string; lastName: string } | null;
+  approvedBy: { firstName: string; lastName: string } | null;
+  approvedAt: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  issues?: string[]; // what still blocks the approval (detail only)
+  duplicateOf?: { id: string; number: string } | null;
+}

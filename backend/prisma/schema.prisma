@@ -55,17 +55,18 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users           User[]
-  numberSequences NumberSequence[]
-  contacts        Contact[]
-  catalogItems    CatalogItem[]
-  projects        Project[]
-  reports         Report[]
-  documents       Document[]
-  payments        Payment[]
-  dunnings        Dunning[]
-  dunningSettings DunningSettings?
-  timeEntries     TimeEntry[]
+  users            User[]
+  numberSequences  NumberSequence[]
+  contacts         Contact[]
+  catalogItems     CatalogItem[]
+  projects         Project[]
+  reports          Report[]
+  documents        Document[]
+  payments         Payment[]
+  dunnings         Dunning[]
+  dunningSettings  DunningSettings?
+  timeEntries      TimeEntry[]
+  incomingInvoices IncomingInvoice[]
 
   @@map("companies")
 }
@@ -92,8 +93,10 @@ model User {
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  uploadedInvoices IncomingInvoice[] @relation("InvoiceUploader")
+  approvedInvoices IncomingInvoice[] @relation("InvoiceApprover")
 
   @@index([companyId])
   @@map("users")
@@ -178,8 +181,9 @@ model Contact {
   imagePath String? // single picture/logo, relative path under /uploads
   isActive  Boolean @default(true)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  incomingInvoices IncomingInvoice[]
 
   @@unique([companyId, number])
   @@index([companyId])
@@ -273,10 +277,11 @@ model Project {
   managerId String?
   manager   User?   @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
 
-  members     ProjectMember[]
-  reports     Report[]
-  documents   Document[]
-  timeEntries TimeEntry[]
+  members          ProjectMember[]
+  reports          Report[]
+  documents        Document[]
+  timeEntries      TimeEntry[]
+  incomingInvoices IncomingInvoice[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -666,4 +671,76 @@ model Dunning {
   @@index([documentId])
   @@index([companyId, dunningDate])
   @@map("dunnings")
+}
+
+// ---------------------------------------------------------------------------------------------
+// Incoming invoices (Eingangsrechnungen)
+// ---------------------------------------------------------------------------------------------
+
+enum IncomingInvoiceStatus {
+  RECEIVED // Eingegangen, wartet auf Prüfung
+  APPROVED // Freigegeben, kann bezahlt werden
+  REJECTED // Abgelehnt (Reklamation, falscher Empfänger, ...)
+  PAID // Bezahlt
+}
+
+enum IncomingInvoiceSource {
+  UPLOAD // hochgeladen in der App
+  EMAIL // per Mail empfangen (folgt)
+  MANUAL // ohne Beleg erfasst
+}
+
+// A supplier invoice. The original file is stored unchanged (GoBD: Originalbeleg aufbewahren) and
+// identified by its SHA-256 hash; the captured amounts are what the company books and pays.
+model IncomingInvoice {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  number String // internal running number (ER-0001), assigned on receipt
+
+  supplierId   String?
+  supplier     Contact? @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+  supplierName String? // snapshot / free text if the supplier is not in the contacts
+
+  invoiceNumber String? // the supplier's own invoice number
+  invoiceDate   DateTime? @db.Date
+  serviceDate   DateTime? @db.Date
+  dueDate       DateTime? @db.Date
+  description   String?   @db.Text
+
+  netAmount     Decimal @default(0) @db.Decimal(12, 2)
+  vatAmount     Decimal @default(0) @db.Decimal(12, 2)
+  grossAmount   Decimal @default(0) @db.Decimal(12, 2)
+  currency      String  @default("EUR")
+  reverseCharge Boolean @default(false) // § 13b: no VAT shown, the company owes it
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  status          IncomingInvoiceStatus @default(RECEIVED)
+  source          IncomingInvoiceSource @default(UPLOAD)
+  rejectionReason String?
+
+  // Original file (stored outside the public uploads folder, served only through the API).
+  filePath String?
+  fileName String?
+  mimeType String?
+  fileSize Int?
+  fileHash String? // SHA-256 hex, detects the same file uploaded twice
+
+  uploadedById String?
+  uploadedBy   User?     @relation("InvoiceUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  approvedById String?
+  approvedBy   User?     @relation("InvoiceApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  approvedAt   DateTime?
+  paidAt       DateTime? @db.Date
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, number])
+  @@unique([companyId, fileHash])
+  @@index([companyId, status])
+  @@index([projectId])
 }

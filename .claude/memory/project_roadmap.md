@@ -196,9 +196,19 @@ Aufgeteilt in vier Teilschritte:
   Kleinunternehmer (§ 19 UStG) ohne USt-Ausweis, Skonto, Zahlungslink/QR-Code (GiroCode), Versand per
   E-Mail, Rechnungs-Textbausteine, Teilleistungen/Aufmaß-Abrechnung.
 
-### ⬜ Block 6 — Eingangsrechnungen
-Empfang per Mail (eigenes Postfach/Weiterleitung nötig — Infrastruktur-Entscheidung) und Upload,
-Freigabe-Workflow, Zuordnung zum Projekt.
+### 🟡 Block 6 — Eingangsrechnungen (Teil 1 ✅, Rest offen)
+- ✅ **Teil 1:** Upload (PDF/PNG/JPG/WebP/XML, max. 15 MB, SHA-256-Duplikaterkennung) oder manuelle Erfassung,
+  interne Nr. `ER-0001` (Nummernkreis INCOMING_INVOICE), Erfassung (Lieferant aus Kontakten oder Freitext,
+  Rechnungs-Nr./-Datum/Leistung/Fälligkeit, Netto/USt/Brutto, § 13b), Projektzuordnung, Workflow
+  RECEIVED → APPROVED (Freigabe sperrt Beträge; nur Projekt/Beschreibung änderbar) / REJECTED (Grund) → PAID;
+  Freigabe zurücknehmen/Wieder öffnen; Prüfung (`incoming-invoice-validation.ts`, 6 Tests) blockiert Freigabe bei
+  fehlenden Angaben; Doppelerfassung (gleicher Lieferant + Rechnungs-Nr.) → Warnung/409 bei Freigabe;
+  Originale liegen in `backend/storage/incoming-invoices/<companyId>/` (NICHT öffentlich, nur per API
+  `GET incoming-invoices/:id/file`); Vorschau (PDF/Bild) im Dialog; nur OWNER/ADMIN; Menü „Eingangsrechnungen“.
+  Seed: 6 Rechnungen in allen Status mit generierten PDFs. Tests: e2e smoke 105, responsive 57, jest 83.
+- ⬜ **Offen:** Mail-Eingang (Infrastruktur-Entscheidung: Postfach/IMAP oder Inbound-Webhook), Eingangsrechnungen-Tab
+  im Projekt (Kostenübersicht/Marge), Lesen von XRechnung/ZUGFeRD (Block 7), Skonto, Zahlungsexport (SEPA/DATEV),
+  Upload/Foto für Bauleiter (MEMBER) mit Freigabe durch Büro, Mehr-Augen-Prinzip/Freigabegrenzen.
 
 ### ⬜ Block 7 — E-Rechnung und Compliance
 XRechnung und ZUGFeRD lesen und erzeugen, GoBD (Unveränderbarkeit, Verfahrensdokumentation,
@@ -287,7 +297,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 3. ~~Projekte (inkl. Berichte)~~ ✅
 4. ~~Angebote (Editor, PDF, Übernahme, GAEB)~~ ✅
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1–4 ✅ (ausstellen, Abschlag/Schluss, Storno/Zahlungen); Mahnwesen ✅, Datenmodell EN16931-kompatibel halten
-6. Eingangsrechnungen
+6. Eingangsrechnungen — Teil 1 ✅ (Upload, Erfassung, Freigabe, Projektzuordnung); Mail-Eingang offen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
    vor dem ersten zahlenden Kunden

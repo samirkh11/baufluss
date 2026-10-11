@@ -2,6 +2,7 @@ import {
   DocumentStatus,
   DocumentType,
   DunningLevel,
+  IncomingInvoiceStatus,
   PaymentMethod,
   PaymentStatus,
   Project,
@@ -78,6 +79,13 @@ export const DUNNING_LEVEL: Record<DunningLevel, { label: string; color: string 
   FIRST: { label: '1. Mahnung', color: 'gold' },
   SECOND: { label: '2. Mahnung', color: 'orange' },
   FINAL: { label: 'Letzte Mahnung', color: 'red' },
+};
+
+export const INCOMING_STATUS: Record<IncomingInvoiceStatus, { label: string; color: string }> = {
+  RECEIVED: { label: 'Zu prüfen', color: 'gold' },
+  APPROVED: { label: 'Freigegeben', color: 'blue' },
+  REJECTED: { label: 'Abgelehnt', color: 'red' },
+  PAID: { label: 'Bezahlt', color: 'green' },
 };
 
 export const PAYMENT_METHOD: Record<PaymentMethod, { label: string }> = {

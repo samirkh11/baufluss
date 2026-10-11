@@ -13,6 +13,7 @@ import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { QuotesPage } from './pages/QuotesPage';
 import { OrdersPage } from './pages/OrdersPage';
+import { IncomingInvoicesPage } from './pages/IncomingInvoicesPage';
 import { InvoicesPage } from './pages/InvoicesPage';
 import { TimePage } from './pages/TimePage';
 import { DocumentEditorPage } from './pages/DocumentEditorPage';
@@ -32,6 +33,7 @@ export function App() {
           <Route path="/quotes/:id" element={<DocumentEditorPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/orders/:id" element={<DocumentEditorPage />} />
+          <Route path="/incoming-invoices" element={<IncomingInvoicesPage />} />
           <Route path="/invoices" element={<InvoicesPage />} />
           <Route path="/invoices/:id" element={<DocumentEditorPage />} />
           <Route path="/credit-notes/:id" element={<DocumentEditorPage />} />

@@ -96,6 +96,12 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
   await page.waitForTimeout(500);
   check(`${tag} open items: fits the screen width`, await fitsWidth(page));
   await page.screenshot({ path: shots + `r-${tag}-open-items.png` });
+  await visit(page, 'incoming-invoices', '/incoming-invoices', tag, 'tbody tr.ant-table-row');
+  await page.locator('tbody tr.ant-table-row').first().click();
+  await page.waitForSelector('.ant-modal-title');
+  await page.waitForTimeout(600);
+  check(`${tag} incoming invoice dialog fits the screen`, await fitsWidth(page));
+  await page.keyboard.press('Escape');
   await visit(page, 'contacts', '/contacts', tag, 'tbody tr.ant-table-row');
   await visit(page, 'catalog', '/catalog', tag, 'tbody tr.ant-table-row');
   await visit(page, 'time', '/time?week=2026-10-05', tag, '[data-testid=week-total]');

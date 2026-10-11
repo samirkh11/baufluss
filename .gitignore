@@ -29,3 +29,6 @@ backend/prisma/*.db
 *.tsbuildinfo
 frontend/vite.config.js
 frontend/vite.config.d.ts
+
+# Original incoming-invoice files (business data, not source)
+backend/storage/

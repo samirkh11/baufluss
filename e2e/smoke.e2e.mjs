@@ -332,7 +332,7 @@ await invoicePdf.close();
 await page.getByRole('menuitem', { name: 'Aufträge' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
 check('orders list shows 3 orders', (await page.locator('tbody tr.ant-table-row').count()) === 3);
-await page.getByRole('menuitem', { name: 'Rechnungen' }).click();
+await page.getByRole('menuitem', { name: /(^|\s)Rechnungen$/ }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
 check('invoices list shows 8 invoices', (await page.locator('tbody tr.ant-table-row').count()) === 8);
 // an order cannot be created twice from the same quote
@@ -396,6 +396,7 @@ await page.waitForSelector('tbody tr.ant-table-row');
 await page.getByRole('link', { name: 'AB-00002' }).click();
 await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
 await page.getByRole('button', { name: 'Rechnung erstellen' }).click();
+await page.waitForTimeout(600);
 await page.getByRole('menuitem', { name: /Abschlagsrechnung/ }).click();
 await page.waitForSelector('.ant-modal:visible');
 await page.screenshot({ path: shots + '18-partial-dialog.png' });
@@ -412,6 +413,7 @@ await page.waitForSelector('text=Abrechnung');
 check('order shows the billing overview (30 % billed)', (await page.getByText('Abschlagsrechnung Nr. 1').count()) > 0 && (await page.locator('.ant-progress-text').first().innerText()).includes('30'));
 await page.screenshot({ path: shots + '19-order-billing.png' });
 await page.getByRole('button', { name: 'Rechnung erstellen' }).click();
+await page.waitForTimeout(600);
 await page.getByRole('menuitem', { name: 'Schlussrechnung' }).click();
 await page.waitForURL(/\/invoices\/.+/);
 await page.waitForSelector('h3:has-text("Schlussrechnung")');
@@ -426,6 +428,52 @@ await page.getByRole('button', { name: 'Ausstellen' }).first().click();
 await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
 await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
 check('final invoice issued (RE-00007)', await page.locator('h3', { hasText: 'Schlussrechnung RE-00007' }).isVisible());
+
+// ---- incoming invoices (Block 6, step 1)
+await page.getByRole('menuitem', { name: 'Eingangsrechnungen' }).click();
+await page.waitForSelector('tbody tr.ant-table-row');
+check('incoming invoices: 6 seeded rows', (await page.locator('tbody tr.ant-table-row').count()) === 6);
+check('incoming invoices: approved amount 3.379,60 € waits for payment', (await page.getByTestId('incoming-to-pay').innerText()).includes('3.379,60'));
+await page.screenshot({ path: shots + '30-incoming-list.png' });
+await page.locator('tr:has-text("ER-0003")').click();
+await page.waitForSelector('iframe[title=Beleg]');
+check('incoming invoice detail shows the original PDF and the §13b flag', (await page.locator('.ant-modal-title').innerText()).includes('§ 13b'));
+await page.getByTestId('incoming-approve').click();
+await page.waitForSelector('text=Beträge sind gesperrt');
+check('incoming invoice ER-0003 approved and locked', true);
+await page.screenshot({ path: shots + '31-incoming-detail.png' });
+await page.getByRole('button', { name: 'Schließen' }).click();
+check('list shows ER-0003 as "Freigegeben"', (await page.locator('tr:has-text("ER-0003")').innerText()).includes('Freigegeben'));
+// upload a new file, capture, approve
+const pdfFile = join(dirname(TEST_IMAGE), 'lieferant.pdf');
+writeFileSync(pdfFile, '%PDF-1.4\n% e2e incoming invoice ' + Date.now() + '\n%%EOF\n');
+await page.locator('input[type=file]').setInputFiles(pdfFile);
+await page.waitForSelector('.ant-modal-title:has-text("ER-0007")');
+check('upload creates ER-0007 in status "Zu prüfen"', (await page.locator('.ant-modal-title').innerText()).includes('Zu prüfen'));
+await page.getByTestId('incoming-approve').click();
+await page.waitForSelector('text=Zum Freigeben fehlt noch');
+check('approval of an incomplete invoice is refused with the missing items', true);
+await page.getByTestId('incoming-invoice-number').fill('E2E-100');
+await page.getByTestId('incoming-invoice-date').fill('2026-10-08');
+await page.getByTestId('incoming-net').fill('100');
+await page.getByTestId('incoming-vat').fill('19');
+check('gross is computed from net + VAT (119,00)', (await page.getByTestId('incoming-gross').inputValue()).includes('119'));
+await page.getByTestId('incoming-supplier').click({ force: true });
+await page.locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: 'Tondach' }).first().click();
+await page.getByTestId('incoming-project').click({ force: true });
+await page.locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: 'P-0002' }).first().click();
+await page.getByTestId('incoming-approve').click();
+await page.waitForSelector('text=Beträge sind gesperrt');
+check('captured upload approved with project assignment', true);
+await page.getByRole('button', { name: 'Als bezahlt markieren' }).click();
+await page.getByRole('button', { name: 'Bezahlt', exact: true }).click();
+await page.waitForSelector('.ant-alert:has-text("Bezahlt am")');
+check('approved invoice marked as paid', true);
+await page.getByRole('button', { name: 'Schließen' }).click();
+// same file again is rejected
+await page.locator('input[type=file]').setInputFiles(pdfFile);
+await page.waitForSelector('.ant-message-error:has-text("bereits hochgeladen")');
+check('uploading the same file twice is refused', true);
 
 // ---- time tracking (Block 10), office view
 await page.getByRole('menuitem', { name: 'Zeiten' }).click();
@@ -530,7 +578,7 @@ await page.waitForSelector('tbody tr.ant-table-row');
 check('worker sees no "Nutzer einladen" button', (await page.getByRole('button', { name: 'Nutzer einladen' }).count()) === 0);
 
 // the invalid-GAEB-file and overlapping-time checks above intentionally provoke HTTP 400/403/409 (also the rejected issuing of an incomplete invoice)
-const real = errors.filter((e) => !/favicon|DevTools|import-gaeb|finalize|400 \(Bad Request\)|409 \(Conflict\)|HTTP 409|HTTP 403|403 \(Forbidden\)/i.test(e));
+const real = errors.filter((e) => !/favicon|DevTools|import-gaeb|finalize|circular references|incoming-invoices\/[^ ]*\/approve|400 \(Bad Request\)|409 \(Conflict\)|HTTP 409|HTTP 403|403 \(Forbidden\)/i.test(e));
 check('no browser console errors', real.length === 0, real.slice(0, 3).join(' | '));
 await browser.close();
 console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed`);
