@@ -1,7 +1,7 @@
 # E2E-Tests (Playwright)
 
 Klickt die echte Oberfläche in einem Headless-Chromium durch (Login, Projekte, Berichte, Fotos,
-Kontakte, Katalog, Nutzer, Angebote mit Editor/PDF, Rechte eines Arbeiters) und meldet jede Prüfung als PASS/FAIL.
+Kontakte, Katalog, Nutzer, Angebote mit Editor/PDF/GAEB, Zeiterfassung, Rechte eines Arbeiters) und meldet jede Prüfung als PASS/FAIL.
 
 ```bash
 # einmalig

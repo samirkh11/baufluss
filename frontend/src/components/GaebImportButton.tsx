@@ -46,7 +46,7 @@ export function GaebImportButton({ projectId }: GaebImportButtonProps) {
       setPickerOpen(false);
       navigate(documentPath(result.document.type, result.document.id));
     },
-    onError: (error) => message.error(apiErrorMessage(error, 'Der GAEB-Import ist fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Der GAEB-Import ist fehlgeschlagen.')),
   });
 
   const upload = (project: string | undefined) => (

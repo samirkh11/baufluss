@@ -26,7 +26,7 @@ export function ImageGallery({ images, maxImages = 10, onAdd, onRemove }: ImageG
     setBusy(true);
     queue.current = queue.current
       .then(action)
-      .catch((error) => message.error(apiErrorMessage(error, 'Bild konnte nicht gespeichert werden.')))
+      .catch((error) => void message.error(apiErrorMessage(error, 'Bild konnte nicht gespeichert werden.')))
       .finally(() => setBusy(false));
   }
 

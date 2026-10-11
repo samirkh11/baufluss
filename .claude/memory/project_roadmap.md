@@ -163,27 +163,26 @@ laufende Projekte, aktuelle Berichte, fällige Mahnungen, Mitarbeitereinsatz.
 - Die Startseite (`DashboardPage`) ist bis dahin ein einfacher Platzhalter.
 Zeitpunkt: nach Block 5 (dann gibt es Geld-Kennzahlen), spätestens vor dem ersten Kunden.
 
-### ⬜ Block 10 — Zeiterfassung (Wunsch von Volker 2026-10-11)
-Alle Mitarbeiter erfassen ihre Arbeitszeiten und ordnen sie Projekten zu; daraus ergibt sich die
-**gesamte Arbeitszeit pro Projekt** (Nachkalkulation, Soll/Ist gegen Angebotsstunden).
-**Anforderungen/Ideen:**
-- Mobile-first (Baustelle!): Start/Stop-Stoppuhr UND manuelle Einträge (Datum, Von/Bis, Pause,
-  Projekt, Tätigkeit/optional Leistung aus dem Katalog, Notiz). **Offline-fähig** (PWA mit
-  Warteschlange), weil auf Baustellen oft schlechter Empfang ist — früh klären.
-- Rechte: Mitarbeiter sehen/ändern nur eigene Einträge (Frist für Korrekturen); Büro (OWNER/ADMIN)
-  sieht alle, kann korrigieren und Wochen/Monate freigeben/sperren.
-- Auswertungen: Stunden je Projekt (gesamt, je Mitarbeiter, je Zeitraum), Monatsübersicht je
-  Mitarbeiter, CSV-Export (später Lohn/DATEV). Interner Stundensatz je Mitarbeiter (nur Büro
-  sichtbar) für Projektkosten/Nachkalkulation.
-- Recht: Pflicht zur Arbeitszeiterfassung (BAG-Beschluss 2022, § 16 ArbZG: Aufzeichnung und
-  mind. 2 Jahre Aufbewahrung), Pausen-/Höchstarbeitszeit-Hinweise, Beschäftigtendatenschutz
-  (§ 26 BDSG, DSGVO). Im Detail vor der Umsetzung prüfen.
-- Datenmodell-Idee: `TimeEntry(companyId, userId, projectId?, date, startTime, endTime,
-  breakMinutes, durationMinutes, activity, note, status)`. Mitarbeiterstammdaten (Eintritt,
-  Wochenstunden, Urlaubstage, Stundensatz) als Erweiterung von `User`/`EmployeeProfile`,
-  gemeinsam mit Block 11.
-- Abhängigkeit: Projekte (Block 3 ✅). Liefert später Dashboard-Widgets (Block 9: Stunden je
-  Projekt, wer ist heute wo).
+### ✅ Block 10 — Zeiterfassung (vorgezogen vor Block 5, fertig 2026-10-11)
+Backend `time-entries/`, Frontend `TimePage` (Menü „Zeiten", für ALLE Rollen), `TimerCard`,
+`TimeEntryModal`, `TimeReport`, `ProjectTimePanel` (Tab „Zeiten" im Projekt).
+- **Stoppuhr** (Start/Stopp, Server misst in Europe/Berlin, nur ein laufender Eintrag je Mitarbeiter)
+  und **manuelle Einträge** (Von–Bis + Pause oder nur Dauer). Zuordnung zu Projekt oder „Intern".
+  Wochenansicht mit Tagessummen (Deep-Link `/time?week=YYYY-MM-DD`), Warnung > 10 h/Tag (ArbZG).
+- Regeln (serverseitig): keine Zukunft, keine Überschneidungen, Ende > Beginn, Mitarbeiter sehen/
+  ändern nur eigene Zeiten; **Freigabe** durch OWNER/ADMIN sperrt für den Mitarbeiter alle Einträge
+  bis zum letzten freigegebenen Tag (Büro darf weiter korrigieren, Freigabe aufhebbar); Mitarbeiter
+  mit Zeiten sind nicht löschbar (nur deaktivieren, Aufbewahrung), Projekte mit Zeiten ebenso.
+- **Auswertung** (nur Büro): Stunden je Projekt/Mitarbeiter für einen Zeitraum, Plan-Stunden (Positionen
+  mit Einheit „h" aus Aufträgen, sonst angenommenen Angeboten) mit Auslastung, interne Personalkosten
+  (`User.hourlyRate`, nur für OWNER/ADMIN sichtbar/editierbar), CSV-Export (Excel-DE, Semikolon+BOM),
+  Zeitraum freigeben/Freigabe aufheben. Projekt-Tab: Gesamtstunden + je Mitarbeiter + Einträge.
+- Zeiten sind Minuten seit Mitternacht (`startMinute/endMinute`) + `durationMinutes`; Hilfsfunktionen
+  mit Jest-Tests in `time-entries/time-utils.ts`.
+- **Noch offen / Ideen:** Offline-Fähigkeit (PWA + Warteschlange) für schlechten Baustellenempfang,
+  Tätigkeiten aus dem Leistungskatalog, Soll-Arbeitszeit/Überstundenkonto, Abwesenheiten (Block 11),
+  Zuschläge/Lohnarten, DATEV-Lohn-Export, Erinnerung bei vergessener Stoppuhr (aktuell wird eine über
+  Nacht laufende Stoppuhr beim Stoppen auf 23:59 begrenzt), Geofencing/Foto-Nachweis (Datenschutz!).
 
 ### ⬜ Block 11 — Urlaub / Abwesenheiten (Wunsch von Volker 2026-10-11)
 Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die freigegeben werden müssen**.
@@ -216,9 +215,8 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
    vor dem ersten zahlenden Kunden
 9. Dashboard mit Widgets (ab Block 5 sinnvoll, Vorgaben siehe Block 9)
-10. Zeiterfassung und 11. Urlaub — Zeitpunkt mit Volker abstimmen (Zeiterfassung ist für die
-    Baustellen-Mitarbeiter besonders nützlich und könnte vor Block 6 gezogen werden; beide teilen
-    sich die Mitarbeiterstammdaten)
+10. ~~Zeiterfassung~~ ✅ (auf Wunsch vorgezogen) und 11. Urlaub — beide teilen sich die
+    Mitarbeiterstammdaten (Eintritt, Wochenstunden, Urlaubstage kommen mit Block 11)
 
 **Why diese Reihenfolge:** Jeder Block baut auf dem vorherigen auf (Artikelstamm → Angebot →
 Rechnung). E-Rechnung zuletzt, aber mit Vorwirkung auf das Rechnungsschema in Block 5, damit keine

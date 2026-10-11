@@ -126,7 +126,7 @@ export class ProjectsService {
     } catch (error) {
       // P2003 = foreign key violation: documents (quotes, invoices, ...) still reference the project.
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
-        throw new ConflictException('Das Projekt enthält Dokumente (Angebote/Rechnungen) und kann nicht gelöscht werden.');
+        throw new ConflictException('Das Projekt enthält Dokumente (Angebote/Rechnungen) oder Zeiteinträge und kann nicht gelöscht werden.');
       }
       throw error;
     }

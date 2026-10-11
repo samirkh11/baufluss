@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { CompanyRole } from '@prisma/client';
 
 export class CreateUserDto {
@@ -24,4 +24,13 @@ export class CreateUserDto {
   @IsOptional()
   @IsEnum(CompanyRole)
   role?: CompanyRole;
+
+  @ApiPropertyOptional({
+    example: 28.5,
+    description: 'Internal hourly cost rate (EUR), visible to OWNER/ADMIN only',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  hourlyRate?: number;
 }

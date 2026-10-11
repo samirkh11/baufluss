@@ -2,6 +2,7 @@ import { ReactNode, useEffect, useState } from 'react';
 import { Button, Drawer, Layout, Menu, Typography } from 'antd';
 import {
   AuditOutlined,
+  ClockCircleOutlined,
   ContactsOutlined,
   DashboardOutlined,
   FileDoneOutlined,
@@ -26,6 +27,7 @@ const { Header, Sider, Content } = Layout;
 const MENU_ITEMS: { key: string; icon: ReactNode; label: ReactNode; officeOnly?: boolean }[] = [
   { key: '/', icon: <DashboardOutlined />, label: <Link to="/">Übersicht</Link> },
   { key: '/projects', icon: <ProjectOutlined />, label: <Link to="/projects">Projekte</Link> },
+  { key: '/time', icon: <ClockCircleOutlined />, label: <Link to="/time">Zeiten</Link> },
   { key: '/quotes', icon: <FileDoneOutlined />, label: <Link to="/quotes">Angebote</Link>, officeOnly: true },
   { key: '/orders', icon: <SolutionOutlined />, label: <Link to="/orders">Aufträge</Link>, officeOnly: true },
   {

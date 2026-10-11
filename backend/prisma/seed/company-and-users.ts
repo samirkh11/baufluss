@@ -8,12 +8,12 @@ export const DEMO_OWNER_EMAIL = 'demo@meisterwerk.local';
 
 // Boss + office clerk + four roofers, as in the agreed demo scenario.
 const USERS = [
-  { firstName: 'Thomas', lastName: 'Schmidt', email: DEMO_OWNER_EMAIL, role: CompanyRole.OWNER }, // Chef
-  { firstName: 'Sabine', lastName: 'Keller', email: 'buero@dachdecker-schmidt.example', role: CompanyRole.ADMIN }, // Bürokraft
-  { firstName: 'Jürgen', lastName: 'Hoffmann', email: 'j.hoffmann@dachdecker-schmidt.example', role: CompanyRole.MEMBER },
-  { firstName: 'Dennis', lastName: 'Vogel', email: 'd.vogel@dachdecker-schmidt.example', role: CompanyRole.MEMBER },
-  { firstName: 'Mehmet', lastName: 'Yilmaz', email: 'm.yilmaz@dachdecker-schmidt.example', role: CompanyRole.MEMBER },
-  { firstName: 'Lukas', lastName: 'Bauer', email: 'l.bauer@dachdecker-schmidt.example', role: CompanyRole.MEMBER },
+  { firstName: 'Thomas', lastName: 'Schmidt', email: DEMO_OWNER_EMAIL, role: CompanyRole.OWNER, hourlyRate: 45 }, // Chef
+  { firstName: 'Sabine', lastName: 'Keller', email: 'buero@dachdecker-schmidt.example', role: CompanyRole.ADMIN, hourlyRate: 24 }, // Bürokraft
+  { firstName: 'Jürgen', lastName: 'Hoffmann', email: 'j.hoffmann@dachdecker-schmidt.example', role: CompanyRole.MEMBER, hourlyRate: 28.5 },
+  { firstName: 'Dennis', lastName: 'Vogel', email: 'd.vogel@dachdecker-schmidt.example', role: CompanyRole.MEMBER, hourlyRate: 26 },
+  { firstName: 'Mehmet', lastName: 'Yilmaz', email: 'm.yilmaz@dachdecker-schmidt.example', role: CompanyRole.MEMBER, hourlyRate: 25 },
+  { firstName: 'Lukas', lastName: 'Bauer', email: 'l.bauer@dachdecker-schmidt.example', role: CompanyRole.MEMBER, hourlyRate: 22 },
 ];
 
 const NUMBER_SEQUENCES = [

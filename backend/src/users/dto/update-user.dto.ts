@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsBoolean, IsEmail, IsEnum, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsBoolean, IsEmail, IsEnum, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
 import { CompanyRole } from '@prisma/client';
 
 export class UpdateUserDto {
@@ -8,7 +8,10 @@ export class UpdateUserDto {
   @IsEmail()
   email?: string;
 
-  @ApiPropertyOptional({ minLength: 8, description: 'Sets a new password (admin reset); omit to keep the current one' })
+  @ApiPropertyOptional({
+    minLength: 8,
+    description: 'Sets a new password (admin reset); omit to keep the current one',
+  })
   @IsOptional()
   @IsString()
   @MinLength(8)
@@ -33,4 +36,13 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isActive?: boolean;
+
+  @ApiPropertyOptional({
+    example: 28.5,
+    description: 'Internal hourly cost rate (EUR), visible to OWNER/ADMIN only',
+  })
+  @IsOptional()
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(0)
+  hourlyRate?: number;
 }

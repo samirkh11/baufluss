@@ -68,6 +68,7 @@ meisterwerk/
 │       ├── catalog/    Leistungs- und Artikelstamm
 │       ├── projects/   Projekte, Team
 │       ├── reports/    Berichte mit Fotos
+│       ├── time-entries/ Zeiterfassung, Auswertung, Freigabe
 │       ├── documents/  Angebote, Aufträge, Rechnungsentwürfe, Berechnung, PDF, GAEB
 │       └── common/     Prisma-Service, Guards, Decorators, Datei-Uploads
 ├── frontend/          React-SPA
@@ -85,6 +86,8 @@ meisterwerk/
 - Leistungs- und Artikelstamm (Preise, USt, Einheiten)
 - Bilder: 1 Bild je Kontakt/Mitarbeiter, mehrere je Leistung/Artikel
 - Projekte (Status, Kunde, Baustelle, Team) mit Projektübersicht
+- Zeiterfassung: Stoppuhr und manuelle Zeiten je Projekt, Wochenansicht, Freigabe durch das Büro,
+  Auswertung (Stunden, Plan/Ist, interne Kosten), CSV-Export
 - Berichte (Bautagebuch, Mängel, Abnahme, ...) mit Fotos, je Projekt und projektübergreifend
 - Angebote: Editor mit Titeln/Positionen/Optionalpositionen, Preise aus dem Stamm, lückenlose Nummern,
   Sperre nach Ausstellung, PDF mit Briefpapier

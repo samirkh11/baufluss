@@ -299,6 +299,83 @@ await page.locator('.ant-tabs-tabpane-active input[type=file]').setInputFiles(ba
 await page.waitForSelector('.ant-message-error');
 check('invalid GAEB file shows an error and stays on the page', (await page.locator('.ant-message-error').innerText()).includes('GAEB') && /\/projects\//.test(page.url()));
 
+// ---- time tracking (Block 10), office view
+await page.getByRole('menuitem', { name: 'Zeiten' }).click();
+await page.waitForSelector('[data-testid=week-total]');
+check('time page shows the stopwatch card', await page.getByRole('button', { name: 'Start' }).isVisible());
+await page.goto(BASE + '/time?week=2026-10-05');
+await page.waitForSelector('[data-testid=time-entry]');
+check('own week 05.10.: chef booked 2:00 Std.', (await page.getByTestId('week-total').innerText()).includes('2:00'));
+await page.locator('.ant-select', { hasText: 'Meine Zeiten' }).click();
+await page.locator('.ant-select-dropdown:visible .ant-select-item-option', { hasText: 'Alle Mitarbeiter' }).click();
+await page.waitForFunction(() => document.querySelector('[data-testid=week-total]')?.textContent?.includes('138:00'));
+check('all employees, week 05.10.: 138:00 Std.', true);
+await page.screenshot({ path: shots + '14-time-week.png' });
+// manual entry for a Saturday, then delete it again
+await page.getByRole('button', { name: 'Zeit erfassen' }).click();
+const timeModal = page.locator('.ant-modal:visible');
+await timeModal.getByLabel('Datum').fill('2026-10-10');
+await timeModal.getByLabel('Beginn').fill('08:00');
+await timeModal.getByLabel('Ende').fill('10:30');
+await timeModal.getByLabel('Pause (Min.)').fill('0');
+await timeModal.getByLabel('Tätigkeit').fill('E2E-Test-Eintrag');
+await timeModal.getByRole('button', { name: 'Speichern' }).click();
+await page.waitForSelector('text=E2E-Test-Eintrag');
+check('manual time entry saved (week 140:30 Std.)', (await page.getByTestId('week-total').innerText()).includes('140:30'));
+// overlapping entry is rejected
+await page.getByRole('button', { name: 'Zeit erfassen' }).click();
+await timeModal.getByLabel('Datum').fill('2026-10-10');
+await timeModal.getByLabel('Beginn').fill('09:00');
+await timeModal.getByLabel('Ende').fill('10:00');
+await timeModal.getByLabel('Pause (Min.)').fill('0');
+await timeModal.getByRole('button', { name: 'Speichern' }).click();
+await page.waitForSelector('.ant-message-error');
+check('overlapping time entry is rejected', (await page.locator('.ant-message-error').innerText()).includes('überschneidet'));
+// (the error toast can cover the dialog's close icon, so use the Cancel button)
+await timeModal.getByRole('button', { name: 'Abbrechen' }).click();
+await page.waitForTimeout(600);
+await page.locator('[data-testid=time-entry]', { hasText: 'E2E-Test-Eintrag' }).getByRole('button', { name: 'Löschen' }).click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'OK' }).click();
+await page.waitForFunction(() => !document.body.innerText.includes('E2E-Test-Eintrag'));
+check('time entry deleted', true);
+// stopwatch
+await page.goto(BASE + '/time');
+await page.getByPlaceholder('Tätigkeit (optional)').fill('E2E-Timer');
+await page.getByRole('button', { name: 'Start' }).click();
+await page.waitForSelector('text=Zeiterfassung läuft');
+check('stopwatch running', await page.getByTestId('timer-elapsed').isVisible());
+await page.screenshot({ path: shots + '15-timer-running.png' });
+await page.getByRole('button', { name: 'Stopp' }).click();
+await page.waitForSelector('.ant-message-success:has-text("Gestoppt")');
+await page.waitForSelector('text=E2E-Timer');
+check('stopwatch stopped and the entry is listed', true);
+// evaluation
+await page.getByRole('tab', { name: 'Auswertung' }).click();
+await page.getByLabel('Von', { exact: true }).fill('2026-09-01');
+await page.getByLabel('Bis', { exact: true }).fill('2026-10-11');
+await page.waitForSelector('text=452,0');
+check('evaluation: P-0001 has 452,0 Std.', true);
+check('evaluation: P-0002 shows planned hours 24', (await page.locator('tr:has-text("P-0002")').first().innerText()).includes('24'));
+await page.screenshot({ path: shots + '16-time-report.png' });
+await page.getByRole('button', { name: 'Zeitraum freigeben' }).click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'Freigeben' }).click();
+await page.waitForSelector('.ant-message-success:has-text("freigegeben")');
+await page.getByRole('button', { name: 'Freigabe aufheben' }).click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'OK' }).click();
+await page.waitForSelector('.ant-message-success:has-text("aufgehoben")');
+check('period can be released and reopened', true);
+const [csv] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'CSV-Export' }).click()]);
+const csvText = readFileSync(await csv.path(), 'utf8');
+check('CSV export has the expected header', csv.suggestedFilename().endsWith('.csv') && csvText.includes('Datum;Mitarbeiter;Projekt-Nr.'), csv.suggestedFilename());
+// project tab
+await page.goto(BASE + '/projects');
+await page.waitForSelector('tbody tr.ant-table-row');
+await page.getByRole('link', { name: 'Dachsanierung MFH Hirschstraße 14' }).click();
+await page.getByRole('tab', { name: 'Zeiten' }).click();
+await page.waitForSelector('text=Gebuchte Arbeitszeit');
+check('project tab "Zeiten" shows 452,0 Std.', (await page.getByText('452,0').count()) > 0);
+await page.screenshot({ path: shots + '17-project-time.png' });
+
 // ---- worker view: no admin controls
 await page.getByTitle('Abmelden').click();
 await page.getByLabel('E-Mail').fill('l.bauer@dachdecker-schmidt.example');
@@ -310,10 +387,22 @@ check('worker sees no "Neues Projekt" button', (await page.getByRole('button', {
 await page.getByRole('menuitem', { name: 'Nutzer & Rollen' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
 check('worker sees no document menu items', (await page.getByRole('menuitem', { name: /Angebote|Aufträge|Rechnungen/ }).count()) === 0);
+await page.goto(BASE + '/time?week=2026-10-05');
+await page.waitForSelector('[data-testid=week-total]');
+check('worker sees the time page without evaluation tab and employee filter', (await page.getByRole('tab', { name: 'Auswertung' }).count()) === 0 && (await page.locator('.ant-select', { hasText: 'Meine Zeiten' }).count()) === 0);
+check('worker sees only own times (2:00 Std. in week 05.10.)', (await page.getByTestId('week-total').innerText()).includes('2:00'));
+await page.getByRole('button', { name: 'Zeit erfassen' }).click();
+await page.locator('.ant-modal:visible').getByLabel('Datum').fill('2026-08-10');
+await page.locator('.ant-modal:visible').getByRole('button', { name: 'Speichern' }).click();
+await page.waitForSelector('.ant-message-error');
+check('worker cannot book into a released period', (await page.locator('.ant-message-error').innerText()).includes('freigegeben'));
+await page.locator('.ant-modal:visible .ant-modal-close').click();
+await page.getByRole('menuitem', { name: 'Nutzer & Rollen' }).click();
+await page.waitForSelector('tbody tr.ant-table-row');
 check('worker sees no "Nutzer einladen" button', (await page.getByRole('button', { name: 'Nutzer einladen' }).count()) === 0);
 
-// the invalid-GAEB-file check above intentionally provokes one HTTP 400
-const real = errors.filter((e) => !/favicon|DevTools|import-gaeb|400 \(Bad Request\)/i.test(e));
+// the invalid-GAEB-file and overlapping-time checks above intentionally provoke HTTP 400/403/409
+const real = errors.filter((e) => !/favicon|DevTools|import-gaeb|400 \(Bad Request\)|409 \(Conflict\)|HTTP 409|HTTP 403|403 \(Forbidden\)/i.test(e));
 check('no browser console errors', real.length === 0, real.slice(0, 3).join(' | '));
 await browser.close();
 console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed`);

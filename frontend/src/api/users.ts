@@ -7,6 +7,8 @@ export interface CreateUserPayload {
   firstName: string;
   lastName: string;
   role?: 'OWNER' | 'ADMIN' | 'MEMBER';
+  // Internal hourly cost rate (EUR); null clears it on update
+  hourlyRate?: number | null;
 }
 
 export async function listUsers(): Promise<CompanyUser[]> {

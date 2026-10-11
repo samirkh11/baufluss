@@ -19,6 +19,7 @@ import { deleteProject, getProject } from '../api/projects';
 import { useAuth } from '../auth/AuthContext';
 import { ProjectFormModal } from '../components/ProjectFormModal';
 import { DocumentsPanel } from '../components/DocumentsPanel';
+import { ProjectTimePanel } from '../components/ProjectTimePanel';
 import { ReportsPanel } from '../components/ReportsPanel';
 import { apiErrorMessage, assetUrl } from '../utils/assets';
 import { customerName, DOCUMENT_TYPE_PLURAL, formatDate, PROJECT_STATUS, siteAddress } from '../utils/labels';
@@ -47,7 +48,7 @@ export function ProjectDetailPage() {
       queryClient.invalidateQueries({ queryKey: ['projects'] });
       navigate('/projects');
     },
-    onError: (error) => message.error(apiErrorMessage(error, 'Löschen fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Löschen fehlgeschlagen.')),
   });
 
   if (isLoading) {
@@ -132,6 +133,8 @@ export function ProjectDetailPage() {
             label: `Berichte (${project._count.reports})`,
             children: <ReportsPanel projectId={project.id} />,
           },
+          // Everyone sees the time booked on the project; employees only their own entries.
+          { key: 'time', label: 'Zeiten', children: <ProjectTimePanel projectId={project.id} /> },
         ]}
       />
 

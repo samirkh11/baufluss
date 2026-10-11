@@ -73,6 +73,8 @@ const QUOTES: SeedQuote[] = [
       { kind: 'heading', name: 'Dachentwässerung' },
       { kind: 'catalog', sku: 'L-111', quantity: 22 },
       { kind: 'catalog', sku: 'A-203', quantity: 22 },
+      { kind: 'heading', name: 'Regiearbeiten' },
+      { kind: 'catalog', sku: 'L-101', quantity: 24, description: 'Stundenlohnarbeiten nach Aufwand (Planwert).' },
     ],
   },
   {

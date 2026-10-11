@@ -43,6 +43,7 @@ export interface CompanyUser {
   role: CompanyRole;
   isActive: boolean;
   imagePath: string | null;
+  hourlyRate?: string | null; // internal rate, only sent to OWNER/ADMIN
   createdAt: string;
 }
 
@@ -224,4 +225,44 @@ export interface DocumentRef {
   type: DocumentType;
   number: string | null;
   status: DocumentStatus;
+}
+
+export interface TimeEntry {
+  id: string;
+  userId: string;
+  user: { id: string; firstName: string; lastName: string };
+  projectId: string | null;
+  project: { id: string; number: string; name: string } | null;
+  date: string; // ISO timestamp at UTC midnight
+  startTime: string | null; // "HH:MM"
+  endTime: string | null;
+  breakMinutes: number;
+  durationMinutes: number;
+  isRunning: boolean;
+  activity: string | null;
+  note: string | null;
+  status: 'OPEN' | 'APPROVED';
+}
+
+export interface TimeSummaryUser {
+  userId: string;
+  user: { id: string; firstName: string; lastName: string };
+  minutes: number;
+  cost?: number; // OWNER/ADMIN only
+}
+
+export interface TimeSummary {
+  from: string;
+  to: string;
+  totalMinutes: number;
+  totalCost?: number; // OWNER/ADMIN only
+  byProject: {
+    projectId: string | null; // null = internal time
+    project: { id: string; number: string; name: string } | null;
+    minutes: number;
+    cost?: number;
+    plannedHours?: number | null;
+    byUser: TimeSummaryUser[];
+  }[];
+  byUser: TimeSummaryUser[];
 }

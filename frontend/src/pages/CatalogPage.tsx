@@ -70,7 +70,7 @@ export function CatalogPage() {
       closeModal();
       refresh();
     },
-    onError: (error) => message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
   });
 
   const archiveMutation = useMutation({

@@ -52,7 +52,7 @@ export function ProjectFormModal({ open, project, onClose, onSaved }: ProjectFor
       message.success('Projekt gespeichert.');
       onSaved(saved);
     },
-    onError: (error) => message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
   });
 
   // Cleared optional fields are sent as null on update (removes the value) and omitted on create.

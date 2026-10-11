@@ -34,7 +34,7 @@ export class UsersController {
 
   @Get()
   findAll(@CurrentUser() user: AuthenticatedUser) {
-    return this.usersService.findAll(user.companyId);
+    return this.usersService.findAll(user.companyId, user.role === CompanyRole.OWNER || user.role === CompanyRole.ADMIN);
   }
 
   @Post()

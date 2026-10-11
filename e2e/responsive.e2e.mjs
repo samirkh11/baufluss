@@ -87,6 +87,12 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
   await visit(page, 'invoices', '/invoices', tag, 'tbody tr.ant-table-row');
   await visit(page, 'contacts', '/contacts', tag, 'tbody tr.ant-table-row');
   await visit(page, 'catalog', '/catalog', tag, 'tbody tr.ant-table-row');
+  await visit(page, 'time', '/time?week=2026-10-05', tag, '[data-testid=week-total]');
+  await page.getByRole('tab', { name: 'Auswertung' }).click();
+  await page.waitForSelector('text=Stunden je Projekt');
+  await page.waitForTimeout(500);
+  check(`${tag} time evaluation: fits the screen width`, await fitsWidth(page));
+  await page.screenshot({ path: shots + `r-${tag}-time-report.png` });
   await visit(page, 'company', '/company', tag, 'form');
   await visit(page, 'users', '/users', tag, 'tbody tr.ant-table-row');
 
@@ -153,6 +159,28 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
   check('worker (phone): created a report and attached a photo', true);
   await page.screenshot({ path: shots + 'r-phone-report-photo.png' });
   check('worker (phone): report dialog fits the screen', await page.evaluate(() => { const r = document.querySelector('.ant-modal-content').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth + 1; }));
+  await page.context().close();
+}
+
+// phone: a worker uses the stopwatch and books time manually
+{
+  const page = await newPage({ width: 390, height: 844 }, true);
+  await login(page, 'm.yilmaz@dachdecker-schmidt.example');
+  await page.getByRole('button', { name: 'Menü' }).click();
+  await page.getByRole('menuitem', { name: 'Zeiten' }).click();
+  await page.waitForSelector('[data-testid=week-total]');
+  await page.getByRole('button', { name: 'Start' }).click();
+  await page.waitForSelector('text=Zeiterfassung läuft');
+  check('worker (phone): stopwatch started', true);
+  check('worker (phone): time page fits the screen width', await fitsWidth(page));
+  await page.screenshot({ path: shots + 'r-phone-timer.png' });
+  await page.getByRole('button', { name: 'Stopp' }).click();
+  await page.waitForSelector('.ant-message-success:has-text("Gestoppt")');
+  await page.getByRole('button', { name: 'Zeit erfassen' }).click();
+  await page.waitForSelector('.ant-modal:visible');
+  const box = await page.locator('.ant-modal:visible .ant-modal-content').boundingBox();
+  check('worker (phone): time dialog fits the screen', !!box && box.x >= 0 && box.x + box.width <= 391);
+  await page.screenshot({ path: shots + 'r-phone-time-dialog.png' });
   await page.context().close();
 }
 

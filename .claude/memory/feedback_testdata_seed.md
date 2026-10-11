@@ -21,7 +21,8 @@ können; Block 1+2 wurden deshalb nachträglich befüllt.
   Dateien) und legt sie neu an. Neue Tabellen mit `companyId` brauchen `onDelete: Cascade`;
   neue Upload-Pfade müssen in `removeExistingDemoTenants` mit aufgeräumt werden.
 - Bisher im Seed: Firma+Nutzer+Nummernkreise, Kontakte, Katalog, Projekte+Berichte+Fotos
-  (`projects.ts`), Angebote in allen Status plus daraus abgeleitete Aufträge und Rechnungen (`documents.ts`). Der Seed setzt die Nummernzähler
+  (`projects.ts`), Angebote in allen Status plus daraus abgeleitete Aufträge und Rechnungen (`documents.ts`), drei Wochen Arbeitszeiten der Crew mit Freigabe bis 30.9.
+  (`time-entries.ts`, Stundensätze am Mitarbeiter). Der Seed setzt die Nummernzähler
   (PROJECT/REPORT/QUOTE/ORDER/INVOICE) hinter die vergebenen Nummern.
 - Bilder im Seed: generierte SVGs über `seed/helpers.ts` (`writeSeedImage`), nichts Binäres
   committen.

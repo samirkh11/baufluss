@@ -1,4 +1,5 @@
 import { ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { deleteUploadedFile } from '../common/storage/uploads';
@@ -13,10 +14,12 @@ const PASSWORD_SALT_ROUNDS = 12;
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  findAll(companyId: string) {
+  // The internal hourly rate is only returned to OWNER/ADMIN; colleagues must not see each other's rates.
+  findAll(companyId: string, includeHourlyRate = false) {
     return this.prisma.user.findMany({
       where: { companyId },
       select: {
+        hourlyRate: includeHourlyRate,
         id: true,
         email: true,
         firstName: true,
@@ -45,6 +48,7 @@ export class UsersService {
         firstName: dto.firstName,
         lastName: dto.lastName,
         role: dto.role,
+        hourlyRate: dto.hourlyRate,
       },
     });
     const { passwordHash: _omit, ...safeUser } = user;
@@ -84,7 +88,16 @@ export class UsersService {
     if (actor.id === userId) {
       throw new ForbiddenException('Der eigene Zugang kann nicht gelöscht werden.');
     }
-    await this.prisma.user.delete({ where: { id: userId } });
+    try {
+      await this.prisma.user.delete({ where: { id: userId } });
+    } catch (error) {
+      // P2003 = foreign key violation: recorded working times must be kept (ArbZG), so the
+      // employee can only be deactivated.
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2003') {
+        throw new ConflictException('Der Mitarbeiter hat Zeiteinträge und kann nur deaktiviert werden.');
+      }
+      throw error;
+    }
     await deleteUploadedFile(user.imagePath);
   }
 
@@ -106,7 +119,7 @@ export class UsersService {
     }
     const user = await this.prisma.user.update({ where: { id: userId }, data: { imagePath } });
     await deleteUploadedFile(previous.imagePath);
-    const { passwordHash: _omit, ...safeUser } = user;
+    const { passwordHash: _omit, hourlyRate: _rate, ...safeUser } = user;
     return safeUser;
   }
 
@@ -114,7 +127,7 @@ export class UsersService {
     const previous = await this.ensureBelongsToCompany(companyId, userId);
     const user = await this.prisma.user.update({ where: { id: userId }, data: { imagePath: null } });
     await deleteUploadedFile(previous.imagePath);
-    const { passwordHash: _omit, ...safeUser } = user;
+    const { passwordHash: _omit, hourlyRate: _rate, ...safeUser } = user;
     return safeUser;
   }
 

@@ -1,5 +1,18 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Form, Input, Modal, Popconfirm, Select, Space, Switch, Table, Tag, message } from 'antd';
+import {
+  Button,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Switch,
+  Table,
+  Tag,
+  message,
+} from 'antd';
 import { useState } from 'react';
 import {
   createUser,
@@ -47,7 +60,13 @@ export function UsersPage() {
     form.resetFields();
     form.setFieldsValue(
       target
-        ? { firstName: target.firstName, lastName: target.lastName, email: target.email, role: target.role }
+        ? {
+            firstName: target.firstName,
+            lastName: target.lastName,
+            email: target.email,
+            role: target.role,
+            hourlyRate: target.hourlyRate ? Number(target.hourlyRate) : undefined,
+          }
         : { role: 'MEMBER' },
     );
     setModalOpen(true);
@@ -65,20 +84,22 @@ export function UsersPage() {
       }
       // An empty password field means "keep the current password".
       const { password, ...rest } = values;
-      return updateUser(editing.id, password ? { ...rest, password } : rest);
+      // A cleared hourly rate must be sent as null to remove the stored value.
+      const withRate = { ...rest, hourlyRate: values.hourlyRate ?? null };
+      return updateUser(editing.id, password ? { ...withRate, password } : withRate);
     },
     onSuccess: () => {
       message.success('Nutzer gespeichert.');
       closeModal();
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
-    onError: (error) => message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
   });
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) => updateUser(id, { isActive }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    onError: (error) => message.error(apiErrorMessage(error, 'Änderung fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Änderung fehlgeschlagen.')),
   });
 
   const removeImageMutation = useMutation({
@@ -89,7 +110,7 @@ export function UsersPage() {
   const deleteMutation = useMutation({
     mutationFn: deleteUser,
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['users'] }),
-    onError: (error) => message.error(apiErrorMessage(error, 'Löschen fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Löschen fehlgeschlagen.')),
   });
 
   return (
@@ -225,6 +246,13 @@ export function UsersPage() {
           </Form.Item>
           <Form.Item name="role" label="Rolle">
             <Select options={roleOptions} disabled={editing?.id === currentUser?.id} />
+          </Form.Item>
+          <Form.Item
+            name="hourlyRate"
+            label="Interner Stundensatz (€)"
+            extra="Nur für Inhaber/Administratoren sichtbar; Grundlage der Projektkosten."
+          >
+            <InputNumber min={0} precision={2} decimalSeparator="," style={{ width: '100%' }} />
           </Form.Item>
         </Form>
       </Modal>

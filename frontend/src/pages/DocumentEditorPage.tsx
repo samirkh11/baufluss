@@ -141,13 +141,15 @@ export function DocumentEditorPage() {
   const [lines, setLines] = useState<EditorLine[]>([]);
   const [dirty, setDirty] = useState(false);
   const [catalogSearch, setCatalogSearch] = useState('');
+  // Set right after a successful delete so the page does not try to reload the deleted document.
+  const [deleted, setDeleted] = useState(false);
   const phone = useIsPhone();
 
   const {
     data: document,
     isLoading,
     isError,
-  } = useQuery({ queryKey: ['documents', 'detail', id], queryFn: () => getDocument(id) });
+  } = useQuery({ queryKey: ['documents', 'detail', id], queryFn: () => getDocument(id), enabled: !deleted });
   const { data: contacts } = useQuery({
     queryKey: ['contacts', 'all-options'],
     queryFn: () => listContacts({ pageSize: 200 }),
@@ -235,7 +237,7 @@ export function DocumentEditorPage() {
     };
   }
 
-  const onError = (error: unknown) => message.error(apiErrorMessage(error, 'Aktion fehlgeschlagen.'));
+  const onError = (error: unknown) => void message.error(apiErrorMessage(error, 'Aktion fehlgeschlagen.'));
 
   function refreshCache(saved: BusinessDocument) {
     queryClient.setQueryData(['documents', 'detail', id], saved);
@@ -297,6 +299,7 @@ export function DocumentEditorPage() {
   const deleteMutation = useMutation({
     mutationFn: () => deleteDocument(id),
     onSuccess: () => {
+      setDeleted(true);
       message.success('Entwurf gelöscht.');
       queryClient.removeQueries({ queryKey: ['documents', 'detail', id] });
       queryClient.invalidateQueries({ queryKey: ['documents'] });

@@ -84,7 +84,7 @@ export function ReportsPanel({ projectId }: ReportsPanelProps) {
       refresh();
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
-    onError: (error) => message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Speichern fehlgeschlagen.')),
   });
 
   const deleteMutation = useMutation({
@@ -93,7 +93,7 @@ export function ReportsPanel({ projectId }: ReportsPanelProps) {
       refresh();
       queryClient.invalidateQueries({ queryKey: ['projects'] });
     },
-    onError: (error) => message.error(apiErrorMessage(error, 'Löschen fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Löschen fehlgeschlagen.')),
   });
 
   function openModal(report: Report | null) {

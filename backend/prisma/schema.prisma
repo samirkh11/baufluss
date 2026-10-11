@@ -62,6 +62,7 @@ model Company {
   projects        Project[]
   reports         Report[]
   documents       Document[]
+  timeEntries     TimeEntry[]
 
   @@map("companies")
 }
@@ -80,6 +81,10 @@ model User {
   managedProjects    Project[]       @relation("ProjectManager")
   projectMemberships ProjectMember[]
   reports            Report[]
+  timeEntries        TimeEntry[]
+
+  // Internal hourly cost rate for project cost calculation. Only visible to OWNER/ADMIN.
+  hourlyRate Decimal? @db.Decimal(8, 2)
 
   companyId String
   company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -265,9 +270,10 @@ model Project {
   managerId String?
   manager   User?   @relation("ProjectManager", fields: [managerId], references: [id], onDelete: SetNull)
 
-  members   ProjectMember[]
-  reports   Report[]
-  documents Document[]
+  members     ProjectMember[]
+  reports     Report[]
+  documents   Document[]
+  timeEntries TimeEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -450,4 +456,48 @@ model DocumentItem {
 
   @@index([documentId, sortOrder])
   @@map("document_items")
+}
+
+enum TimeEntryStatus {
+  OPEN // can be corrected by the employee
+  APPROVED // released by the office (e.g. for payroll); locked for the employee
+}
+
+// Working time of one employee on one day, optionally assigned to a project. Either a time range
+// (start/end/break) or a plain duration. A running stopwatch is an entry with a start but no end.
+// Times are minutes since midnight in the company time zone (Europe/Berlin).
+model TimeEntry {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Working time records must be kept (ArbZG: 2 years), so an employee with entries cannot be
+  // deleted, only deactivated.
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  // No project = internal time (workshop, office, travel).
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Restrict)
+
+  date            DateTime @db.Date
+  startMinute     Int?
+  endMinute       Int? // null while the stopwatch is running
+  breakMinutes    Int      @default(0)
+  durationMinutes Int      @default(0) // net working time (0 while running)
+
+  activity String? // what was done, e.g. "Latten montiert"
+  note     String? @db.Text
+
+  status       TimeEntryStatus @default(OPEN)
+  approvedAt   DateTime?
+  approvedById String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, date])
+  @@index([userId, date])
+  @@index([projectId])
+  @@map("time_entries")
 }

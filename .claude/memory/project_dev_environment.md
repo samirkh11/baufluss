@@ -46,9 +46,9 @@ eigene Shell — PID über `ss -ltnp | grep :3000` ermitteln.
 ## UI-Tests im Browser (E2E)
 
 `e2e/` im Repo (Playwright, Chromium liegt in `~/.cache/ms-playwright`). Ablauf: Stack läuft →
-`cd backend && npm run seed` → `cd e2e && npm test` (`smoke.e2e.mjs` 53 Checks: Login, Projekte,
-Berichte+Fotos, Kontakte, Katalog, Nutzer, Angebote/Editor/PDF/Übernahme/GAEB, Arbeiter-Rechte; danach
-`responsive.e2e.mjs` 40 Checks auf Phone 390 px/Tablet 820 px: Drawer-Menü, kein Seiten-Überlauf,
+`cd backend && npm run seed` → `cd e2e && npm test` (`smoke.e2e.mjs` 69 Checks: Login, Projekte,
+Berichte+Fotos, Kontakte, Katalog, Nutzer, Angebote/Editor/PDF/Übernahme/GAEB, Zeiterfassung, Arbeiter-Rechte; danach
+`responsive.e2e.mjs` 47 Checks auf Phone 390 px/Tablet 820 px: Drawer-Menü, kein Seiten-Überlauf,
 Dialoge, Arbeiter-Bericht mit Foto). Einzeln: `npm run test:smoke` / `npm run test:responsive`.
 Falls der Vite-Dev-Server leere Module liefert (Cache nach vielen Änderungen): Prozess auf :5173
 beenden und `npm run dev` neu starten. Einrichtung/Details: `e2e/README.md`.
@@ -62,10 +62,20 @@ Hinweise: antd-`<a onClick>` hat keine Link-Rolle (per `tbody a` selektieren); D
 ## Unit-Tests (Backend)
 
 `cd backend && npm test` (Jest + ts-jest, `*.spec.ts` neben dem Code). Aktuell
-`documents/calculations.spec.ts` (Geldberechnung) und `documents/gaeb/gaeb.spec.ts` (GAEB-Parser/Writer
+`documents/calculations.spec.ts` (Geldberechnung) `time-entries/time-utils.spec.ts` und `documents/gaeb/gaeb.spec.ts` (GAEB-Parser/Writer
 mit den Beispielen aus `docs/gaeb-samples/`). Neue Rechenlogik (Rechnungen, Mahnzinsen,
 Sicherheitseinbehalt …) immer mit Unit-Tests absichern.
 PDFs prüfen: per curl holen, `pdftoppm -png` rendern und ansehen (poppler-utils ist installiert).
+
+## Stolpersteine (Frontend)
+
+- antd `message.*` gibt ein Thenable zurück, das erst beim Schließen des Toasts (~3 s) auflöst.
+  NIE aus einem react-query `onError`/`onSuccess` zurückgeben (`=> void message.error(...)` oder
+  Block-Body), sonst bleibt die Mutation ~3 s „pending" und Buttons drehen weiter (so geschehen,
+  2026-10-11 überall behoben).
+- Nach dem Löschen eines Datensatzes auf dessen Detailseite darf die Detail-Query nicht neu laden
+  (404): Query per `enabled: !deleted` abschalten, bevor navigiert/invalidiert wird.
+- Fehler-Toast kann das „×" eines Dialogs verdecken → in E2E „Abbrechen" klicken.
 
 ## Push-Workflow
 

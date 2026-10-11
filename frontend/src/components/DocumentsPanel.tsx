@@ -49,7 +49,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
   const createMutation = useMutation({
     mutationFn: (targetProject: string) => createDocument(targetProject, type),
     onSuccess: (created) => navigate(documentPath(created.type, created.id)),
-    onError: (error) => message.error(apiErrorMessage(error, 'Anlegen fehlgeschlagen.')),
+    onError: (error) => void message.error(apiErrorMessage(error, 'Anlegen fehlgeschlagen.')),
   });
 
   function handleNew() {
