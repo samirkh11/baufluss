@@ -115,6 +115,18 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
     check('phone quote editor: lines shown as cards', (await page.locator('.ant-card-small').count()) >= 12 && (await page.locator('.ant-table-tbody tr.ant-table-row').count()) === 0);
   }
   await page.screenshot({ path: shots + `r-${tag}-quote-locked.png`, fullPage: true });
+  // invoice draft editor (with the invoice details card)
+  await page.goto(BASE + '/invoices');
+  await page.waitForSelector('tbody tr.ant-table-row');
+  await page.locator('tbody a', { hasText: 'Entwurf' }).first().click();
+  await page.waitForSelector('text=Rechnungsangaben');
+  await page.waitForTimeout(600);
+  check(`${tag} invoice editor (draft): fits the screen width`, await fitsWidth(page));
+  await page.screenshot({ path: shots + `r-${tag}-invoice-draft.png`, fullPage: true });
+  await page.goto(BASE + '/quotes');
+  await page.waitForSelector('tbody tr.ant-table-row');
+  await page.getByRole('link', { name: 'AN-00002' }).click();
+  await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
   await page.getByRole('button', { name: 'Duplizieren' }).click();
   await page.waitForSelector('h3:has-text("Entwurf")');
   await page.waitForTimeout(600);

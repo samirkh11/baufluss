@@ -1,9 +1,10 @@
 // Block 4 test data: quotes of the roofing company in every status (draft, sent, accepted, rejected).
-import { DocumentItemKind, DocumentStatus, DocumentType, PrismaClient } from '@prisma/client';
+import { DocumentItemKind, DocumentStatus, DocumentType, Prisma, PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { calculateTotals, lineTotal } from '../../src/documents/calculations';
 import { parseGaeb } from '../../src/documents/gaeb/gaeb-parser';
+import { issuerSnapshotOf } from '../../src/documents/issuer-snapshot';
 import { SeededCatalogItem } from './catalog';
 
 const { POSITION, HEADING, TEXT } = DocumentItemKind;
@@ -166,10 +167,21 @@ export async function seedDocuments(
   await seedDerivedDocuments(prisma, companyId);
   await seedGaebImport(prisma, companyId);
 
+  // Issued documents carry the company data as it was when they were issued.
+  const company = await prisma.company.findUniqueOrThrow({ where: { id: companyId } });
+  await prisma.document.updateMany({
+    where: { companyId, status: { not: DocumentStatus.DRAFT } },
+    data: { issuerSnapshot: issuerSnapshotOf(company) },
+  });
+
   // The seed assigns numbers directly, so move the sequences past them.
   await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'QUOTE' }, data: { nextNumber: numbered + 1 } });
   await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'ORDER' }, data: { nextNumber: 3 } });
-  await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'INVOICE' }, data: { nextNumber: 2 } });
+  // The invoice range resets yearly, so it must know its current year or it would restart at 1.
+  await prisma.numberSequence.updateMany({
+    where: { companyId, documentType: 'INVOICE' },
+    data: { nextNumber: 2, lastResetYear: new Date().getFullYear() },
+  });
 }
 
 interface DerivedSpec {
@@ -181,6 +193,7 @@ interface DerivedSpec {
   introText: string;
   closingText: string;
   dropOptional?: boolean; // optional (alternative) positions are not part of an invoice
+  invoice?: { paymentTermDays: number; serviceFrom: string; serviceTo?: string; reverseCharge?: boolean; orderReference?: string };
 }
 
 // Orders and invoices created from the quotes above (same chain the "Übernahme" button builds).
@@ -194,18 +207,35 @@ const DERIVED: DerivedSpec[] = [
   // Issued invoice straight from a quote (no order) for the finished school project.
   { sourceNumber: 'AN-00001', type: DocumentType.INVOICE, number: 'RE-00001', status: DocumentStatus.SENT, date: '2026-08-18',
     introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
-    closingText: 'Bitte überweisen Sie den Rechnungsbetrag innerhalb von 30 Tagen ohne Abzug auf das unten genannte Konto.' },
+    closingText: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
+    invoice: { paymentTermDays: 30, serviceFrom: '2026-08-03', serviceTo: '2026-08-14', orderReference: 'BA-2026/118' } },
   // Invoice draft prepared from the order of the running project.
   { sourceNumber: 'AB-00001', type: DocumentType.INVOICE, number: null, status: DocumentStatus.DRAFT, date: '2026-10-11', dropOptional: true,
     introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
-    closingText: 'Bitte überweisen Sie den Rechnungsbetrag innerhalb von 14 Tagen ohne Abzug auf das unten genannte Konto.' },
+    closingText: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
+    invoice: { paymentTermDays: 14, serviceFrom: '2026-09-14', serviceTo: '2026-10-09' } },
+  // Draft for a private customer (the PDF then carries the retention notice for the customer).
+  { sourceNumber: 'AB-00002', type: DocumentType.INVOICE, number: null, status: DocumentStatus.DRAFT, date: '2026-10-11', dropOptional: true,
+    introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
+    closingText: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
+    invoice: { paymentTermDays: 14, serviceFrom: '2026-11-02', serviceTo: '2026-11-13' } },
+  // Draft between contractors: reverse charge (§ 13b UStG), all positions at 0 % VAT.
+  { sourceNumber: 'AN-00005', type: DocumentType.INVOICE, number: null, status: DocumentStatus.DRAFT, date: '2026-10-11', dropOptional: true,
+    introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
+    closingText: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
+    invoice: { paymentTermDays: 14, serviceFrom: '2026-10-19', reverseCharge: true } },
 ];
 
 async function seedDerivedDocuments(prisma: PrismaClient, companyId: string): Promise<void> {
   for (const spec of DERIVED) {
     const source = await prisma.document.findFirstOrThrow({ where: { companyId, number: spec.sourceNumber }, include: { items: true } });
-    const items = source.items.filter((item) => !(spec.dropOptional && item.isOptional));
+    const reverseCharge = spec.invoice?.reverseCharge ?? false;
+    const items = source.items
+      .filter((item) => !(spec.dropOptional && item.isOptional))
+      // § 13b: the recipient owes the VAT, so every position is at 0 %
+      .map((item) => (reverseCharge ? { ...item, vatRate: new Prisma.Decimal(0) } : item));
     const totals = calculateTotals(items);
+    const customer = source.recipientContactId ? await prisma.contact.findUnique({ where: { id: source.recipientContactId } }) : null;
 
     await prisma.document.create({
       data: {
@@ -229,6 +259,21 @@ async function seedDerivedDocuments(prisma: PrismaClient, companyId: string): Pr
         vatTotal: totals.vat,
         grossTotal: totals.gross,
         finalizedAt: spec.number ? new Date(spec.date) : null,
+        ...(spec.invoice
+          ? {
+              invoiceDetails: {
+                create: {
+                  serviceDateFrom: new Date(spec.invoice.serviceFrom),
+                  serviceDateTo: spec.invoice.serviceTo ? new Date(spec.invoice.serviceTo) : null,
+                  paymentTermDays: spec.invoice.paymentTermDays,
+                  dueDate: spec.number ? new Date(new Date(spec.date).getTime() + spec.invoice.paymentTermDays * 24 * 60 * 60 * 1000) : null,
+                  reverseCharge,
+                  recipientVatId: customer?.vatId ?? null,
+                  orderReference: spec.invoice.orderReference,
+                },
+              },
+            }
+          : {}),
         items: {
           create: items.map((item, index) => ({
             sortOrder: index,

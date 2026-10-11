@@ -215,9 +215,21 @@ export interface BusinessDocument {
   finalizedAt: string | null;
   updatedAt: string;
   items: DocumentItem[];
+  invoiceDetails: InvoiceDetails | null; // invoices only
   // conversion chain (quote -> order -> invoice)
   sourceDocument: DocumentRef | null;
   derivedDocuments: DocumentRef[];
+}
+
+export interface InvoiceDetails {
+  serviceDateFrom: string | null;
+  serviceDateTo: string | null;
+  paymentTermDays: number;
+  dueDate: string | null;
+  reverseCharge: boolean;
+  recipientVatId: string | null;
+  orderReference: string | null;
+  buyerReference: string | null;
 }
 
 export interface DocumentRef {

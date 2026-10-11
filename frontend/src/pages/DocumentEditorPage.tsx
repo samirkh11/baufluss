@@ -11,6 +11,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Switch,
   Popconfirm,
   Result,
   Row,
@@ -33,6 +34,7 @@ import {
   duplicateDocument,
   finalizeDocument,
   getDocument,
+  getDocumentIssues,
   downloadGaeb,
   openDocumentPdf,
   setDocumentStatus,
@@ -70,6 +72,13 @@ interface EditorLine {
 }
 
 interface HeaderValues {
+  // invoice-only fields (kept in the same form)
+  serviceDateFrom?: string;
+  serviceDateTo?: string;
+  paymentTermDays?: number;
+  reverseCharge?: boolean;
+  orderReference?: string;
+  buyerReference?: string;
   recipientContactId?: string;
   subject?: string;
   documentDate?: string;
@@ -159,6 +168,13 @@ export function DocumentEditorPage() {
     queryFn: () => listCatalogItems({ q: catalogSearch || undefined, pageSize: 20 }),
   });
 
+  // Pre-issue check of the saved invoice (missing service date, tax ids, optional lines ...).
+  const { data: issues } = useQuery({
+    queryKey: ['documents', 'issues', id, document?.updatedAt],
+    queryFn: () => getDocumentIssues(id),
+    enabled: !!document && document.type === 'INVOICE' && document.status === 'DRAFT',
+  });
+
   // Load server data into the form/lines only when the stored document actually changed, so a
   // background refetch never overwrites unsaved edits.
   useEffect(() => {
@@ -172,6 +188,12 @@ export function DocumentEditorPage() {
       validUntil: toDateInput(document.validUntil),
       introText: document.introText ?? '',
       closingText: document.closingText ?? '',
+      serviceDateFrom: toDateInput(document.invoiceDetails?.serviceDateFrom),
+      serviceDateTo: toDateInput(document.invoiceDetails?.serviceDateTo),
+      paymentTermDays: document.invoiceDetails?.paymentTermDays ?? 14,
+      reverseCharge: document.invoiceDetails?.reverseCharge ?? false,
+      orderReference: document.invoiceDetails?.orderReference ?? '',
+      buyerReference: document.invoiceDetails?.buyerReference ?? '',
     });
     setLines(toEditorLines(document));
     setDirty(false);
@@ -234,6 +256,18 @@ export function DocumentEditorPage() {
       introText: values.introText || null,
       closingText: values.closingText || null,
       items: lines.map(toPayload),
+      ...(document?.type === 'INVOICE'
+        ? {
+            invoice: {
+              serviceDateFrom: values.serviceDateFrom || null,
+              serviceDateTo: values.serviceDateTo || null,
+              paymentTermDays: values.paymentTermDays ?? 14,
+              reverseCharge: !!values.reverseCharge,
+              orderReference: values.orderReference || null,
+              buyerReference: values.buyerReference || null,
+            },
+          }
+        : {}),
     };
   }
 
@@ -346,8 +380,7 @@ export function DocumentEditorPage() {
   const status = DOCUMENT_STATUS[document.status];
   const numberLabel = document.number ?? 'Entwurf';
   const isQuote = document.type === 'QUOTE';
-  // Invoices can be prepared but not issued yet (mandatory details follow with the invoice block).
-  const canIssue = document.type !== 'INVOICE';
+  const canIssue = true;
   const issued = document.status === 'SENT' || document.status === 'ACCEPTED';
   const canConvertToOrder =
     isQuote && issued && !document.derivedDocuments.some((derived) => derived.type === 'ORDER');
@@ -637,13 +670,25 @@ export function DocumentEditorPage() {
         </Space>
       </Space>
 
-      {document.type === 'INVOICE' && isDraft && (
+      {document.type === 'INVOICE' && isDraft && issues && (
         <Alert
-          type="warning"
+          type={issues.length === 0 ? 'success' : 'warning'}
           showIcon
           style={{ marginBottom: 16 }}
-          message="Rechnung im Entwurf"
-          description="Rechnungen können in der nächsten Ausbaustufe ausgestellt werden (Pflichtangaben wie Leistungsdatum und Zahlungsbedingungen, Abschlags-/Schlussrechnung, § 13b). Bis dahin dient der Entwurf zur Vorbereitung; das PDF ist eine Vorschau. Optionalpositionen bitte vorher entfernen oder in normale Positionen umwandeln."
+          message={
+            issues.length === 0
+              ? 'Die Rechnung ist vollständig und kann ausgestellt werden.'
+              : 'Vor dem Ausstellen noch zu klären (gespeicherter Stand):'
+          }
+          description={
+            issues.length > 0 ? (
+              <ul style={{ margin: 0, paddingLeft: 18 }}>
+                {issues.map((issue) => (
+                  <li key={issue}>{issue}</li>
+                ))}
+              </ul>
+            ) : undefined
+          }
         />
       )}
 
@@ -684,7 +729,20 @@ export function DocumentEditorPage() {
         />
       )}
 
-      <Form form={form} layout="vertical" disabled={!isDraft} onValuesChange={() => setDirty(true)}>
+      <Form
+        form={form}
+        layout="vertical"
+        disabled={!isDraft}
+        onValuesChange={(changed) => {
+          setDirty(true);
+          // § 13b: the recipient owes the VAT, so every position is shown with 0 % VAT.
+          if (changed.reverseCharge === true) {
+            setLines((current) =>
+              current.map((line) => (line.kind === 'POSITION' ? { ...line, vatRate: 0 } : line)),
+            );
+          }
+        }}
+      >
         <Card style={{ marginBottom: 16 }}>
           <Row gutter={16}>
             <Col xs={24} md={12}>
@@ -711,7 +769,7 @@ export function DocumentEditorPage() {
               </Form.Item>
             </Col>
             <Col xs={12} md={6}>
-              <Form.Item name="documentDate" label="Datum">
+              <Form.Item name="documentDate" label={document.type === 'INVOICE' ? 'Rechnungsdatum' : 'Datum'}>
                 <Input type="date" />
               </Form.Item>
             </Col>
@@ -745,6 +803,65 @@ export function DocumentEditorPage() {
             <Input.TextArea autoSize={{ minRows: 2, maxRows: 6 }} />
           </Form.Item>
         </Card>
+
+        {document.type === 'INVOICE' && (
+          <Card title="Rechnungsangaben" style={{ marginBottom: 16 }}>
+            <Row gutter={16}>
+              <Col xs={12} md={6}>
+                <Form.Item
+                  name="serviceDateFrom"
+                  label="Leistungsdatum / von"
+                  tooltip="Pflichtangabe (§ 14 UStG): Zeitpunkt oder Zeitraum der Leistung"
+                >
+                  <Input type="date" />
+                </Form.Item>
+              </Col>
+              <Col xs={12} md={6}>
+                <Form.Item name="serviceDateTo" label="bis (optional)">
+                  <Input type="date" />
+                </Form.Item>
+              </Col>
+              <Col xs={12} md={6}>
+                <Form.Item
+                  name="paymentTermDays"
+                  label="Zahlungsziel (Tage)"
+                  extra={
+                    document.invoiceDetails?.dueDate
+                      ? `Fällig am ${formatDate(document.invoiceDetails.dueDate)}`
+                      : 'Fälligkeit = Rechnungsdatum + Zahlungsziel'
+                  }
+                >
+                  <InputNumber min={0} max={365} style={{ width: '100%' }} />
+                </Form.Item>
+              </Col>
+              <Col xs={12} md={6}>
+                <Form.Item
+                  name="reverseCharge"
+                  label="§ 13b UStG"
+                  valuePropName="checked"
+                  tooltip="Bauleistungen an Unternehmer, die selbst Bauleistungen erbringen: der Empfänger schuldet die Umsatzsteuer."
+                >
+                  <Switch checkedChildren="Reverse Charge" unCheckedChildren="aus" />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="orderReference" label="Bestellnummer des Kunden (optional)">
+                  <Input />
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item name="buyerReference" label="Leitweg-ID (öffentliche Auftraggeber, optional)">
+                  <Input />
+                </Form.Item>
+              </Col>
+            </Row>
+            <Typography.Text type="secondary">
+              § 13b nur, wenn der Empfänger selbst Bauleistungen erbringt (Nachweis/USt-IdNr. liegt vor). Alle
+              Positionen werden dann mit 0 % USt ausgewiesen und die Rechnung trägt den Pflichthinweis zur
+              Steuerschuldnerschaft.
+            </Typography.Text>
+          </Card>
+        )}
 
         <Card title="Positionen" style={{ marginBottom: 16 }}>
           {isDraft && (

@@ -412,7 +412,12 @@ model Document {
 
   finalizedAt DateTime?
 
-  items DocumentItem[]
+  // Sender data (company name, address, tax ids, bank, letterhead) frozen when the document is
+  // issued, so changing the company profile later never alters an issued document (GoBD).
+  issuerSnapshot Json?
+
+  items          DocumentItem[]
+  invoiceDetails InvoiceDetails?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -500,4 +505,29 @@ model TimeEntry {
   @@index([userId, date])
   @@index([projectId])
   @@map("time_entries")
+}
+
+// Data that only invoices have (1:1 with Document). Kept out of Document so the quote/order paths
+// stay simple; payments, dunning and partial-invoice data follow in their own tables.
+model InvoiceDetails {
+  documentId String   @id
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  // Leistungsdatum / Leistungszeitraum (mandatory on every invoice, § 14 Abs. 4 Nr. 6 UStG)
+  serviceDateFrom DateTime? @db.Date
+  serviceDateTo   DateTime? @db.Date
+
+  // Payment terms: due date = invoice date + paymentTermDays (fixed when the invoice is issued)
+  paymentTermDays Int       @default(14)
+  dueDate         DateTime? @db.Date
+
+  // § 13b UStG: the recipient owes the VAT (construction services between contractors)
+  reverseCharge  Boolean @default(false)
+  recipientVatId String? // snapshot of the recipient's USt-IdNr. (required for § 13b)
+
+  // Optional references printed on the invoice (also needed for e-invoices to public bodies)
+  orderReference String? // Bestellnummer / Auftragsnummer des Kunden
+  buyerReference String? // Leitweg-ID (XRechnung, public bodies)
+
+  @@map("invoice_details")
 }

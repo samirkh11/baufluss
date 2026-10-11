@@ -3,6 +3,7 @@ import { DocumentType } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsArray, IsDateString, IsEnum, IsOptional, IsString, IsUUID, ValidateNested } from 'class-validator';
 import { DocumentItemDto } from './document-item.dto';
+import { InvoiceDetailsDto } from './invoice-details.dto';
 
 export class CreateDocumentDto {
   @ApiProperty({ enum: DocumentType, example: DocumentType.QUOTE })
@@ -45,4 +46,10 @@ export class CreateDocumentDto {
   @ValidateNested({ each: true })
   @Type(() => DocumentItemDto)
   items?: DocumentItemDto[];
+
+  @ApiPropertyOptional({ type: InvoiceDetailsDto, description: 'Invoices only: service date, payment term, § 13b, references' })
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => InvoiceDetailsDto)
+  invoice?: InvoiceDetailsDto;
 }

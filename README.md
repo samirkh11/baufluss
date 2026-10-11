@@ -91,11 +91,12 @@ meisterwerk/
 - Berichte (Bautagebuch, Mängel, Abnahme, ...) mit Fotos, je Projekt und projektübergreifend
 - Angebote: Editor mit Titeln/Positionen/Optionalpositionen, Preise aus dem Stamm, lückenlose Nummern,
   Sperre nach Ausstellung, PDF mit Briefpapier
-- Übernahme Angebot → Auftragsbestätigung → Rechnung (Rechnungen zunächst als Entwurf)
+- Übernahme Angebot → Auftragsbestätigung → Rechnung; Rechnungen mit Pflichtangaben (Leistungsdatum, Zahlungsziel,
+  § 13b), Prüfliste vor dem Ausstellen, lückenlose Nummern, eingefrorene Absenderdaten
 - GAEB: Leistungsverzeichnis (DA XML, z.B. .x83) als Angebotsentwurf importieren, Angebot als .x84 exportieren;
   Testdateien in [`docs/gaeb-samples/`](docs/gaeb-samples/)
 
-Die restlichen Funktionsblöcke (Rechnungsstellung,
+Die restlichen Funktionsblöcke (Abschlags-/Schlussrechnung, Storno, Zahlungen, Mahnwesen,
 Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 

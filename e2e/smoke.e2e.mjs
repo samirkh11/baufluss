@@ -232,18 +232,34 @@ check('order issued with number AB-00003', await page.locator('h3', { hasText: '
 await page.getByRole('button', { name: 'Rechnung erstellen' }).click();
 await page.waitForURL(/\/invoices\/.+/);
 await page.waitForSelector('h3:has-text("Rechnung")');
-check('invoice draft created from the order', (await page.getByText('Rechnung im Entwurf').count()) > 0 && (await page.getByText('AB-00003').count()) > 0);
-check('invoice cannot be issued yet (no "Ausstellen" button)', (await page.getByRole('button', { name: 'Ausstellen' }).count()) === 0);
+check('invoice draft created from the order, with the invoice details card', (await page.getByText('Rechnungsangaben').count()) > 0 && (await page.getByText('AB-00003').count()) > 0);
+await page.waitForSelector('text=Vor dem Ausstellen noch zu klären');
+check('pre-issue check lists the optional position', (await page.getByText(/Optionalpositionen sind auf einer Rechnung nicht zulässig/).count()) > 0);
 await page.screenshot({ path: shots + '12-invoice-draft.png' });
-await page.getByRole('button', { name: 'Löschen' }).click();
-await page.locator('.ant-popover:visible').getByRole('button', { name: 'OK' }).click();
-await page.waitForURL(/\/projects\/.+/);
+await page.getByRole('button', { name: 'Ausstellen' }).first().click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
+await page.waitForSelector('.ant-message-error');
+check('issuing an incomplete invoice is rejected with the reasons', (await page.locator('.ant-message-error').innerText()).includes('unvollständig'));
+await page.waitForTimeout(3500);
+// fix: remove the optional line, save, check again, issue
+// (line texts are input values, not text content, so match the row by its input)
+await page.locator('tbody tr.ant-table-row').filter({ has: page.locator('input[value*="Zwischensparrendämmung"]') }).getByRole('button').last().click();
+await page.getByRole('button', { name: 'Speichern' }).click();
+await page.waitForSelector('text=Die Rechnung ist vollständig und kann ausgestellt werden.');
+check('after removing the optional line the invoice is ready to issue', true);
+await page.getByRole('button', { name: 'Ausstellen' }).first().click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
+await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
+check('invoice issued with the next gap-free number RE-00002', await page.locator('h3', { hasText: 'RE-00002' }).isVisible());
+const [invoicePdf] = await Promise.all([page.waitForEvent('popup'), page.getByRole('button', { name: 'PDF' }).click()]);
+check('invoice PDF opens', true, invoicePdf.url());
+await invoicePdf.close();
 await page.getByRole('menuitem', { name: 'Aufträge' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
 check('orders list shows 3 orders', (await page.locator('tbody tr.ant-table-row').count()) === 3);
 await page.getByRole('menuitem', { name: 'Rechnungen' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
-check('invoices list shows 2 invoices', (await page.locator('tbody tr.ant-table-row').count()) === 2);
+check('invoices list shows 5 invoices', (await page.locator('tbody tr.ant-table-row').count()) === 5);
 // an order cannot be created twice from the same quote
 await page.goto(BASE + '/quotes');
 await page.waitForSelector('tbody tr.ant-table-row');
@@ -401,8 +417,8 @@ await page.getByRole('menuitem', { name: 'Nutzer & Rollen' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
 check('worker sees no "Nutzer einladen" button', (await page.getByRole('button', { name: 'Nutzer einladen' }).count()) === 0);
 
-// the invalid-GAEB-file and overlapping-time checks above intentionally provoke HTTP 400/403/409
-const real = errors.filter((e) => !/favicon|DevTools|import-gaeb|400 \(Bad Request\)|409 \(Conflict\)|HTTP 409|HTTP 403|403 \(Forbidden\)/i.test(e));
+// the invalid-GAEB-file and overlapping-time checks above intentionally provoke HTTP 400/403/409 (also the rejected issuing of an incomplete invoice)
+const real = errors.filter((e) => !/favicon|DevTools|import-gaeb|finalize|400 \(Bad Request\)|409 \(Conflict\)|HTTP 409|HTTP 403|403 \(Forbidden\)/i.test(e));
 check('no browser console errors', real.length === 0, real.slice(0, 3).join(' | '));
 await browser.close();
 console.log(`\n${results.filter(Boolean).length}/${results.length} checks passed`);

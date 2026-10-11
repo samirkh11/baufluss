@@ -70,6 +70,12 @@ export class DocumentsController {
     return this.documentsService.remove(user.companyId, id);
   }
 
+  // Problems that would block issuing the document (mandatory invoice details); empty = ready.
+  @Get('documents/:id/issues')
+  issues(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.documentsService.issues(user.companyId, id);
+  }
+
   @Post('documents/:id/finalize')
   finalize(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.documentsService.finalize(user.companyId, id);

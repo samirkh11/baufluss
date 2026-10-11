@@ -34,6 +34,15 @@ export interface DocumentPayload {
   validUntil?: string | null;
   // Always the complete list; replaces the stored lines.
   items?: DocumentItemPayload[];
+  // Invoices only
+  invoice?: {
+    serviceDateFrom?: string | null;
+    serviceDateTo?: string | null;
+    paymentTermDays?: number;
+    reverseCharge?: boolean;
+    orderReference?: string | null;
+    buyerReference?: string | null;
+  };
 }
 
 export async function listDocuments(params: ListDocumentsParams): Promise<Paginated<BusinessDocument>> {
@@ -56,6 +65,12 @@ export async function createDocument(
     ...payload,
   });
   return data;
+}
+
+// Problems that would block issuing the (saved) document, e.g. missing service date; empty = ready.
+export async function getDocumentIssues(id: string): Promise<string[]> {
+  const { data } = await apiClient.get<{ issues: string[] }>(`/documents/${id}/issues`);
+  return data.issues;
 }
 
 export async function updateDocument(id: string, payload: DocumentPayload): Promise<BusinessDocument> {

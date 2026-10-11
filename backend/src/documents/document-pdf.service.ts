@@ -46,12 +46,21 @@ export class DocumentPdfService {
   async render(companyId: string, documentId: string): Promise<{ buffer: Buffer; filename: string }> {
     const document = await this.prisma.document.findFirst({
       where: { id: documentId, companyId },
-      include: { project: true, items: { orderBy: { sortOrder: 'asc' } }, sourceDocument: { select: { type: true, number: true } } },
+      include: {
+        project: true,
+        items: { orderBy: { sortOrder: 'asc' } },
+        sourceDocument: { select: { type: true, number: true } },
+        invoiceDetails: true,
+        recipientContact: { select: { number: true, isOrganization: true } },
+      },
     });
     if (!document) {
       throw new NotFoundException();
     }
-    const company = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId } });
+    const liveCompany = await this.prisma.company.findUniqueOrThrow({ where: { id: companyId } });
+    // Issued documents are printed with the sender data frozen at issue time (GoBD); drafts use the
+    // current company profile.
+    const company = (document.issuerSnapshot as unknown as Company | null) ?? liveCompany;
 
     const pdf = new PDFDocument({
       size: 'A4',
@@ -82,24 +91,37 @@ export class DocumentPdfService {
     );
 
     // Reference block on the right.
+    const invoice = document.type === DocumentType.INVOICE ? document.invoiceDetails : null;
+    const servicePeriod = invoice?.serviceDateFrom
+      ? invoice.serviceDateTo && invoice.serviceDateTo.getTime() !== invoice.serviceDateFrom.getTime()
+        ? `${formatDate(invoice.serviceDateFrom)} –\n${formatDate(invoice.serviceDateTo)}`
+        : formatDate(invoice.serviceDateFrom)
+      : null;
     const info: [string, string][] = [
       [NUMBER_LABELS[document.type], document.number ?? 'Entwurf'],
       ['Datum:', formatDate(document.documentDate)],
+      ...(servicePeriod ? ([['Leistung:', servicePeriod]] as [string, string][]) : []),
+      ...(invoice?.dueDate ? ([['Fällig am:', formatDate(invoice.dueDate)]] as [string, string][]) : []),
       ...(document.validUntil ? ([['Gültig bis:', formatDate(document.validUntil)]] as [string, string][]) : []),
       ['Projekt:', `${document.project.number}`],
+      ...(document.recipientContact?.number ? ([['Kunden-Nr.:', document.recipientContact.number]] as [string, string][]) : []),
+      ...(invoice?.orderReference ? ([['Ihre Bestell-Nr.:', invoice.orderReference]] as [string, string][]) : []),
+      ...(invoice?.buyerReference ? ([['Leitweg-ID:', invoice.buyerReference]] as [string, string][]) : []),
       ...(document.sourceDocument?.number
         ? ([['Bezug:', `${SHORT_TITLES[document.sourceDocument.type]} ${document.sourceDocument.number}`]] as [string, string][])
         : []),
     ];
     let infoY = 150;
-    pdf.fontSize(9);
+    pdf.font('Helvetica').fontSize(9);
     for (const [label, value] of info) {
+      const rowHeight = Math.max(14, pdf.heightOfString(value, { width: 100 }) + 3);
       pdf.fillColor(COLORS.muted).text(label, 370, infoY, { width: 65 });
       pdf.fillColor(COLORS.text).text(value, 437, infoY, { width: 100 });
-      infoY += 14;
+      infoY += rowHeight;
     }
 
-    pdf.font('Helvetica-Bold').fontSize(15).fillColor(COLORS.accent).text(title, PAGE.left, 260, { width: CONTENT_WIDTH });
+    // Many reference lines (invoices) push the title down.
+    pdf.font('Helvetica-Bold').fontSize(15).fillColor(COLORS.accent).text(title, PAGE.left, Math.max(260, infoY + 12), { width: CONTENT_WIDTH });
     pdf.moveDown(0.4);
     if (document.subject) {
       pdf.font('Helvetica-Bold').fontSize(11).fillColor(COLORS.text).text(document.subject, { width: CONTENT_WIDTH });
@@ -111,6 +133,10 @@ export class DocumentPdfService {
 
     this.drawItems(pdf, document.items);
     this.drawTotals(pdf, document.items);
+
+    if (document.type === DocumentType.INVOICE) {
+      this.drawInvoiceNotes(pdf, document, company);
+    }
 
     // Reserve exactly the space the closing block needs, so it only moves to a new page when it
     // really doesn't fit.
@@ -130,6 +156,50 @@ export class DocumentPdfService {
 
     const safeNumber = (document.number ?? 'Entwurf').replace(/[^A-Za-z0-9_-]/g, '_');
     return { buffer: await finished, filename: `${TITLES[document.type]}_${safeNumber}.pdf` };
+  }
+
+  // Legally required notes and payment information below the totals of an invoice.
+  private drawInvoiceNotes(
+    pdf: PDFKit.PDFDocument,
+    document: { documentDate: Date; number: string | null; invoiceDetails: { paymentTermDays: number; dueDate: Date | null; reverseCharge: boolean; recipientVatId: string | null } | null; recipientContact: { isOrganization: boolean } | null },
+    company: Company,
+  ) {
+    const details = document.invoiceDetails;
+    const lines: { text: string; bold?: boolean }[] = [];
+
+    if (details?.reverseCharge) {
+      lines.push({
+        text: 'Steuerschuldnerschaft des Leistungsempfängers (§ 13b UStG): Die Umsatzsteuer ist vom Leistungsempfänger zu entrichten.',
+        bold: true,
+      });
+      if (details.recipientVatId) {
+        lines.push({ text: `USt-IdNr. des Leistungsempfängers: ${details.recipientVatId}` });
+      }
+    }
+
+    const termDays = details?.paymentTermDays ?? 14;
+    const due = details?.dueDate ?? new Date(document.documentDate.getTime() + termDays * 24 * 60 * 60 * 1000);
+    lines.push({ text: `Zahlungsbedingungen: Zahlbar innerhalb von ${termDays} Tagen ohne Abzug, fällig am ${formatDate(due)}.` });
+    if (company.iban) {
+      const bank = [`IBAN ${company.iban}`, company.bic ? `BIC ${company.bic}` : null].filter(Boolean).join(', ');
+      lines.push({ text: `Bitte überweisen Sie auf: ${bank}. Verwendungszweck: Rechnung ${document.number ?? ''}`.trim() });
+    }
+
+    // Private customers must be told about their retention duty for construction services (§ 14b UStG).
+    if (document.recipientContact && !document.recipientContact.isOrganization) {
+      lines.push({
+        text: 'Hinweis: Sie sind als Privatperson verpflichtet, diese Rechnung zwei Jahre lang aufzubewahren (§ 14b Abs. 1 UStG).',
+      });
+    }
+
+    pdf.fontSize(9);
+    const height = lines.reduce((sum, line) => sum + pdf.heightOfString(line.text, { width: CONTENT_WIDTH }) + 4, 0);
+    this.ensureSpace(pdf, height + 16);
+    pdf.moveDown(1);
+    for (const line of lines) {
+      pdf.font(line.bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(9).fillColor(COLORS.text).text(line.text, PAGE.left, undefined, { width: CONTENT_WIDTH });
+      pdf.moveDown(0.3);
+    }
   }
 
   // Logo (PNG/JPG via pdfkit, SVG via svg-to-pdfkit) top left, company contact block top right.

@@ -31,6 +31,16 @@ aber die Punkte, die das Datenmodell und die Workflows von Anfang an berücksich
 - Keine Mandanten-übergreifende Datenverarbeitung — passt zur Multi-Tenancy-Isolation in
   [[project_architecture]].
 
+## Rechnungsstellung (umgesetzt in Block 5, Teil 1)
+
+Pflichtangaben § 14 Abs. 4 UStG werden vor dem Ausstellen geprüft (siehe `invoice-validation.ts` und
+[[project_roadmap]]): Anschrift beider Seiten, Steuernummer/USt-IdNr., Datum, lückenlose Nummer,
+Leistung (Positionen), Leistungszeitraum, Entgelt je Steuersatz + Steuerbetrag bzw. Hinweis. Bei
+Privatkunden wird der Aufbewahrungshinweis (§ 14b UStG) gedruckt. NOCH NICHT abgedeckt:
+Abschlagsrechnungen (§ 14 Abs. 5), Kleinunternehmer (§ 19), Skonto, § 35a-Ausweis, Storno.
+Unveränderbarkeit: ausgestellte Dokumente sind gesperrt, Absenderdaten eingefroren
+(`issuerSnapshot`); eine echte Archivierung des PDF/der XRechnung folgt mit Block 7.
+
 ## § 13b UStG (Steuerschuldnerschaft des Leistungsempfängers)
 
 Bei Bauleistungen zwischen Unternehmen, die selbst Bauleistungen erbringen, wird die Rechnung

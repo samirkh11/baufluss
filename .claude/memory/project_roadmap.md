@@ -112,12 +112,43 @@ Aufgeteilt in drei Teilschritte:
   gruppieren, Zwischensummen, Rabatt auf Gesamtsumme, Versand per E-Mail, PDF-Layout
   konfigurierbar (Briefpapier-PDF als Hintergrund), Angebots-Historie/Revisionen.
 
-### ⬜ Block 5 — Rechnungen
-Pflichtangaben nach § 14 UStG, Abschlags- und Schlussrechnung, § 13b UStG (Reverse Charge bei
-Bauleistungen — sehr relevant für Handwerksbetriebe!), Sicherheitseinbehalt, Storno,
-Zahlungseingang, Mahnwesen (Mahnstufen, Fristen, Zinsen).
-**Hinweis:** § 13b-Fälle brauchen eine eigene Rechnungsvariante ohne USt-Ausweis mit Hinweistext
-("Steuerschuldnerschaft des Leistungsempfängers").
+### 🟡 Block 5 — Rechnungen (Teilschritt 1/4 fertig, 2026-10-11)
+Aufgeteilt in vier Teilschritte:
+- ✅ **1. Rechnung ausstellen mit allen Pflichtangaben.** Rechnungen sind `Document`s vom Typ INVOICE
+  (Entwurf entsteht per „Rechnung erstellen" aus Angebot/Auftrag oder direkt im Projekt).
+  - Neue Tabelle `InvoiceDetails` (1:1): Leistungsdatum/-zeitraum, Zahlungsziel + `dueDate`
+    (Rechnungsdatum + Tage, beim Ausstellen fixiert), `reverseCharge` (§ 13b), Snapshot der
+    Empfänger-USt-IdNr., Bestellnummer, Leitweg-ID. Defaults: Leistungszeitraum = Projektzeitraum,
+    Zahlungsziel = Kontakt-Zahlungsziel (sonst 14 Tage).
+  - **Prüfung vor dem Ausstellen** (`documents/invoice-validation.ts`, 10 Jest-Tests; Endpunkt
+    `GET /documents/:id/issues`, Anzeige als Checkliste im Editor, `finalize` lehnt unvollständige
+    Rechnungen mit allen Gründen ab): Firmenname/-anschrift, Steuernummer ODER USt-IdNr., Empfänger-
+    anschrift, Leistungsdatum, Zahlungsziel, mind. eine Position, keine Optionalpositionen, Summe > 0;
+    bei § 13b zusätzlich beide USt-IdNr. und 0 % auf allen Positionen (Schalter im Editor setzt alle
+    Sätze auf 0).
+  - **Absender-Snapshot** (`Document.issuerSnapshot`, `documents/issuer-snapshot.ts`): beim Ausstellen
+    (alle Dokumenttypen) werden Firmendaten/Logo/Briefpapier eingefroren; das PDF eines ausgestellten
+    Dokuments nutzt den Snapshot (GoBD). Entwürfe nutzen das aktuelle Firmenprofil.
+  - **PDF**: Leistungszeitraum, Fälligkeit, Kunden-Nr., Bestell-Nr., Leitweg-ID, Bezug; unter der Summe
+    § 13b-Hinweis + USt-IdNr. des Empfängers, Zahlungsbedingungen, Bankverbindung mit
+    Verwendungszweck, Aufbewahrungshinweis für Privatkunden (§ 14b UStG). Standard-Schlusstext
+    enthält keine Zahlungsfrist mehr (kommt strukturiert aus den Rechnungsdaten).
+  - Nummer `INVOICE` lückenlos, Jahreswechsel-Reset: Der Seed MUSS `lastResetYear` setzen (sonst
+    Kollision mit seeded RE-00001, so geschehen).
+- ⬜ **2. Abschlags- und Schlussrechnung, Sicherheitseinbehalt.** Rechnungsart (normal/Abschlag/Schluss)
+  an `InvoiceDetails`; Schlussrechnung rechnet bereits gestellte Abschläge ab (netto je Steuersatz,
+  Abzug sichtbar); Sicherheitseinbehalt (Prozent, Betrag, Freigabe/Auszahlung später); Abschlags-
+  prozent/-betrag vom Auftragswert, Übersicht „Auftragswert – abgerechnet – offen" im Projekt.
+  Hinweis: bei Abschlägen nach § 14 Abs. 5 UStG Steuerausweis beachten.
+- ⬜ **3. Storno und Zahlungseingang.** `CREDIT_NOTE` freischalten (Stornorechnung referenziert die
+  Originalrechnung, spiegelt Beträge, eigene Nummer), Status PAID/PARTIALLY_PAID/CANCELLED, Tabelle
+  `Payment` (Datum, Betrag, Zahlungsart, Notiz), offene Posten/Fälligkeitsliste, Skonto.
+- ⬜ **4. Mahnwesen.** Mahnstufen (Zahlungserinnerung, 1./2./3. Mahnung), Fristen, Verzugszinsen
+  (§ 288 BGB: Basiszins + 9 Prozentpunkte B2B, 5 PP Verbraucher) und Pauschale (40 € B2B), Mahn-PDF,
+  Mahnvorschlagsliste, Mahnsperre, Protokoll.
+- Ideen/offen: Lohn-/Materialkostenausweis für Privatkunden (§ 35a EStG, Handwerkerleistungen),
+  Kleinunternehmer (§ 19 UStG) ohne USt-Ausweis, Skonto, Zahlungslink/QR-Code (GiroCode), Versand per
+  E-Mail, Rechnungs-Textbausteine, Teilleistungen/Aufmaß-Abrechnung.
 
 ### ⬜ Block 6 — Eingangsrechnungen
 Empfang per Mail (eigenes Postfach/Weiterleitung nötig — Infrastruktur-Entscheidung) und Upload,
@@ -209,7 +240,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 2. ~~Kontakte & Stammdaten~~ ✅
 3. ~~Projekte (inkl. Berichte)~~ ✅
 4. ~~Angebote (Editor, PDF, Übernahme, GAEB)~~ ✅
-5. Rechnungen (inkl. § 13b, Mahnwesen) — Datenmodell von Anfang an EN16931-kompatibel
+5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritt 1/4 ✅ (ausstellen), Datenmodell EN16931-kompatibel halten
 6. Eingangsrechnungen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens

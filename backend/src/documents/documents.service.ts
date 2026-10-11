@@ -1,8 +1,11 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { Contact, DocumentItemKind, DocumentStatus, DocumentType, Prisma } from '@prisma/client';
+import { Company, Contact, DocumentItemKind, DocumentStatus, DocumentType, Prisma } from '@prisma/client';
 import { NumberSequencesService } from '../companies/number-sequences/number-sequences.service';
 import { PrismaService } from '../common/prisma/prisma.service';
 import { calculateTotals, lineTotal } from './calculations';
+import { InvoiceDetailsDto } from './dto/invoice-details.dto';
+import { issuerSnapshotOf } from './issuer-snapshot';
+import { validateInvoice } from './invoice-validation';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { DocumentItemDto } from './dto/document-item.dto';
 import { ListDocumentsQueryDto } from './dto/list-documents-query.dto';
@@ -11,10 +14,9 @@ import { UpdateDocumentDto } from './dto/update-document.dto';
 // Credit notes (Storno) follow with the invoice block.
 const SUPPORTED_TYPES: DocumentType[] = [DocumentType.QUOTE, DocumentType.ORDER, DocumentType.INVOICE];
 
-// Invoices can be prepared (draft, PDF preview) but not issued yet: an issued invoice gets a
-// gap-free number and is locked, so it must contain all mandatory details (§ 14 UStG: service date,
-// payment terms, reverse charge, ...), which the invoice block adds.
-const ISSUABLE_TYPES: DocumentType[] = [DocumentType.QUOTE, DocumentType.ORDER];
+// Quotes, orders and invoices can be issued. Invoices must pass validateInvoice() first (mandatory
+// details under § 14 UStG); credit notes follow with the cancellation step.
+const ISSUABLE_TYPES: DocumentType[] = [DocumentType.QUOTE, DocumentType.ORDER, DocumentType.INVOICE];
 
 // Allowed conversions: quote -> order, quote -> invoice (without order), order -> invoice.
 const CONVERSIONS: Partial<Record<DocumentType, DocumentType[]>> = {
@@ -37,17 +39,16 @@ const DEFAULT_TEXTS: Record<DocumentType, { intro: string; closing: string }> = 
   },
   [DocumentType.INVOICE]: {
     intro: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
-    closing: '', // filled with the customer's payment term, see paymentClosing()
+    // Payment terms, bank details and legal notes are printed automatically from the invoice data.
+    closing: 'Vielen Dank für Ihren Auftrag und das entgegengebrachte Vertrauen.',
   },
   [DocumentType.CREDIT_NOTE]: { intro: '', closing: '' },
 };
 
-const paymentClosing = (days: number) =>
-  `Bitte überweisen Sie den Rechnungsbetrag innerhalb von ${days} Tagen ohne Abzug auf das unten genannte Konto.`;
-
 const DOCUMENT_INCLUDE = {
   project: { select: { id: true, number: true, name: true } },
   items: { orderBy: { sortOrder: 'asc' as const } },
+  invoiceDetails: true,
   // Document this one was created from, and the documents created from it (conversion chain).
   sourceDocument: { select: { id: true, type: true, number: true, status: true } },
   derivedDocuments: {
@@ -92,6 +93,36 @@ function recipientSnapshot(contact: Contact): RecipientFields {
     recipientZipCode: contact.zipCode,
     recipientCity: contact.city,
     recipientCountry: contact.country,
+  };
+}
+
+// Only the fields that were actually sent (undefined = keep, null = clear).
+function invoiceDetailsData(dto?: InvoiceDetailsDto) {
+  if (!dto) {
+    return {};
+  }
+  return {
+    ...(dto.serviceDateFrom !== undefined ? { serviceDateFrom: toDate(dto.serviceDateFrom) } : {}),
+    ...(dto.serviceDateTo !== undefined ? { serviceDateTo: toDate(dto.serviceDateTo) } : {}),
+    ...(dto.paymentTermDays !== undefined ? { paymentTermDays: dto.paymentTermDays } : {}),
+    ...(dto.reverseCharge !== undefined ? { reverseCharge: dto.reverseCharge } : {}),
+    ...(dto.orderReference !== undefined ? { orderReference: dto.orderReference } : {}),
+    ...(dto.buyerReference !== undefined ? { buyerReference: dto.buyerReference } : {}),
+  };
+}
+
+// Defaults of a new invoice: service period = project period (else the invoice date), payment
+// term and VAT id from the customer.
+function invoiceDefaults(
+  project: { startDate: Date | null; endDate: Date | null },
+  contact: Contact | null,
+  documentDate: Date,
+) {
+  return {
+    serviceDateFrom: project.startDate ?? documentDate,
+    serviceDateTo: project.startDate && project.endDate ? project.endDate : null,
+    paymentTermDays: contact?.paymentTermDays ?? DEFAULT_PAYMENT_TERM_DAYS,
+    recipientVatId: contact?.vatId ?? null,
   };
 }
 
@@ -171,11 +202,16 @@ export class DocumentsService {
           ...(contact ? recipientSnapshot(contact) : EMPTY_RECIPIENT),
           subject: dto.subject ?? project.name,
           introText: dto.introText ?? texts.intro,
-          closingText: dto.closingText ?? (dto.type === DocumentType.INVOICE ? paymentClosing(contact?.paymentTermDays ?? DEFAULT_PAYMENT_TERM_DAYS) : texts.closing),
+          closingText: dto.closingText ?? texts.closing,
           documentDate,
           validUntil,
         },
       });
+      if (dto.type === DocumentType.INVOICE) {
+        await tx.invoiceDetails.create({
+          data: { documentId: document.id, ...invoiceDefaults(project, contact ?? null, documentDate), ...invoiceDetailsData(dto.invoice) },
+        });
+      }
       if (dto.items) {
         await this.replaceItems(tx, document.id, dto.items);
       }
@@ -190,14 +226,18 @@ export class DocumentsService {
     const existing = await this.findOne(companyId, id);
     this.assertDraft(existing.status);
 
-    const { items, recipientContactId, documentDate, validUntil, ...fields } = dto;
+    const { items, recipientContactId, documentDate, validUntil, invoice, ...fields } = dto;
     let recipient: Partial<RecipientFields> & { recipientContactId?: string | null } = {};
+    // The recipient's VAT id is part of an invoice and follows the chosen contact.
+    let recipientVatId: string | null | undefined;
     if (recipientContactId !== undefined) {
       if (recipientContactId === null) {
         recipient = { recipientContactId: null, ...EMPTY_RECIPIENT };
+        recipientVatId = null;
       } else {
         const contact = await this.requireContact(companyId, recipientContactId);
         recipient = { recipientContactId: contact.id, ...recipientSnapshot(contact) };
+        recipientVatId = contact.vatId;
       }
     }
 
@@ -211,6 +251,10 @@ export class DocumentsService {
           validUntil: toDate(validUntil),
         },
       });
+      if (existing.type === DocumentType.INVOICE && (invoice || recipientVatId !== undefined)) {
+        const data = { ...invoiceDetailsData(invoice), ...(recipientVatId !== undefined ? { recipientVatId } : {}) };
+        await tx.invoiceDetails.upsert({ where: { documentId: id }, create: { documentId: id, ...data }, update: data });
+      }
       if (items) {
         await this.replaceItems(tx, id, items);
       }
@@ -227,31 +271,83 @@ export class DocumentsService {
 
   // Issues the document: assigns the next gap-free number, refreshes the recipient snapshot from
   // the contact and locks the content.
+  // Pre-issue check for the editor: problems that would block issuing (invoices only).
+  async issues(companyId: string, id: string): Promise<{ issues: string[] }> {
+    const document = await this.findOne(companyId, id);
+    if (document.type !== DocumentType.INVOICE || document.status !== DocumentStatus.DRAFT) {
+      return { issues: [] };
+    }
+    const [company, contact] = await this.loadIssuerAndRecipient(companyId, document.recipientContactId);
+    return { issues: this.checkInvoice(document, company, contact) };
+  }
+
+  // Issues the document: assigns the next gap-free number, refreshes the recipient snapshot from
+  // the contact, freezes the sender data and locks the content. Invoices must be complete first.
   async finalize(companyId: string, id: string) {
     const document = await this.findOne(companyId, id);
     this.assertDraft(document.status);
     if (!ISSUABLE_TYPES.includes(document.type)) {
-      throw new ConflictException('Rechnungen können erst mit der nächsten Ausbaustufe (Pflichtangaben) ausgestellt werden.');
+      throw new ConflictException('Dieser Dokumenttyp kann noch nicht ausgestellt werden.');
     }
     if (!document.items.some((item) => item.kind === DocumentItemKind.POSITION)) {
       throw new BadRequestException('Das Dokument enthält keine Positionen.');
     }
-    const contact = document.recipientContactId
-      ? await this.prisma.contact.findFirst({ where: { id: document.recipientContactId, companyId } })
-      : null;
+    const [company, contact] = await this.loadIssuerAndRecipient(companyId, document.recipientContactId);
     const snapshot = contact ? recipientSnapshot(contact) : document;
     if (!snapshot.recipientName) {
       throw new BadRequestException('Bitte zuerst einen Empfänger angeben.');
+    }
+    if (document.type === DocumentType.INVOICE) {
+      const problems = this.checkInvoice(document, company, contact);
+      if (problems.length > 0) {
+        throw new BadRequestException(['Die Rechnung ist unvollständig:', ...problems]);
+      }
     }
 
     await this.prisma.$transaction(async (tx) => {
       const number = await this.numberSequences.next(tx, companyId, document.type);
       await tx.document.update({
         where: { id },
-        data: { number, status: DocumentStatus.SENT, finalizedAt: new Date(), ...(contact ? recipientSnapshot(contact) : {}) },
+        data: {
+          number,
+          status: DocumentStatus.SENT,
+          finalizedAt: new Date(),
+          issuerSnapshot: issuerSnapshotOf(company),
+          ...(contact ? recipientSnapshot(contact) : {}),
+        },
       });
+      if (document.type === DocumentType.INVOICE) {
+        // The due date is fixed at issue time: invoice date + payment term.
+        const dueDate = new Date(document.documentDate.getTime() + (document.invoiceDetails?.paymentTermDays ?? DEFAULT_PAYMENT_TERM_DAYS) * DAY_MS);
+        await tx.invoiceDetails.update({ where: { documentId: id }, data: { dueDate, recipientVatId: contact?.vatId ?? document.invoiceDetails?.recipientVatId ?? null } });
+      }
     });
     return this.findOne(companyId, id);
+  }
+
+  private async loadIssuerAndRecipient(companyId: string, contactId: string | null): Promise<[Company, Contact | null]> {
+    const [company, contact] = await Promise.all([
+      this.prisma.company.findUniqueOrThrow({ where: { id: companyId } }),
+      contactId ? this.prisma.contact.findFirst({ where: { id: contactId, companyId } }) : null,
+    ]);
+    return [company, contact];
+  }
+
+  private checkInvoice(document: Awaited<ReturnType<DocumentsService['findOne']>>, company: Company, contact: Contact | null): string[] {
+    const recipient = contact ? recipientSnapshot(contact) : document;
+    const details = document.invoiceDetails;
+    return validateInvoice({
+      issuer: company,
+      recipient: { name: recipient.recipientName, street: recipient.recipientStreet, zipCode: recipient.recipientZipCode, city: recipient.recipientCity },
+      details: {
+        serviceDateFrom: details?.serviceDateFrom,
+        serviceDateTo: details?.serviceDateTo,
+        paymentTermDays: details?.paymentTermDays,
+        reverseCharge: details?.reverseCharge ?? false,
+        recipientVatId: contact?.vatId ?? details?.recipientVatId,
+      },
+      items: document.items,
+    });
   }
 
   // Customer's decision on a sent quote.
@@ -291,15 +387,11 @@ export class DocumentsService {
       throw new ConflictException('Zu diesem Angebot existiert bereits eine Auftragsbestätigung.');
     }
 
-    const contact = source.recipientContactId
-      ? await this.prisma.contact.findFirst({ where: { id: source.recipientContactId, companyId } })
-      : null;
     const texts = DEFAULT_TEXTS[targetType];
     const copyId = await this.copyToNewDraft(companyId, source, targetType, {
       sourceDocumentId: source.id,
       introText: texts.intro,
-      closingText:
-        targetType === DocumentType.INVOICE ? paymentClosing(contact?.paymentTermDays ?? DEFAULT_PAYMENT_TERM_DAYS) : texts.closing,
+      closingText: texts.closing,
     });
 
     // Handing a sent quote on to an order/invoice means the customer accepted it.
@@ -354,6 +446,29 @@ export class DocumentsService {
           isOptional: item.isOptional,
         })),
       );
+      if (type === DocumentType.INVOICE) {
+        // A copied invoice keeps its invoice data (the due date is set again when it is issued);
+        // a new invoice gets the defaults from the project and the customer.
+        const old = source.invoiceDetails;
+        const project = await tx.project.findUniqueOrThrow({ where: { id: source.projectId } });
+        const contact = source.recipientContactId ? await tx.contact.findUnique({ where: { id: source.recipientContactId } }) : null;
+        await tx.invoiceDetails.create({
+          data: {
+            documentId: copy.id,
+            ...invoiceDefaults(project, contact, copy.documentDate),
+            ...(old
+              ? {
+                  serviceDateFrom: old.serviceDateFrom,
+                  serviceDateTo: old.serviceDateTo,
+                  paymentTermDays: old.paymentTermDays,
+                  reverseCharge: old.reverseCharge,
+                  orderReference: old.orderReference,
+                  buyerReference: old.buyerReference,
+                }
+              : {}),
+          },
+        });
+      }
       await this.recalculateTotals(tx, copy.id);
       return copy.id;
     });
