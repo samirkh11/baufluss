@@ -87,9 +87,10 @@ meisterwerk/
 - Projekte (Status, Kunde, Baustelle, Team) mit Projektübersicht
 - Berichte (Bautagebuch, Mängel, Abnahme, ...) mit Fotos, je Projekt und projektübergreifend
 - Angebote: Editor mit Titeln/Positionen/Optionalpositionen, Preise aus dem Stamm, lückenlose Nummern,
-  Sperre nach Ausstellung, PDF mit Briefpapier (Übernahme in Auftrag/Rechnung und GAEB folgen)
+  Sperre nach Ausstellung, PDF mit Briefpapier
+- Übernahme Angebot → Auftragsbestätigung → Rechnung (Rechnungen zunächst als Entwurf; GAEB folgt)
 
-Die restlichen Funktionsblöcke (Auftrag/Rechnung, GAEB,
+Die restlichen Funktionsblöcke (Rechnungsstellung, GAEB,
 Eingangsrechnungen, E-Rechnung/Compliance, Betreiber-Backoffice, Dashboard) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 

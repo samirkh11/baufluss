@@ -7,7 +7,7 @@ import { createDocument, listDocuments } from '../api/documents';
 import { listProjects } from '../api/projects';
 import { BusinessDocument, DocumentStatus, DocumentType } from '../types';
 import { apiErrorMessage } from '../utils/assets';
-import { DOCUMENT_STATUS, DOCUMENT_TYPE, formatDate, formatMoney, optionsOf } from '../utils/labels';
+import { DOCUMENT_NEW_LABEL, DOCUMENT_STATUS, documentPath, formatDate, formatMoney, optionsOf } from '../utils/labels';
 
 interface DocumentsPanelProps {
   type: DocumentType;
@@ -40,7 +40,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
 
   const createMutation = useMutation({
     mutationFn: (targetProject: string) => createDocument(targetProject, type),
-    onSuccess: (created) => navigate(`/documents/${created.id}`),
+    onSuccess: (created) => navigate(documentPath(created.type, created.id)),
     onError: (error) => message.error(apiErrorMessage(error, 'Anlegen fehlgeschlagen.')),
   });
 
@@ -56,7 +56,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
     <div>
       <Space style={{ marginBottom: 16 }} wrap>
         <Button type="primary" icon={<PlusOutlined />} loading={createMutation.isPending} onClick={handleNew}>
-          Neues {DOCUMENT_TYPE[type]}
+          {DOCUMENT_NEW_LABEL[type]}
         </Button>
         <Select
           allowClear
@@ -97,7 +97,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
             title: 'Nr.',
             width: 110,
             render: (_, document: BusinessDocument) => (
-              <Link to={`/documents/${document.id}`}>{document.number ?? 'Entwurf'}</Link>
+              <Link to={documentPath(document.type, document.id)}>{document.number ?? 'Entwurf'}</Link>
             ),
           },
           { title: 'Datum', responsive: ['md'], dataIndex: 'documentDate', width: 100, render: formatDate },
@@ -128,7 +128,7 @@ export function DocumentsPanel({ type, projectId }: DocumentsPanelProps) {
       />
 
       <Modal
-        title={`Neues ${DOCUMENT_TYPE[type]}: Projekt wählen`}
+        title={`${DOCUMENT_NEW_LABEL[type]}: Projekt wählen`}
         open={pickProject}
         onCancel={() => setPickProject(false)}
         onOk={() => form.submit()}

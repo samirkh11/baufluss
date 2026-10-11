@@ -139,6 +139,8 @@ export interface Project {
   manager: UserSummary | null;
   members: UserSummary[];
   _count: { reports: number; documents: number };
+  // only present on the detail endpoint
+  documentCounts?: Partial<Record<DocumentType, number>>;
 }
 
 export type ReportType = 'DAILY' | 'PROGRESS' | 'DEFECT' | 'ACCEPTANCE' | 'INCIDENT' | 'OTHER';
@@ -211,4 +213,14 @@ export interface BusinessDocument {
   finalizedAt: string | null;
   updatedAt: string;
   items: DocumentItem[];
+  // conversion chain (quote -> order -> invoice)
+  sourceDocument: DocumentRef | null;
+  derivedDocuments: DocumentRef[];
+}
+
+export interface DocumentRef {
+  id: string;
+  type: DocumentType;
+  number: string | null;
+  status: DocumentStatus;
 }

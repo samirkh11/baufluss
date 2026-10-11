@@ -50,7 +50,7 @@ export function siteAddress(project: Pick<Project, 'siteStreet' | 'siteZipCode' 
 
 export const DOCUMENT_STATUS: Record<DocumentStatus, { label: string; color: string }> = {
   DRAFT: { label: 'Entwurf', color: 'default' },
-  SENT: { label: 'Versendet', color: 'blue' },
+  SENT: { label: 'Ausgestellt', color: 'blue' },
   ACCEPTED: { label: 'Angenommen', color: 'green' },
   REJECTED: { label: 'Abgelehnt', color: 'red' },
 };
@@ -61,6 +61,31 @@ export const DOCUMENT_TYPE: Record<DocumentType, string> = {
   INVOICE: 'Rechnung',
   CREDIT_NOTE: 'Gutschrift',
 };
+
+// Plural names (menu, tabs) and list route per document type. The editor lives under the same
+// route (`/quotes/:id`), so the right menu entry stays highlighted.
+export const DOCUMENT_TYPE_PLURAL: Record<DocumentType, string> = {
+  QUOTE: 'Angebote',
+  ORDER: 'Aufträge',
+  INVOICE: 'Rechnungen',
+  CREDIT_NOTE: 'Gutschriften',
+};
+
+export const DOCUMENT_NEW_LABEL: Record<DocumentType, string> = {
+  QUOTE: 'Neues Angebot',
+  ORDER: 'Neue Auftragsbestätigung',
+  INVOICE: 'Neue Rechnung',
+  CREDIT_NOTE: 'Neue Gutschrift',
+};
+
+export const DOCUMENT_ROUTE: Record<DocumentType, string> = {
+  QUOTE: '/quotes',
+  ORDER: '/orders',
+  INVOICE: '/invoices',
+  CREDIT_NOTE: '/credit-notes',
+};
+
+export const documentPath = (type: DocumentType, id: string) => `${DOCUMENT_ROUTE[type]}/${id}`;
 
 const euro = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 

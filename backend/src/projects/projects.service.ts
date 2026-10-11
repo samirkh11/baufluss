@@ -67,7 +67,10 @@ export class ProjectsService {
     if (!project) {
       throw new NotFoundException();
     }
-    return flattenMembers(project);
+    // Number of documents per type for the project overview tabs (QUOTE/ORDER/INVOICE/CREDIT_NOTE).
+    const grouped = await this.prisma.document.groupBy({ by: ['type'], where: { projectId: id }, _count: { _all: true } });
+    const documentCounts = Object.fromEntries(grouped.map((group) => [group.type, group._count._all]));
+    return { ...flattenMembers(project), documentCounts };
   }
 
   async create(companyId: string, dto: CreateProjectDto) {

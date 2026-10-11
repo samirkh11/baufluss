@@ -158,6 +158,89 @@ export async function seedDocuments(
     });
   }
 
-  // The seed assigns numbers directly, so move the sequence past them.
+  await seedDerivedDocuments(prisma, companyId);
+
+  // The seed assigns numbers directly, so move the sequences past them.
   await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'QUOTE' }, data: { nextNumber: numbered + 1 } });
+  await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'ORDER' }, data: { nextNumber: 3 } });
+  await prisma.numberSequence.updateMany({ where: { companyId, documentType: 'INVOICE' }, data: { nextNumber: 2 } });
+}
+
+interface DerivedSpec {
+  sourceNumber: string;
+  type: DocumentType;
+  number: string | null; // null = draft
+  status: DocumentStatus;
+  date: string;
+  introText: string;
+  closingText: string;
+  dropOptional?: boolean; // optional (alternative) positions are not part of an invoice
+}
+
+// Orders and invoices created from the quotes above (same chain the "Übernahme" button builds).
+const DERIVED: DerivedSpec[] = [
+  { sourceNumber: 'AN-00002', type: DocumentType.ORDER, number: 'AB-00001', status: DocumentStatus.SENT, date: '2026-09-01',
+    introText: 'vielen Dank für Ihren Auftrag. Wir bestätigen Ihnen hiermit die folgenden Leistungen:',
+    closingText: 'Wir danken für das entgegengebrachte Vertrauen und freuen uns auf die Zusammenarbeit.' },
+  { sourceNumber: 'AN-00004', type: DocumentType.ORDER, number: 'AB-00002', status: DocumentStatus.SENT, date: '2026-10-05',
+    introText: 'vielen Dank für Ihren Auftrag. Wir bestätigen Ihnen hiermit die folgenden Leistungen:',
+    closingText: 'Wir danken für das entgegengebrachte Vertrauen und freuen uns auf die Zusammenarbeit.' },
+  // Issued invoice straight from a quote (no order) for the finished school project.
+  { sourceNumber: 'AN-00001', type: DocumentType.INVOICE, number: 'RE-00001', status: DocumentStatus.SENT, date: '2026-08-18',
+    introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
+    closingText: 'Bitte überweisen Sie den Rechnungsbetrag innerhalb von 30 Tagen ohne Abzug auf das unten genannte Konto.' },
+  // Invoice draft prepared from the order of the running project.
+  { sourceNumber: 'AB-00001', type: DocumentType.INVOICE, number: null, status: DocumentStatus.DRAFT, date: '2026-10-11', dropOptional: true,
+    introText: 'für die von uns ausgeführten Leistungen berechnen wir Ihnen:',
+    closingText: 'Bitte überweisen Sie den Rechnungsbetrag innerhalb von 14 Tagen ohne Abzug auf das unten genannte Konto.' },
+];
+
+async function seedDerivedDocuments(prisma: PrismaClient, companyId: string): Promise<void> {
+  for (const spec of DERIVED) {
+    const source = await prisma.document.findFirstOrThrow({ where: { companyId, number: spec.sourceNumber }, include: { items: true } });
+    const items = source.items.filter((item) => !(spec.dropOptional && item.isOptional));
+    const totals = calculateTotals(items);
+
+    await prisma.document.create({
+      data: {
+        companyId,
+        projectId: source.projectId,
+        type: spec.type,
+        status: spec.status,
+        number: spec.number,
+        sourceDocumentId: source.id,
+        recipientContactId: source.recipientContactId,
+        recipientName: source.recipientName,
+        recipientStreet: source.recipientStreet,
+        recipientZipCode: source.recipientZipCode,
+        recipientCity: source.recipientCity,
+        recipientCountry: source.recipientCountry,
+        subject: source.subject,
+        introText: spec.introText,
+        closingText: spec.closingText,
+        documentDate: new Date(spec.date),
+        netTotal: totals.net,
+        vatTotal: totals.vat,
+        grossTotal: totals.gross,
+        finalizedAt: spec.number ? new Date(spec.date) : null,
+        items: {
+          create: items.map((item, index) => ({
+            sortOrder: index,
+            kind: item.kind,
+            catalogItemId: item.catalogItemId,
+            sku: item.sku,
+            name: item.name,
+            description: item.description,
+            quantity: item.quantity,
+            unit: item.unit,
+            unitPrice: item.unitPrice,
+            vatRate: item.vatRate,
+            discountPercent: item.discountPercent,
+            isOptional: item.isOptional,
+            lineTotal: item.lineTotal,
+          })),
+        },
+      },
+    });
+  }
 }

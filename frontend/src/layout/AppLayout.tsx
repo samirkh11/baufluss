@@ -1,9 +1,11 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Button, Drawer, Layout, Menu, Typography } from 'antd';
 import {
+  AuditOutlined,
   ContactsOutlined,
   DashboardOutlined,
   FileDoneOutlined,
+  SolutionOutlined,
   FileTextOutlined,
   LogoutOutlined,
   MenuOutlined,
@@ -25,6 +27,13 @@ const MENU_ITEMS: { key: string; icon: ReactNode; label: ReactNode; officeOnly?:
   { key: '/', icon: <DashboardOutlined />, label: <Link to="/">Übersicht</Link> },
   { key: '/projects', icon: <ProjectOutlined />, label: <Link to="/projects">Projekte</Link> },
   { key: '/quotes', icon: <FileDoneOutlined />, label: <Link to="/quotes">Angebote</Link>, officeOnly: true },
+  { key: '/orders', icon: <SolutionOutlined />, label: <Link to="/orders">Aufträge</Link>, officeOnly: true },
+  {
+    key: '/invoices',
+    icon: <AuditOutlined />,
+    label: <Link to="/invoices">Rechnungen</Link>,
+    officeOnly: true,
+  },
   { key: '/reports', icon: <FileTextOutlined />, label: <Link to="/reports">Berichte</Link> },
   { key: '/contacts', icon: <ContactsOutlined />, label: <Link to="/contacts">Kontakte</Link> },
   { key: '/catalog', icon: <ToolOutlined />, label: <Link to="/catalog">Leistungen &amp; Artikel</Link> },
@@ -44,8 +53,7 @@ export function AppLayout() {
 
   const isOffice = user?.role === 'OWNER' || user?.role === 'ADMIN';
   const menuItems = MENU_ITEMS.filter((item) => !item.officeOnly || isOffice);
-  // The document editor belongs to the quotes menu entry.
-  const path = location.pathname.startsWith('/documents') ? '/quotes' : location.pathname;
+  const path = location.pathname;
   const selectedKey =
     menuItems
       .map((item) => item.key)

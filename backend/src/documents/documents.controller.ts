@@ -9,6 +9,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { DocumentPdfService } from './document-pdf.service';
 import { DocumentsService } from './documents.service';
+import { ConvertDocumentDto } from './dto/convert-document.dto';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { ListDocumentsQueryDto } from './dto/list-documents-query.dto';
 import { SetDocumentStatusDto } from './dto/set-document-status.dto';
@@ -65,6 +66,12 @@ export class DocumentsController {
   @Post('documents/:id/duplicate')
   duplicate(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
     return this.documentsService.duplicate(user.companyId, id);
+  }
+
+  // Creates the next document of the chain (quote -> order -> invoice) as a draft.
+  @Post('documents/:id/convert')
+  convert(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: ConvertDocumentDto) {
+    return this.documentsService.convert(user.companyId, id, dto.targetType);
   }
 
   @Get('documents/:id/pdf')

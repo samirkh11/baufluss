@@ -26,6 +26,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { listCatalogItems } from '../api/catalog';
 import { listContacts } from '../api/contacts';
 import {
+  convertDocument,
   deleteDocument,
   DocumentItemPayload,
   DocumentPayload,
@@ -44,6 +45,7 @@ import {
   DOCUMENT_STATUS,
   DOCUMENT_TYPE,
   customerName,
+  documentPath,
   formatDate,
   formatMoney,
   toDateInput,
@@ -271,7 +273,19 @@ export function DocumentEditorPage() {
     onSuccess: (copy) => {
       message.success('Neuer Entwurf angelegt.');
       queryClient.invalidateQueries({ queryKey: ['documents'] });
-      navigate(`/documents/${copy.id}`);
+      navigate(documentPath(copy.type, copy.id));
+    },
+    onError,
+  });
+
+  // Takes the document over into the next stage (quote -> order -> invoice) as a new draft.
+  const convertMutation = useMutation({
+    mutationFn: (targetType: 'ORDER' | 'INVOICE') => convertDocument(id, targetType),
+    onSuccess: (created) => {
+      message.success(`${DOCUMENT_TYPE[created.type]} als Entwurf angelegt.`);
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+      queryClient.invalidateQueries({ queryKey: ['projects'] });
+      navigate(documentPath(created.type, created.id));
     },
     onError,
   });
@@ -306,13 +320,21 @@ export function DocumentEditorPage() {
       <Result
         status="404"
         title="Dokument nicht gefunden"
-        extra={<Link to="/quotes">Zu den Angeboten</Link>}
+        extra={<Link to="/quotes">Zu den Dokumenten</Link>}
       />
     );
   }
 
   const status = DOCUMENT_STATUS[document.status];
   const numberLabel = document.number ?? 'Entwurf';
+  const isQuote = document.type === 'QUOTE';
+  // Invoices can be prepared but not issued yet (mandatory details follow with the invoice block).
+  const canIssue = document.type !== 'INVOICE';
+  const issued = document.status === 'SENT' || document.status === 'ACCEPTED';
+  const canConvertToOrder =
+    isQuote && issued && !document.derivedDocuments.some((derived) => derived.type === 'ORDER');
+  const canConvertToInvoice =
+    (isQuote && issued) || (document.type === 'ORDER' && document.status === 'SENT');
 
   const lineColumns = [
     {
@@ -527,6 +549,21 @@ export function DocumentEditorPage() {
           <Button loading={duplicateMutation.isPending} onClick={() => duplicateMutation.mutate()}>
             Duplizieren
           </Button>
+          {canConvertToOrder && (
+            <Button loading={convertMutation.isPending} onClick={() => convertMutation.mutate('ORDER')}>
+              Auftragsbestätigung erstellen
+            </Button>
+          )}
+          {canConvertToInvoice && (
+            <Button
+              type="primary"
+              ghost
+              loading={convertMutation.isPending}
+              onClick={() => convertMutation.mutate('INVOICE')}
+            >
+              Rechnung erstellen
+            </Button>
+          )}
           {isDraft && (
             <>
               <Popconfirm title="Entwurf löschen?" onConfirm={() => deleteMutation.mutate()}>
@@ -540,19 +577,21 @@ export function DocumentEditorPage() {
               >
                 Speichern
               </Button>
-              <Popconfirm
-                title="Dokument ausstellen?"
-                description="Es erhält die nächste Nummer und kann danach nicht mehr geändert werden."
-                okText="Ausstellen"
-                onConfirm={() => finalizeMutation.mutate()}
-              >
-                <Button type="primary" loading={finalizeMutation.isPending}>
-                  Ausstellen
-                </Button>
-              </Popconfirm>
+              {canIssue && (
+                <Popconfirm
+                  title="Dokument ausstellen?"
+                  description="Es erhält die nächste Nummer und kann danach nicht mehr geändert werden."
+                  okText="Ausstellen"
+                  onConfirm={() => finalizeMutation.mutate()}
+                >
+                  <Button type="primary" loading={finalizeMutation.isPending}>
+                    Ausstellen
+                  </Button>
+                </Popconfirm>
+              )}
             </>
           )}
-          {document.status === 'SENT' && (
+          {isQuote && document.status === 'SENT' && (
             <>
               <Button loading={statusMutation.isPending} onClick={() => statusMutation.mutate('ACCEPTED')}>
                 Angenommen
@@ -568,6 +607,44 @@ export function DocumentEditorPage() {
           )}
         </Space>
       </Space>
+
+      {document.type === 'INVOICE' && isDraft && (
+        <Alert
+          type="warning"
+          showIcon
+          style={{ marginBottom: 16 }}
+          message="Rechnung im Entwurf"
+          description="Rechnungen können in der nächsten Ausbaustufe ausgestellt werden (Pflichtangaben wie Leistungsdatum und Zahlungsbedingungen, Abschlags-/Schlussrechnung, § 13b). Bis dahin dient der Entwurf zur Vorbereitung; das PDF ist eine Vorschau. Optionalpositionen bitte vorher entfernen oder in normale Positionen umwandeln."
+        />
+      )}
+
+      {(document.sourceDocument || document.derivedDocuments.length > 0) && (
+        <Card size="small" style={{ marginBottom: 16 }}>
+          <Space direction="vertical" size={4}>
+            {document.sourceDocument && (
+              <span>
+                Erstellt aus:{' '}
+                <Link to={documentPath(document.sourceDocument.type, document.sourceDocument.id)}>
+                  {DOCUMENT_TYPE[document.sourceDocument.type]} {document.sourceDocument.number}
+                </Link>
+              </span>
+            )}
+            {document.derivedDocuments.length > 0 && (
+              <Space wrap>
+                Folgedokumente:
+                {document.derivedDocuments.map((derived) => (
+                  <Link key={derived.id} to={documentPath(derived.type, derived.id)}>
+                    {DOCUMENT_TYPE[derived.type]} {derived.number ?? '(Entwurf)'}{' '}
+                    <Tag color={DOCUMENT_STATUS[derived.status].color}>
+                      {DOCUMENT_STATUS[derived.status].label}
+                    </Tag>
+                  </Link>
+                ))}
+              </Space>
+            )}
+          </Space>
+        </Card>
+      )}
 
       {!isDraft && (
         <Alert
@@ -609,11 +686,13 @@ export function DocumentEditorPage() {
                 <Input type="date" />
               </Form.Item>
             </Col>
-            <Col xs={12} md={6}>
-              <Form.Item name="validUntil" label="Gültig bis">
-                <Input type="date" />
-              </Form.Item>
-            </Col>
+            {isQuote && (
+              <Col xs={12} md={6}>
+                <Form.Item name="validUntil" label="Gültig bis">
+                  <Input type="date" />
+                </Form.Item>
+              </Col>
+            )}
             {!isDraft && (
               <Col xs={24} md={12}>
                 <Descriptions size="small" column={1}>

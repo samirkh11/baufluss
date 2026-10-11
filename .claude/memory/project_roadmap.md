@@ -53,7 +53,7 @@ Backend: `projects/`, `reports/`. Frontend: `ProjectsPage`, `ProjectDetailPage`,
 - Offen/Ideen: Projektdateien/Pläne als Anhänge, Zeiterfassung je Projekt, PDF-Export von
   Berichten, Bautagebuch-Vorlagen, Mitarbeiter sieht nur zugewiesene Projekte (aktuell sehen alle alles).
 
-### 🟡 Block 4 — Angebote (Teilschritt 1 fertig, 2026-10-11)
+### 🟡 Block 4 — Angebote (Teilschritte 1+2 fertig, 2026-10-11)
 Aufgeteilt in drei Teilschritte:
 - ✅ **1. Angebotseditor + PDF + Preise aus dem Stamm.** Backend `documents/`, Frontend
   `DocumentEditorPage`, `DocumentsPanel`, `QuotesPage` (Menü „Angebote", Tab „Angebote" im Projekt;
@@ -73,10 +73,20 @@ Aufgeteilt in drei Teilschritte:
     Anschrift, Positionstabelle mit Seitenumbruch + wiederholtem Tabellenkopf, USt-Summen,
     Schlusstext, Fußzeile (Briefpapier-Text + IBAN/BIC/USt-IdNr.), Wasserzeichen „ENTWURF".
   - Projekte/Kontakte mit Dokumenten sind nicht löschbar (FK Restrict → 409).
-- ⬜ **2. Angebot → Auftragsbestätigung → Rechnung (Übernahme).** `sourceDocumentId` ist im Schema
-  schon vorhanden. Übernahme = Kopie der Positionen in neues Dokument des Folgetyps; `SUPPORTED_TYPES`
-  erweitern; Status-Übergänge je Typ (ORDER: nur aus ACCEPTED-Angebot). Rechnungsspezifisches
-  (Leistungsdatum, Zahlungsziel, § 13b, Abschläge …) gehört zu Block 5.
+- ✅ **2. Übernahme Angebot → Auftragsbestätigung → Rechnung** (2026-10-11).
+  `POST /documents/:id/convert {targetType}` (`DocumentsService.convert`), Buttons im Editor.
+  Erlaubt: Angebot→Auftrag, Angebot→Rechnung, Auftrag→Rechnung. Quelle muss ausgestellt sein
+  (Angebot: SENT/ACCEPTED, ein SENT-Angebot wird dabei automatisch ACCEPTED; Auftrag: SENT).
+  Pro Angebot nur EINE Auftragsbestätigung (409), mehrere Rechnungen erlaubt (Abschläge, Block 5).
+  Neuer Entwurf kopiert Empfänger, Betreff und alle Positionen (inkl. Optionalpositionen als
+  Optional-Flag), `sourceDocumentId` verknüpft die Kette; Editor zeigt „Erstellt aus" und
+  „Folgedokumente"; PDF zeigt Zeile „Bezug". Eigene Listen/Menü/Tabs: Angebote, Aufträge,
+  Rechnungen; Editor-Routen `/quotes/:id`, `/orders/:id`, `/invoices/:id`. Auftrag hat keine
+  Gültigkeit; Standardtexte je Typ, Rechnungs-Schlusstext mit Zahlungsziel des Kunden.
+  **Rechnungen sind nur als ENTWURF möglich** (`ISSUABLE_TYPES` in `documents.service.ts` = Angebot,
+  Auftrag): Ausstellen bleibt gesperrt (409 + Hinweis im Editor), bis Block 5 die Pflichtangaben
+  (§ 14 UStG, Leistungsdatum, Zahlungsbedingungen, § 13b, Abschlag/Schluss, EN16931-Felder) liefert.
+  Block 5 muss außerdem: Optionalpositionen vor dem Ausstellen verbieten, `CREDIT_NOTE` freischalten.
 - ⬜ **3. GAEB-Import/-Export** (Import zuerst, siehe [[project_compliance]]): Leistungsverzeichnis
   → Titel/Positionen mit OZ; die Struktur HEADING/POSITION passt bereits dazu.
 - Ideen/offen: Textbausteine & Standard-Einleitung je Firma, Angebotsvarianten/Alternativen
@@ -139,7 +149,7 @@ Zeitpunkt: nach Block 5 (dann gibt es Geld-Kennzahlen), spätestens vor dem erst
 1. ~~Firmenprofil & Konto~~ ✅
 2. ~~Kontakte & Stammdaten~~ ✅
 3. ~~Projekte (inkl. Berichte)~~ ✅
-4. Angebote (inkl. GAEB) — Teilschritt 1/3 ✅ (Editor+PDF)
+4. Angebote (inkl. GAEB) — Teilschritte 1+2 von 3 ✅ (Editor+PDF, Übernahme); GAEB offen
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Datenmodell von Anfang an EN16931-kompatibel
 6. Eingangsrechnungen
 7. E-Rechnung-Export (XRechnung/ZUGFeRD) + GoBD/DSGVO-Feinschliff + Steuerprüfer-Export

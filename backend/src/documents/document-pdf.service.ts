@@ -23,6 +23,17 @@ const TITLES: Record<DocumentType, string> = {
   CREDIT_NOTE: 'Gutschrift',
 };
 
+// Short names for the reference line (the column is narrow).
+const SHORT_TITLES: Record<DocumentType, string> = { QUOTE: 'Angebot', ORDER: 'Auftrag', INVOICE: 'Rechnung', CREDIT_NOTE: 'Gutschrift' };
+
+// Label of the number field in the reference block (the full title would not fit).
+const NUMBER_LABELS: Record<DocumentType, string> = {
+  QUOTE: 'Angebots-Nr.:',
+  ORDER: 'Auftrags-Nr.:',
+  INVOICE: 'Rechnungs-Nr.:',
+  CREDIT_NOTE: 'Gutschrift-Nr.:',
+};
+
 const money = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 const quantityFormat = new Intl.NumberFormat('de-DE', { maximumFractionDigits: 3 });
 const formatDate = (date: Date | null) =>
@@ -35,7 +46,7 @@ export class DocumentPdfService {
   async render(companyId: string, documentId: string): Promise<{ buffer: Buffer; filename: string }> {
     const document = await this.prisma.document.findFirst({
       where: { id: documentId, companyId },
-      include: { project: true, items: { orderBy: { sortOrder: 'asc' } } },
+      include: { project: true, items: { orderBy: { sortOrder: 'asc' } }, sourceDocument: { select: { type: true, number: true } } },
     });
     if (!document) {
       throw new NotFoundException();
@@ -72,10 +83,13 @@ export class DocumentPdfService {
 
     // Reference block on the right.
     const info: [string, string][] = [
-      [`${TITLES[document.type]}-Nr.:`, document.number ?? 'Entwurf'],
+      [NUMBER_LABELS[document.type], document.number ?? 'Entwurf'],
       ['Datum:', formatDate(document.documentDate)],
       ...(document.validUntil ? ([['Gültig bis:', formatDate(document.validUntil)]] as [string, string][]) : []),
       ['Projekt:', `${document.project.number}`],
+      ...(document.sourceDocument?.number
+        ? ([['Bezug:', `${SHORT_TITLES[document.sourceDocument.type]} ${document.sourceDocument.number}`]] as [string, string][])
+        : []),
     ];
     let infoY = 150;
     pdf.fontSize(9);

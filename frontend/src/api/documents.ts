@@ -79,6 +79,12 @@ export async function setDocumentStatus(
   return data;
 }
 
+// Creates the next document of the chain as a draft: quote -> order, quote -> invoice, order -> invoice.
+export async function convertDocument(id: string, targetType: 'ORDER' | 'INVOICE'): Promise<BusinessDocument> {
+  const { data } = await apiClient.post<BusinessDocument>(`/documents/${id}/convert`, { targetType });
+  return data;
+}
+
 export async function duplicateDocument(id: string): Promise<BusinessDocument> {
   const { data } = await apiClient.post<BusinessDocument>(`/documents/${id}/duplicate`);
   return data;

@@ -12,6 +12,8 @@ import { ProjectsPage } from './pages/ProjectsPage';
 import { ProjectDetailPage } from './pages/ProjectDetailPage';
 import { ReportsPage } from './pages/ReportsPage';
 import { QuotesPage } from './pages/QuotesPage';
+import { OrdersPage } from './pages/OrdersPage';
+import { InvoicesPage } from './pages/InvoicesPage';
 import { DocumentEditorPage } from './pages/DocumentEditorPage';
 
 export function App() {
@@ -26,7 +28,11 @@ export function App() {
           <Route path="/projects" element={<ProjectsPage />} />
           <Route path="/projects/:id" element={<ProjectDetailPage />} />
           <Route path="/quotes" element={<QuotesPage />} />
-          <Route path="/documents/:id" element={<DocumentEditorPage />} />
+          <Route path="/quotes/:id" element={<DocumentEditorPage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/orders/:id" element={<DocumentEditorPage />} />
+          <Route path="/invoices" element={<InvoicesPage />} />
+          <Route path="/invoices/:id" element={<DocumentEditorPage />} />
           <Route path="/reports" element={<ReportsPage />} />
           <Route path="/contacts" element={<ContactsPage />} />
           <Route path="/catalog" element={<CatalogPage />} />

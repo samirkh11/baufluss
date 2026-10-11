@@ -21,7 +21,7 @@ import { ProjectFormModal } from '../components/ProjectFormModal';
 import { DocumentsPanel } from '../components/DocumentsPanel';
 import { ReportsPanel } from '../components/ReportsPanel';
 import { apiErrorMessage, assetUrl } from '../utils/assets';
-import { customerName, formatDate, PROJECT_STATUS, siteAddress } from '../utils/labels';
+import { customerName, DOCUMENT_TYPE_PLURAL, formatDate, PROJECT_STATUS, siteAddress } from '../utils/labels';
 
 // Project overview: master data on top, the project's documents below. Quotes, orders and invoices
 // get their own tabs here in the upcoming blocks; reports are available from the start.
@@ -121,13 +121,11 @@ export function ProjectDetailPage() {
         items={[
           // Documents contain prices: only the office (OWNER/ADMIN) sees them.
           ...(canManage
-            ? [
-                {
-                  key: 'quotes',
-                  label: `Angebote (${project._count.documents})`,
-                  children: <DocumentsPanel type="QUOTE" projectId={project.id} />,
-                },
-              ]
+            ? (['QUOTE', 'ORDER', 'INVOICE'] as const).map((type) => ({
+                key: type,
+                label: `${DOCUMENT_TYPE_PLURAL[type]} (${project.documentCounts?.[type] ?? 0})`,
+                children: <DocumentsPanel type={type} projectId={project.id} />,
+              }))
             : []),
           {
             key: 'reports',

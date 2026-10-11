@@ -217,6 +217,40 @@ await page.getByRole('button', { name: 'Angenommen' }).click();
 await page.waitForSelector('h3 .ant-tag:has-text("Angenommen")');
 check('quote marked as accepted', true);
 
+// conversion chain: accepted quote -> order -> invoice draft
+await page.getByRole('button', { name: 'Auftragsbestätigung erstellen' }).click();
+await page.waitForURL(/\/orders\/.+/);
+await page.waitForSelector('h3:has-text("Auftragsbestätigung")');
+check('order draft created from the quote (13 lines, source link)', (await page.locator('tbody tr.ant-table-row').count()) === 13 && (await page.getByText('Erstellt aus:').count()) > 0);
+check('order has no "Gültig bis" field', (await page.getByLabel('Gültig bis').count()) === 0);
+await page.screenshot({ path: shots + '11-order-draft.png' });
+await page.getByRole('button', { name: 'Ausstellen' }).first().click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'Ausstellen' }).click();
+await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
+check('order issued with number AB-00003', await page.locator('h3', { hasText: 'AB-00003' }).isVisible());
+await page.getByRole('button', { name: 'Rechnung erstellen' }).click();
+await page.waitForURL(/\/invoices\/.+/);
+await page.waitForSelector('h3:has-text("Rechnung")');
+check('invoice draft created from the order', (await page.getByText('Rechnung im Entwurf').count()) > 0 && (await page.getByText('AB-00003').count()) > 0);
+check('invoice cannot be issued yet (no "Ausstellen" button)', (await page.getByRole('button', { name: 'Ausstellen' }).count()) === 0);
+await page.screenshot({ path: shots + '12-invoice-draft.png' });
+await page.getByRole('button', { name: 'Löschen' }).click();
+await page.locator('.ant-popover:visible').getByRole('button', { name: 'OK' }).click();
+await page.waitForURL(/\/projects\/.+/);
+await page.getByRole('menuitem', { name: 'Aufträge' }).click();
+await page.waitForSelector('tbody tr.ant-table-row');
+check('orders list shows 3 orders', (await page.locator('tbody tr.ant-table-row').count()) === 3);
+await page.getByRole('menuitem', { name: 'Rechnungen' }).click();
+await page.waitForSelector('tbody tr.ant-table-row');
+check('invoices list shows 2 invoices', (await page.locator('tbody tr.ant-table-row').count()) === 2);
+// an order cannot be created twice from the same quote
+await page.goto(BASE + '/quotes');
+await page.waitForSelector('tbody tr.ant-table-row');
+await page.getByRole('link', { name: 'AN-00002' }).click();
+await page.waitForSelector('text=Dieses Dokument ist ausgestellt und gesperrt');
+check('quote with an order offers only the invoice conversion', (await page.getByRole('button', { name: 'Auftragsbestätigung erstellen' }).count()) === 0 && (await page.getByRole('button', { name: 'Rechnung erstellen' }).count()) === 1);
+check('quote lists its follow-up documents', (await page.getByText('Folgedokumente:').count()) > 0);
+
 // project tab: create + delete a draft
 await page.getByRole('menuitem', { name: 'Projekte' }).click();
 await page.getByRole('link', { name: 'Neueindeckung EFH Familie Becker' }).click();
@@ -224,7 +258,7 @@ await page.getByRole('tab', { name: /Angebote/ }).click();
 await page.waitForSelector('.ant-tabs-tabpane-active tbody tr.ant-table-row');
 check('project tab lists its 2 quotes', (await page.locator('.ant-tabs-tabpane-active tbody tr.ant-table-row').count()) === 2);
 await page.getByRole('button', { name: 'Neues Angebot' }).click();
-await page.waitForURL(/\/documents\/.+/);
+await page.waitForURL(/\/quotes\/.+/);
 await page.waitForSelector('h3:has-text("Entwurf")');
 check('new quote draft prefilled with project subject', (await page.getByLabel('Betreff').inputValue()) === 'Neueindeckung EFH Familie Becker');
 await page.getByRole('button', { name: 'Löschen' }).click();
@@ -242,7 +276,7 @@ await page.waitForSelector('tbody tr.ant-table-row');
 check('worker sees no "Neues Projekt" button', (await page.getByRole('button', { name: 'Neues Projekt' }).count()) === 0);
 await page.getByRole('menuitem', { name: 'Nutzer & Rollen' }).click();
 await page.waitForSelector('tbody tr.ant-table-row');
-check('worker sees no "Angebote" menu item', (await page.getByRole('menuitem', { name: 'Angebote' }).count()) === 0);
+check('worker sees no document menu items', (await page.getByRole('menuitem', { name: /Angebote|Aufträge|Rechnungen/ }).count()) === 0);
 check('worker sees no "Nutzer einladen" button', (await page.getByRole('button', { name: 'Nutzer einladen' }).count()) === 0);
 
 const real = errors.filter((e) => !/favicon|DevTools/i.test(e));

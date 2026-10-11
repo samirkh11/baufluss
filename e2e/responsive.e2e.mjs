@@ -83,6 +83,8 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
   await visit(page, 'dashboard', '/', tag);
   await visit(page, 'reports', '/reports', tag, 'tbody tr.ant-table-row');
   await visit(page, 'quotes', '/quotes', tag, 'tbody tr.ant-table-row');
+  await visit(page, 'orders', '/orders', tag, 'tbody tr.ant-table-row');
+  await visit(page, 'invoices', '/invoices', tag, 'tbody tr.ant-table-row');
   await visit(page, 'contacts', '/contacts', tag, 'tbody tr.ant-table-row');
   await visit(page, 'catalog', '/catalog', tag, 'tbody tr.ant-table-row');
   await visit(page, 'company', '/company', tag, 'form');
@@ -131,7 +133,7 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
   const page = await newPage({ width: 390, height: 844 }, true);
   await login(page, 'l.bauer@dachdecker-schmidt.example');
   await page.getByRole('button', { name: 'Menü' }).click();
-  check('worker (phone): no "Angebote" in the menu', (await page.getByRole('menuitem', { name: 'Angebote' }).count()) === 0);
+  check('worker (phone): no document entries in the menu', (await page.getByRole('menuitem', { name: /Angebote|Aufträge|Rechnungen/ }).count()) === 0);
   await page.getByRole('menuitem', { name: 'Projekte' }).click();
   await page.waitForSelector('tbody tr.ant-table-row');
   await page.getByRole('link', { name: 'Neueindeckung EFH Familie Becker' }).click();
