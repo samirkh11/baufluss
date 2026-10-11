@@ -46,8 +46,14 @@ Voraussetzungen: DSM 7.2 oder neuer, Paket **Container Manager** installiert, SS
 
 Wenn 80/443 schon belegt sind, brauchst du weder Reverse Proxy noch Zertifikat:
 
-1. **DNS:** Bei der temporären Domain einen A-Record (z. B. `demo`) auf die feste IP-Adresse des Anschlusses setzen.
-2. **`.env`:** `WEB_PORT=8085` (Port auf der NAS) und `PUBLIC_URL=http://demo.deine-domain.de:8085`.
+0. **Öffentliche IPv4-Adresse prüfen:** WAN-IP im Router mit der IP von `wieistmeineip.de` vergleichen. Sind sie verschieden (oder beginnt
+   die Router-Adresse mit `100.64.`–`100.127.`, `10.`, `172.16.`, `192.168.`), steckt der Anschluss hinter CGNAT/DS-Lite – dann hilft keine
+   Portfreigabe; Alternative: Cloudflare Tunnel oder Tailscale Funnel.
+1. **DNS (dynamische IP):** DSM → Systemsteuerung → Externer Zugriff → DDNS → Hinzufügen, Anbieter *Synology*, Hostname z. B.
+   `meisterwerk-demo.synology.me`. Die NAS hält den Eintrag selbst aktuell. Entweder diese Adresse direkt verwenden oder bei der
+   temporären Domain einen **CNAME** `demo` → `meisterwerk-demo.synology.me` anlegen (CNAME nur für Subdomains).
+   Router vor der Vorführung nicht neu starten (neue IP, DNS braucht einige Minuten).
+2. **`.env`:** `WEB_PORT=8085` (Port auf der NAS) und `PUBLIC_URL=http://<ddns-oder-cname-name>:8085`.
 3. **Router:** Einen freien externen Port (z. B. 8085) auf `NAS-IP:8085` weiterleiten. Der externe Port darf vom internen abweichen;
    in Firmen-/Gäste-Netzen kommen Ports wie 8080 oder 8443 oft eher durch.
 4. Aufruf: `http://demo.deine-domain.de:8085` (Kunden-App) und `http://demo.deine-domain.de:8085/admin` (Betreiber-Backoffice).
@@ -58,7 +64,7 @@ Nach der Vorstellung: Portweiterleitung im Router wieder entfernen.
 
 ### Variante B: mit HTTPS über den Synology Reverse Proxy (nur wenn 443 frei ist)
 
-1. DNS und Router-Freigabe wie oben, aber Port **443** (und **80** für die Zertifikatsausstellung) auf die NAS.
+1. DNS (DDNS) und Router-Freigabe wie oben, aber Port **443** (und **80** für die Zertifikatsausstellung) auf die NAS.
 2. **Reverse Proxy** (DSM → Systemsteuerung → Anmeldeportal → Erweitert → Reverse Proxy → Erstellen):
    Quelle `HTTPS`, Hostname `demo.deine-domain.de`, Port 443 → Ziel `HTTP`, `localhost`, Port `8085`.
 3. **Zertifikat:** Systemsteuerung → Sicherheit → Zertifikat → Hinzufügen → *Let's Encrypt* für `demo.deine-domain.de`,

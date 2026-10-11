@@ -101,4 +101,4 @@ Swagger gesperrt; `VITE_API_BASE_URL=/api`), `deploy/docker-compose.yml` (postgr
 `deploy/.env.example`, `deploy/backup.sh`, `deploy/README.md` (Schritt-für-Schritt), `.github/workflows/build-images.yml` (Tests → Images nach ghcr.io).
 Lokal geprüft: Images bauen, Stack startet, Seed im Container (`docker compose --profile tools run --rm seed`), PDF/ZUGFeRD/Archiv/Admin per API + UI ok.
 Seed-Passwörter für öffentliche Demo: `SEED_PASSWORD`, `SEED_ADMIN_PASSWORD`. GAEB-Beispiel für den Seed liegt in `backend/assets/gaeb-samples/` (Kopie von `docs/gaeb-samples/`).
-Entscheidung Volker: 80/443 sind belegt -> Vorführung über freien Port ohne HTTPS (http://domain:8085, Variante A in deploy/README.md). Offen für Volker: A-Record, Router-Portfreigabe, NAS-Setup.
+Entscheidung Volker: 80/443 sind belegt -> Vorführung über freien Port ohne HTTPS (http://domain:8085, Variante A in deploy/README.md). Keine feste IP -> Synology-DDNS (+ optional CNAME), vorher öffentliche IPv4 prüfen (CGNAT?). Offen für Volker: DDNS, Router-Portfreigabe, NAS-Setup.
