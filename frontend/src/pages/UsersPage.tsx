@@ -24,6 +24,7 @@ import {
   updateUser,
 } from '../api/users';
 import { useAuth } from '../auth/AuthContext';
+import { downloadUserExport } from '../api/compliance';
 import { ImageUpload } from '../components/ImageUpload';
 import { apiErrorMessage } from '../utils/assets';
 import { CompanyUser } from '../types';
@@ -186,6 +187,11 @@ export function UsersPage() {
                   <Button size="small" onClick={() => openModal(record)}>
                     Bearbeiten
                   </Button>
+                  {canManage && (
+                    <Button size="small" onClick={() => void downloadUserExport(record.id, record.lastName)}>
+                      Datenauskunft
+                    </Button>
+                  )}
                   {record.imagePath && (
                     <Button size="small" onClick={() => removeImageMutation.mutate(record.id)}>
                       Bild löschen

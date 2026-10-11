@@ -23,8 +23,8 @@ export function OpenItemsWidget() {
             <Statistic title="Offen" value={formatMoney(data.openItems.open)} valueStyle={big} />
             <Statistic title="davon überfällig" value={formatMoney(data.openItems.overdue)} valueStyle={{ ...big, color: Number(data.openItems.overdue) > 0 ? '#cf1322' : undefined }} />
           </Space>
-          {data.openItems.top.map((item) => (
-            <div key={item.documentId + item.number} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 6 }}>
+          {data.openItems.top.map((item, index) => (
+            <div key={`${item.documentId}-${index}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginTop: 6 }}>
               <span>
                 <Link to={documentPath(item.documentType as DocumentType, item.documentId)}>{item.number}</Link> {item.recipientName}
               </span>

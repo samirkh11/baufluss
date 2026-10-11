@@ -210,7 +210,7 @@ Aufgeteilt in vier Teilschritte:
   im Projekt (Kostenübersicht/Marge), Skonto, Zahlungsexport (SEPA/DATEV),
   Upload/Foto für Bauleiter (MEMBER) mit Freigabe durch Büro, Mehr-Augen-Prinzip/Freigabegrenzen.
 
-### 🟡 Block 7 — E-Rechnung und Compliance (Teil 1 ✅ 2026-10-11)
+### ✅ Block 7 — E-Rechnung und Compliance (fertig 2026-10-11)
 - ✅ **Teil 1: E-Rechnung erzeugen.** `GET documents/:id/e-invoice?format=xrechnung-ubl|xrechnung-cii|zugferd` für
   ausgestellte Rechnungen/Gutschriften (Button „E-Rechnung“ im Editor). Library `@e-invoice-eu/core` (WTFPL, Node;
   Entscheidung gegen PHP-Mini-Service), eigener Mapper `documents/e-invoice/e-invoice-mapper.ts` (rein, 14 Tests):
@@ -232,11 +232,28 @@ Aufgeteilt in vier Teilschritte:
   `IncomingInvoice.eInvoice` (Json). XML, die keine E-Rechnung ist → 400. Gutschrift des Lieferanten (381) und Fremdwährung
   blockieren die Freigabe (Hinweis). Dialog zeigt Alert „E-Rechnung erkannt“ + Positionstabelle (bei XML statt Vorschau).
   Seed: ER-0007 als XRechnung-XML (Maier). Tests: jest 104, e2e smoke 133, responsive 59.
-- ⬜ **Teil 3: GoBD** — Archiv (unveränderliche PDF/XML-Ablage mit Hash zum Ausstellzeitpunkt statt Neurendern),
-  Audit-Log (wer/wann/was), Verfahrensdokumentation (Vorlage), Aufbewahrungsfristen/Löschsperre.
-- ⬜ **Teil 4: DSGVO** — Kontakt-Auskunft/Export, Löschkonzept (Sperren statt Löschen bei Aufbewahrung), AVV-/TOM-Hinweise.
-- ⬜ **Teil 5: Steuerprüfer-Export** — DATEV-Buchungsstapel (Ausgangs-/Eingangsrechnungen) und GoBD-Datenträger
-  (index.xml/CSV, „Z3“), Zeitraum-Export als ZIP mit Belegen.
+- ✅ **Teil 3: GoBD** (2026-10-11). **Archiv:** beim Ausstellen (`DocumentsController.finalize`) und beim Anlegen einer Mahnung wird das
+  PDF unveränderlich in `backend/storage/archive/<companyId>/` abgelegt (+ XRechnung-UBL-XML, wenn erzeugbar), `ArchivedFile` mit
+  SHA-256 und `retainUntil` (Ende des Belegjahres + 8 J. Rechnungen/Gutschriften bzw. 6 J. übrige; einstellbar). PDF-Endpunkte und
+  ZUGFeRD liefern das archivierte Original statt neu zu rendern. `GET compliance/archive/verify` prüft alle Prüfsummen (Archiv +
+  Eingangsrechnungs-Originale) und unarchivierte Belege; `POST compliance/archive/complete` archiviert Altbestand. Seed archiviert
+  über die echte Service-Schicht (Nest-Application-Context). **Audit-Log:** `AuditInterceptor` (global) protokolliert jede erfolgreiche
+  Schreibaktion (Nutzer, Route, Objekt, Nummer, Body ohne Geheimnisse) + Exporte/Auskünfte explizit; keine Update/Delete-API;
+  UI-Tab „Änderungsprotokoll“. **Verfahrensdokumentation:** PDF aus Einstellungen (`ComplianceSettings`: verantwortliche Person,
+  Hosting, Backup, Fristen), Platzhalter „[bitte ergänzen]“.
+- ✅ **Teil 4: DSGVO.** Je Kontakt: Datenauskunft (JSON, Art. 15/20) und Löschung (Art. 17): ohne Bindung → löschen; mit
+  ausgestellten Belegen/Projekten/Eingangsrechnungen → **Anonymisierung** (Stammdaten weg, `erasedAt`, inaktiv; Belege behalten
+  ihren eingefrorenen Adressblock – steuerrechtlich nötig), Anzeige der Aufbewahrungsfrist. Mitarbeiter-Datenauskunft (JSON). PDF
+  „Datenschutz: VVT & TOM (Entwurf)“ (Art. 30/32/28, AVV-Hinweise). UI: Button „Datenschutz“ im Kontakt, „Datenauskunft“ bei Nutzern.
+- ✅ **Teil 5: Steuerprüfer-Export.** `GET compliance/export/tax-audit?from&to` → ZIP: `index.xml` (GDPdU/GoBD-Beschreibungsstandard,
+  DOCTYPE verweist auf `gdpdu-01-09-2002.dtd`, die die Prüfsoftware mitbringt – NICHT geprüft gegen IDEA), CSV-Tabellen (belege,
+  positionen, zahlungen, eingangsrechnungen, kontakte; UTF-8, `;`, Dezimalkomma), `belege/` (archivierte PDF/XML), `eingang/`
+  (Originale), DATEV-Datei, Verfahrensdokumentation, LIESMICH. `GET compliance/export/datev` → **DATEV-Buchungsstapel** (EXTF 700/
+  Kategorie 21/Version 12, Windows-1252, 14 Spalten): Rechnungen je USt-Satz an Erlöskonto (SKR03-Defaults 8400/8300/8337), Gutschriften
+  auf Haben, Zahlungen Bank an Debitor, Eingangsrechnungen Aufwand (3400/3300/3200 nach USt-Quote) an Kreditor + Zahlung;
+  Personenkonten = Basis + Kontaktnummer (K-1001 → 11001, L-2001 → 72001). **Entwurf, mit Steuerberater abstimmen** (Skonto,
+  Anzahlungen, Anlagevermögen, Einbehalt nicht abgebildet; DATEV-Import nicht mit echter DATEV-Software getestet).
+  Tests: jest 117, e2e smoke 142, responsive 59. Compliance-UI: Firmenprofil → Tabs „Compliance“ und „Änderungsprotokoll“ (nur OWNER/ADMIN).
 - Offen/Ideen: Leitweg-ID als Kontaktfeld (statt nur Rechnungsfeld), Versand per E-Mail/PEPPOL, Skonto-Felder (BT-20),
   Einbehalt als Teilzahlung abbilden, XRechnung-Extension/CVD-Szenarien, Rechtsstand zur E-Rechnungspflicht (2027/2028)
   vor Kundenstart prüfen.
@@ -318,7 +335,7 @@ Mitarbeiter bekommen ein **Urlaubskonto** und stellen **Urlaubsanträge, die fre
 4. ~~Angebote (Editor, PDF, Übernahme, GAEB)~~ ✅
 5. Rechnungen (inkl. § 13b, Mahnwesen) — Teilschritte 1–4 ✅ (ausstellen, Abschlag/Schluss, Storno/Zahlungen); Mahnwesen ✅, Datenmodell EN16931-kompatibel halten
 6. Eingangsrechnungen — Teil 1 ✅ (Upload, Erfassung, Freigabe, Projektzuordnung); Mail-Eingang offen
-7. E-Rechnung — Teil 1+2 ✅ (Erzeugen XRechnung/ZUGFeRD validiert, Lesen/Import); offen: GoBD-Archiv/Audit, DSGVO, Steuerprüfer-Export
+7. ✅ E-Rechnung/Compliance (Erzeugen+Lesen XRechnung/ZUGFeRD, GoBD-Archiv/Audit-Log, DSGVO, Steuerprüfer-/DATEV-Export)
 8. Plattform-Admin / Betreiber-Backoffice (Abonnenten, Abrechnung) — Zeitpunkt flexibel, spätestens
    vor dem ersten zahlenden Kunden
 9. Dashboard mit Widgets — V1 ✅ (siehe Block 9), V2 offen

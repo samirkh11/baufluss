@@ -10,6 +10,7 @@ import { ProjectsModule } from './projects/projects.module';
 import { ReportsModule } from './reports/reports.module';
 import { DocumentsModule } from './documents/documents.module';
 import { IncomingInvoicesModule } from './incoming-invoices/incoming-invoices.module';
+import { ComplianceModule } from './compliance/compliance.module';
 import { DashboardModule } from './dashboard/dashboard.module';
 import { TimeEntriesModule } from './time-entries/time-entries.module';
 
@@ -28,6 +29,7 @@ import { TimeEntriesModule } from './time-entries/time-entries.module';
     TimeEntriesModule,
     IncomingInvoicesModule,
     DashboardModule,
+    ComplianceModule,
   ],
 })
 export class AppModule {}

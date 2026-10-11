@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Company, DocumentStatus, DocumentType } from '@prisma/client';
 import { Invoice, InvoiceService } from '@e-invoice-eu/core';
+import { readFile } from 'fs/promises';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { DocumentPdfService } from '../document-pdf.service';
+import { archivePath } from '../archive-paths';
 import { buildEInvoice, EInvoiceTarget, readinessIssues } from './e-invoice-mapper';
 
 export type EInvoiceFormat = 'xrechnung-ubl' | 'xrechnung-cii' | 'zugferd';
@@ -60,7 +62,11 @@ export class EInvoiceService {
     const filename = `${document.number}.${spec.extension}`.replace(/[^\w.-]/g, '_');
     try {
       if (spec.target === 'zugferd') {
-        const pdf = await this.pdfService.render(companyId, documentId);
+        // the archived PDF is what was issued; older documents are rendered again
+        const archived = await this.prisma.archivedFile.findFirst({ where: { companyId, documentId, kind: 'DOCUMENT_PDF' } });
+        const pdf = archived
+          ? { buffer: await readFile(archivePath(archived.filePath)), filename: archived.fileName }
+          : await this.pdfService.render(companyId, documentId);
         const buffer = await this.library.generate(invoice as unknown as Invoice, {
           format: spec.library,
           lang: 'de-de',

@@ -82,6 +82,7 @@ export interface Contact {
   notes: string | null;
   imagePath: string | null;
   isActive: boolean;
+  erasedAt?: string | null;
 }
 
 export type CatalogItemKind = 'SERVICE' | 'ARTICLE';

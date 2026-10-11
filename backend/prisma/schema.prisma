@@ -55,18 +55,21 @@ model Company {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users            User[]
-  numberSequences  NumberSequence[]
-  contacts         Contact[]
-  catalogItems     CatalogItem[]
-  projects         Project[]
-  reports          Report[]
-  documents        Document[]
-  payments         Payment[]
-  dunnings         Dunning[]
-  dunningSettings  DunningSettings?
-  timeEntries      TimeEntry[]
-  incomingInvoices IncomingInvoice[]
+  users              User[]
+  numberSequences    NumberSequence[]
+  contacts           Contact[]
+  catalogItems       CatalogItem[]
+  projects           Project[]
+  reports            Report[]
+  documents          Document[]
+  payments           Payment[]
+  dunnings           Dunning[]
+  dunningSettings    DunningSettings?
+  timeEntries        TimeEntry[]
+  incomingInvoices   IncomingInvoice[]
+  archivedFiles      ArchivedFile[]
+  auditLogs          AuditLog[]
+  complianceSettings ComplianceSettings?
 
   @@map("companies")
 }
@@ -185,6 +188,7 @@ model Contact {
   createdAt        DateTime          @default(now())
   updatedAt        DateTime          @updatedAt
   incomingInvoices IncomingInvoice[]
+  erasedAt         DateTime? // set when the personal data was erased/anonymized (DSGVO), the row is kept for retained documents
 
   @@unique([companyId, number])
   @@index([companyId])
@@ -432,8 +436,9 @@ model Document {
   dunnings       Dunning[]
   deductedIn     DocumentItem[]  @relation("DeductedBy")
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  archivedFiles ArchivedFile[]
 
   @@unique([companyId, type, number])
   @@index([companyId, type, status])
@@ -667,7 +672,8 @@ model Dunning {
 
   issuerSnapshot Json
   createdById    String?
-  createdAt      DateTime @default(now())
+  createdAt      DateTime       @default(now())
+  archivedFiles  ArchivedFile[]
 
   @@index([documentId])
   @@index([companyId, dunningDate])
@@ -761,6 +767,100 @@ model DashboardLayout {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   items Json
+
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------------------------
+// Compliance: GoBD archive, audit log, settings
+// ---------------------------------------------------------------------------------------------
+
+enum ArchiveKind {
+  DOCUMENT_PDF // the PDF exactly as issued
+  EINVOICE_XML // the structured XRechnung created at issue time
+  DUNNING_PDF // a dunning letter as sent
+}
+
+// Immutable copy of an issued document (GoBD: Unveränderbarkeit, Aufbewahrung). Created when the
+// document is issued; the SHA-256 proves later that the file was not altered. Files live in
+// storage/archive/<companyId>/ and are never overwritten or deleted by the application.
+model ArchivedFile {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  kind ArchiveKind
+
+  documentId String?
+  document   Document? @relation(fields: [documentId], references: [id], onDelete: Restrict)
+  dunningId  String?
+  dunning    Dunning?  @relation(fields: [dunningId], references: [id], onDelete: SetNull)
+
+  filePath String // relative to storage/archive
+  fileName String
+  mimeType String
+  fileSize Int
+  sha256   String
+
+  // Earliest date the file may be destroyed (end of the retention period).
+  retainUntil DateTime @db.Date
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId, documentId])
+  @@index([companyId, kind])
+}
+
+// Append-only log of who changed what (GoBD: Nachvollziehbarkeit). Written by an interceptor for every
+// successful write request and for sensitive reads (data exports). There is deliberately no update or
+// delete in the application; rows go away only when the whole company is deleted.
+model AuditLog {
+  id        String  @id @default(uuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  userId      String? // no relation: the log outlives the user
+  userName    String
+  method      String // POST, PATCH, DELETE, GET (exports)
+  route       String // route pattern, e.g. /documents/:id/finalize
+  entityType  String // first path segment: documents, contacts, ...
+  entityId    String?
+  entityLabel String? // e.g. the document number
+  details     Json? // request body (secrets removed, shortened)
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType, entityId])
+}
+
+// Company-level compliance settings: retention, documentation texts and the account frame for DATEV.
+model ComplianceSettings {
+  companyId String  @id
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  // Verfahrensdokumentation (free texts printed into the generated document)
+  responsiblePerson  String?
+  hostingDescription String? @db.Text
+  backupDescription  String? @db.Text
+
+  // Retention in years, counted from the end of the calendar year of the document.
+  // Buchungsbelege/Rechnungen: 8 years (§ 147 AO, since 2025), Handelsbriefe (quotes, orders, letters): 6 years.
+  retentionYearsInvoices Int @default(8)
+  retentionYearsOther    Int @default(6)
+
+  // DATEV export (SKR03 defaults)
+  datevAdvisorNumber   Int?
+  datevClientNumber    Int?
+  accountRevenue19     Int  @default(8400)
+  accountRevenue7      Int  @default(8300)
+  accountRevenueExempt Int  @default(8337) // 0 % and § 13b
+  accountExpense19     Int  @default(3400)
+  accountExpense7      Int  @default(3300)
+  accountExpenseNoVat  Int  @default(3200)
+  accountBank          Int  @default(1200)
+  accountDebtorBase    Int  @default(10000)
+  accountCreditorBase  Int  @default(70000)
 
   updatedAt DateTime @updatedAt
 }

@@ -3,7 +3,10 @@
 //
 // RULE: every new feature extends this seed with realistic data for the demo roofing company
 // (see /.claude/memory/feedback_testdata_seed.md).
+import { NestFactory } from '@nestjs/core';
 import { PrismaClient } from '@prisma/client';
+import { AppModule } from '../../src/app.module';
+import { ArchiveService } from '../../src/documents/archive.service';
 import { rmSync } from 'fs';
 import { join } from 'path';
 import { DEMO_OWNER_EMAIL, DEMO_PASSWORD, seedCompanyAndUsers } from './company-and-users';
@@ -45,8 +48,9 @@ async function removeExistingDemoTenants() {
     }
   }
 
-  // Original incoming-invoice files are stored outside uploads/ (per company folder).
+  // Original incoming-invoice files and the GoBD archive are stored outside uploads/ (per company folder).
   for (const companyId of companyIds) {
+    rmSync(join(process.cwd(), 'storage', 'archive', companyId), { recursive: true, force: true });
     rmSync(join(process.cwd(), 'storage', 'incoming-invoices', companyId), { recursive: true, force: true });
   }
 
@@ -65,6 +69,14 @@ async function main() {
   await seedTimeEntries(prisma, companyId, userIds);
   await seedIncomingInvoices(prisma, companyId, userIds, contactIds);
   await seedSecondTenant(prisma);
+
+  // GoBD archive of everything that is already issued in the demo data, created by the real service.
+  const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error'] });
+  const archive = app.get(ArchiveService);
+  for (const id of [companyId, ...(await prisma.company.findMany({ where: { id: { not: companyId } }, select: { id: true } })).map((c) => c.id)]) {
+    await archive.archiveMissing(id);
+  }
+  await app.close();
 
   console.log('Demo-Daten angelegt (Dachdeckerei Schmidt GmbH + Zimmerei Beispiel GmbH).');
   console.log(`Login Chef:      ${DEMO_OWNER_EMAIL} / ${DEMO_PASSWORD}`);

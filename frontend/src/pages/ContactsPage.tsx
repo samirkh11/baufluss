@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useAuth } from '../auth/AuthContext';
+import { ContactPrivacyModal } from '../components/ContactPrivacyModal';
 import {
   Avatar,
   Button,
@@ -64,6 +66,9 @@ export function ContactsPage() {
   const [page, setPage] = useState(1);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const { user: currentUser } = useAuth();
+  const isOffice = currentUser?.role === 'OWNER' || currentUser?.role === 'ADMIN';
+  const [privacyContact, setPrivacyContact] = useState<Contact | null>(null);
   const [form] = Form.useForm<Partial<Contact>>();
 
   const params = {
@@ -217,6 +222,11 @@ export function ContactsPage() {
                 >
                   {c.isActive ? 'Archivieren' : 'Reaktivieren'}
                 </Button>
+                {isOffice && (
+                  <Button size="small" onClick={() => setPrivacyContact(c)} data-testid={`privacy-${c.number}`}>
+                    Datenschutz
+                  </Button>
+                )}
                 <Popconfirm title="Kontakt endgültig löschen?" onConfirm={() => deleteMutation.mutate(c.id)}>
                   <Button danger size="small">
                     Löschen
@@ -228,6 +238,7 @@ export function ContactsPage() {
         ]}
       />
 
+      <ContactPrivacyModal contact={privacyContact} onClose={() => setPrivacyContact(null)} onChanged={refresh} />
       <Modal
         title={editing ? 'Kontakt bearbeiten' : 'Neuer Kontakt'}
         open={modalOpen}

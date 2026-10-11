@@ -103,8 +103,11 @@ meisterwerk/
 - Dashboard: frei anordenbare Widgets (Drag & Drop, Größe, ein-/ausblenden), Layout je Nutzer gespeichert
 - E-Rechnungen lesen: hochgeladene XRechnung (UBL/CII) und ZUGFeRD-PDFs füllen Eingangsrechnungen automatisch vor
 - E-Rechnung: XRechnung (UBL/CII) und ZUGFeRD/Factur-X (PDF/A-3) für ausgestellte Rechnungen und Gutschriften, mit offiziellen Validatoren geprüft (`e2e/validate-einvoice.sh`)
+- GoBD: unveränderliches Beleg-Archiv mit Prüfsummen (Archivprüfung), Änderungsprotokoll, Verfahrensdokumentation
+- DSGVO: Datenauskunft, Löschung/Anonymisierung, Datenschutz-Unterlagen (VVT/TOM)
+- Betriebsprüfung: GoBD-Datenträger (index.xml + CSV + Belege) und DATEV-Buchungsstapel als Export
 
-Die restlichen Funktionsblöcke (E-Rechnung/Compliance, Betreiber-Backoffice, Urlaub) sind in der Roadmap-Memory-Datei geplant und werden
+Die restlichen Funktionsblöcke (Betreiber-Backoffice, Urlaub) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.
 
 ## Testdaten

@@ -21,6 +21,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { AuthenticatedUser } from '../auth/types/jwt-payload.type';
 import { CreateDunningDto, DunningBlockDto, UpdateDunningSettingsDto } from './dto/dunning.dto';
+import { ArchiveService } from './archive.service';
 import { DunningPdfService } from './dunning-pdf.service';
 import { DunningService } from './dunning.service';
 
@@ -40,6 +41,7 @@ export class DunningController {
   constructor(
     private readonly dunningService: DunningService,
     private readonly pdfService: DunningPdfService,
+    private readonly archive: ArchiveService,
   ) {}
 
   @Get('dunning/settings')
@@ -69,8 +71,10 @@ export class DunningController {
   }
 
   @Post('documents/:id/dunnings')
-  create(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: CreateDunningDto) {
-    return this.dunningService.create(user, id, dto.level);
+  async create(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Body() dto: CreateDunningDto) {
+    const dunning = await this.dunningService.create(user, id, dto.level);
+    await this.archive.archiveDunning(user.companyId, dunning.id);
+    return dunning;
   }
 
   @Patch('documents/:id/dunning-block')
@@ -80,7 +84,10 @@ export class DunningController {
 
   @Get('dunnings/:id/pdf')
   async pdf(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Res() res: Response) {
-    const { buffer, filename } = await this.pdfService.render(user.companyId, id);
+    const archived = await this.archive.readArchived(user.companyId, { dunningId: id, kind: 'DUNNING_PDF' });
+    const { buffer, filename } = archived
+      ? { buffer: archived.buffer, filename: archived.entry.fileName }
+      : await this.pdfService.render(user.companyId, id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     res.send(buffer);

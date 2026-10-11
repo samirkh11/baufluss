@@ -90,3 +90,10 @@ im Roadmap-Eintrag Block 7.
 Üblich ist ein DATEV-kompatibler Export oder ein GoBD-konformer "Z3"-Datenzugriff (maschinell
 auswertbare Daten, z.B. CSV/XML mit definierter Struktur). Konkretes Format erst festlegen, wenn
 Block 5 (Rechnungsdaten) steht.
+
+## GoBD / DSGVO / Export — Umsetzungsstand (Block 7, Teile 3–5)
+
+Siehe Roadmap-Eintrag Block 7. Wichtige Fakten: Aufbewahrung Buchungsbelege/Rechnungen 8 Jahre (seit 2025, § 147 AO), Handelsbriefe
+6 Jahre, Fristbeginn Ende des Kalenderjahres; Standardwerte in `ComplianceSettings` einstellbar — vor Kundenstart mit Steuerberater prüfen.
+Archiv-Dateien dürfen nie überschrieben/gelöscht werden (`flag: 'wx'`). Audit-Log hat absichtlich keine Änderungs-API. Anonymisierung statt
+Löschung bei Aufbewahrungspflicht. DATEV/Z3 sind Entwürfe ohne Test gegen echte DATEV-/IDEA-Software.

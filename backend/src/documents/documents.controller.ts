@@ -27,6 +27,7 @@ import { CreatePaymentDto } from './dto/create-payment.dto';
 import { ListReceivablesQueryDto } from './dto/list-receivables-query.dto';
 import { PaymentsService } from './payments.service';
 import { DocumentPdfService } from './document-pdf.service';
+import { ArchiveService } from './archive.service';
 import { EInvoiceService, isEInvoiceFormat } from './e-invoice/e-invoice.service';
 import { DocumentsService } from './documents.service';
 import { ConvertDocumentDto } from './dto/convert-document.dto';
@@ -47,6 +48,7 @@ export class DocumentsController {
     private readonly documentsService: DocumentsService,
     private readonly pdfService: DocumentPdfService,
     private readonly eInvoiceService: EInvoiceService,
+    private readonly archive: ArchiveService,
     private readonly gaebService: GaebService,
     private readonly paymentsService: PaymentsService,
   ) {}
@@ -83,8 +85,11 @@ export class DocumentsController {
   }
 
   @Post('documents/:id/finalize')
-  finalize(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.documentsService.finalize(user.companyId, id);
+  async finalize(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    const document = await this.documentsService.finalize(user.companyId, id);
+    // GoBD: keep an unchangeable copy of exactly what was issued
+    await this.archive.archiveDocument(user.companyId, id);
+    return document;
   }
 
   @Post('documents/:id/status')
@@ -141,7 +146,11 @@ export class DocumentsController {
 
   @Get('documents/:id/pdf')
   async pdf(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string, @Res() res: Response) {
-    const { buffer, filename } = await this.pdfService.render(user.companyId, id);
+    // Issued documents are served from the archive (the exact file as issued); drafts are rendered live.
+    const archived = await this.archive.readArchived(user.companyId, { documentId: id, kind: 'DOCUMENT_PDF' });
+    const { buffer, filename } = archived
+      ? { buffer: archived.buffer, filename: archived.entry.fileName }
+      : await this.pdfService.render(user.companyId, id);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
     res.send(buffer);

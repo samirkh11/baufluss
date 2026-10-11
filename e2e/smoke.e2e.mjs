@@ -563,6 +563,44 @@ await page.locator('input[type=file]').setInputFiles(badXml);
 await page.waitForSelector('.ant-message-error:has-text("keine E-Rechnung")');
 check('XML that is not an e-invoice is refused', true);
 
+// ---- compliance: GoBD archive, audit log, exports, DSGVO (Block 7, steps 3-5)
+await page.getByRole('menuitem', { name: 'Firmenprofil' }).click();
+await page.getByRole('tab', { name: 'Compliance' }).click();
+await page.getByTestId('archive-verify').click();
+await page.waitForSelector('[data-testid=archive-result]');
+check('archive check: every issued document is archived and all checksums match', (await page.getByTestId('archive-result').innerText()).includes('Archiv in Ordnung'));
+await page.screenshot({ path: shots + '40-compliance.png', fullPage: true });
+async function downloadFile(testId) {
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByTestId(testId).click()]);
+  return { name: download.suggestedFilename(), content: readFileSync(await download.path()) };
+}
+const procedure = await downloadFile('download-procedure');
+check('process documentation downloads as PDF', procedure.name === 'Verfahrensdokumentation.pdf' && procedure.content.subarray(0, 4).toString() === '%PDF');
+await page.locator('input[aria-label=Von]').fill('2026-01-01');
+await page.locator('input[aria-label=Bis]').fill('2026-12-31');
+const audit = await downloadFile('download-tax-audit');
+check('tax audit export is a ZIP with index.xml, tables and documents', audit.name === 'Betriebspruefung_2026-01-01_2026-12-31.zip' && audit.content.subarray(0, 2).toString() === 'PK' && ['index.xml', 'belege.csv', 'eingangsrechnungen.csv', 'belege/RE-00003.pdf'].every((entry) => audit.content.includes(Buffer.from(entry))));
+const datev = await downloadFile('download-datev');
+check('DATEV export starts with the EXTF header and has bookings', datev.content.toString('latin1').startsWith('"EXTF";700;21;"Buchungsstapel"') && datev.content.toString('latin1').includes('RE-00003'));
+await page.getByRole('tab', { name: 'Änderungsprotokoll' }).click();
+await page.waitForSelector('tbody tr.ant-table-row');
+check('audit log lists the changes of this session (e.g. issued invoices and payments)', (await page.locator('tbody').innerText()).includes('RE-0000'));
+// DSGVO: access and erasure on contacts
+await page.getByRole('menuitem', { name: 'Kontakte' }).click();
+await page.waitForSelector('tbody tr.ant-table-row');
+await page.getByTestId('privacy-K-1002').click();
+await page.waitForSelector('text=Löschung nur als Anonymisierung möglich');
+const contactExport = await downloadFile('contact-export');
+check('contact data export (JSON) contains the contact and its documents', contactExport.name.startsWith('Datenauskunft_K-1002') && contactExport.content.includes('"documents"') && contactExport.content.includes('Becker'));
+check('contact with retained documents is only anonymized, with retention period shown', (await page.locator('.ant-modal:visible').innerText()).includes('Aufbewahrung bis') && (await page.getByTestId('contact-erase').innerText()).includes('anonymisieren'));
+await page.getByTestId('contact-erase').click();
+await page.getByRole('button', { name: 'Ja' }).click();
+await page.waitForSelector('.ant-message-success:has-text("anonymisiert")');
+check('contact K-1002 anonymized (name replaced, documents untouched)', true);
+await page.reload();
+await page.waitForSelector('tbody tr.ant-table-row');
+check('anonymized contact is deactivated and gone from the active list', !(await page.locator('tbody').innerText()).includes('Becker'));
+
 // ---- time tracking (Block 10), office view
 await page.getByRole('menuitem', { name: 'Zeiten' }).click();
 await page.waitForSelector('[data-testid=week-total]');

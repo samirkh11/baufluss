@@ -4,6 +4,9 @@ import { Button, Card, Form, Input, Tabs, Upload, message } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
 import { getOwnCompany, updateOwnCompany, uploadCompanyLogo } from '../api/companies';
 import { Company } from '../types';
+import { AuditLogPanel } from '../components/AuditLogPanel';
+import { CompliancePanel } from '../components/CompliancePanel';
+import { useAuth } from '../auth/AuthContext';
 import { DunningSettingsPanel } from '../components/DunningSettingsPanel';
 import { NumberSequencesPanel } from './NumberSequencesPanel';
 import { assetUrl } from '../utils/assets';
@@ -34,6 +37,9 @@ export function CompanyProfilePage() {
       queryClient.invalidateQueries({ queryKey: ['company'] });
     },
   });
+
+  const { user } = useAuth();
+  const isOffice = user?.role === 'OWNER' || user?.role === 'ADMIN';
 
   if (isLoading) {
     return null;
@@ -130,6 +136,12 @@ export function CompanyProfilePage() {
           children: <NumberSequencesPanel />,
         },
         { key: 'dunning', label: 'Mahnwesen', children: <DunningSettingsPanel /> },
+        ...(isOffice
+          ? [
+              { key: 'compliance', label: 'Compliance', children: <CompliancePanel /> },
+              { key: 'audit', label: 'Änderungsprotokoll', children: <AuditLogPanel /> },
+            ]
+          : []),
       ]}
     />
   );
