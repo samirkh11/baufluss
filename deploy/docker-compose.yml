@@ -1,0 +1,82 @@
+# Meisterwerk production stack (Synology Container Manager, any Docker host).
+# Usage: copy this folder to the server, copy .env.example to .env and fill it in, then `docker compose up -d`.
+name: meisterwerk
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: meisterwerk
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: meisterwerk
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U meisterwerk']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    image: ${IMAGE_PREFIX:?set IMAGE_PREFIX in .env}-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://meisterwerk:${POSTGRES_PASSWORD}@postgres:5432/meisterwerk?schema=public
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_EXPIRES_IN: 8h
+      PORT: 3000
+      CORS_ORIGINS: ${PUBLIC_URL:?set PUBLIC_URL in .env}
+      # only used by the one-off demo data job
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    volumes:
+      - storage:/app/storage # GoBD archive + incoming invoice originals: must be backed up!
+      - uploads:/app/uploads # logos, photos
+
+  web:
+    image: ${IMAGE_PREFIX}-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      # The Synology reverse proxy (HTTPS) forwards to this port.
+      - '${WEB_PORT:-8085}:80'
+
+  # One-off job: loads the demo data. Run with: docker compose --profile tools run --rm seed
+  seed:
+    image: ${IMAGE_PREFIX}-backend:${IMAGE_TAG:-latest}
+    profiles: ['tools']
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ['docker-entrypoint.sh']
+    command: ['node', 'dist/prisma/seed/index.js']
+    environment:
+      DATABASE_URL: postgresql://meisterwerk:${POSTGRES_PASSWORD}@postgres:5432/meisterwerk?schema=public
+      JWT_SECRET: ${JWT_SECRET}
+      SEED_PASSWORD: ${SEED_PASSWORD:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+    volumes:
+      - storage:/app/storage
+      - uploads:/app/uploads
+
+  # Optional automatic updates: pulls new images (built by GitHub Actions) and restarts the containers.
+  # Enable with: docker compose --profile autoupdate up -d
+  watchtower:
+    image: containrrr/watchtower:latest
+    profiles: ['autoupdate']
+    restart: unless-stopped
+    command: --interval 300 --cleanup meisterwerk-backend-1 meisterwerk-web-1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # credentials for the private GitHub registry (created by `docker login ghcr.io`)
+      - ${DOCKER_CONFIG_FILE:-/root/.docker/config.json}:/config.json:ro
+
+volumes:
+  pgdata:
+  storage:
+  uploads:

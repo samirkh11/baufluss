@@ -298,9 +298,9 @@ async function seedDerivedDocuments(prisma: PrismaClient, companyId: string): Pr
 }
 
 // A quote draft created by the GAEB import from the self-made sample bill of quantities
-// (docs/gaeb-samples/lv-dachsanierung.x83): original numbering kept, prices still to be filled in.
+// (backend/assets/gaeb-samples/lv-dachsanierung.x83, copy of docs/gaeb-samples): original numbering kept, prices still to be filled in.
 async function seedGaebImport(prisma: PrismaClient, companyId: string): Promise<void> {
-  const xml = readFileSync(join(process.cwd(), '..', 'docs', 'gaeb-samples', 'lv-dachsanierung.x83'), 'utf8');
+  const xml = readFileSync(join(process.cwd(), 'assets', 'gaeb-samples', 'lv-dachsanierung.x83'), 'utf8');
   const parsed = parseGaeb(xml);
   const project = await prisma.project.findFirstOrThrow({ where: { companyId, number: 'P-0004' }, include: { customer: true } });
   const customer = project.customer!;

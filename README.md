@@ -107,6 +107,7 @@ meisterwerk/
 - DSGVO: Datenauskunft, Löschung/Anonymisierung, Datenschutz-Unterlagen (VVT/TOM)
 - Betriebsprüfung: GoBD-Datenträger (index.xml + CSV + Belege) und DATEV-Buchungsstapel als Export
 - Betreiber-Backoffice (`/admin`): Mandanten/Abonnenten (sperren, Testphase, Tarif), Tarife, Rechnungslauf und Betreiberrechnungen, Support-Zugriff mit Protokoll, Kennzahlen und Systemzustand
+- Deployment: Docker-Images (GitHub Actions → ghcr.io) und Compose-Stack für Synology/jeden Docker-Host, siehe [`deploy/README.md`](deploy/README.md)
 
 Die restlichen Funktionsblöcke (Urlaub, Mail-Eingang, Zahlungsanbieter) sind in der Roadmap-Memory-Datei geplant und werden
 Schritt für Schritt als vollständige, getestete Ausbaustufen ergänzt.

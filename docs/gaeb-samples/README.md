@@ -13,3 +13,5 @@ Datei im Format X84 (Angebotsabgabe).
 
 Hinweis: Die Dateien folgen der GAEB-DA-XML-Struktur nach bestem Wissen, wurden aber nicht gegen
 das offizielle GAEB-Schema geprüft. Echte Dateien aus Ausschreibungsportalen bitte gegentesten.
+
+Hinweis: Eine Kopie von `lv-dachsanierung.x83` liegt in `backend/assets/gaeb-samples/` (der Seed liest sie von dort, auch im Docker-Image).

@@ -93,3 +93,12 @@ erfolgreich getestet** sind. Nicht automatisch nach jedem Build pushen.
 - E-Rechnung prüfen: `cd e2e && ./validate-einvoice.sh` (Backend + Seed nötig, Java; erster Lauf lädt ~100 MB nach e2e/.cache).
 - storage/ (incoming-invoices, archive) ist gitignored und muss beim Deployment persistent + gesichert sein (GoBD-Archiv!). Seed löscht/erzeugt es für die Demo-Mandanten neu.
 - Backoffice: http://localhost:5173/admin (admin@meisterwerk.local / admin12345). `npm run test:admin` ändert Demo-Daten (sperrt/aktiviert, Rechnungslauf, Plan) → danach neu seeden. Tests bei knappem RAM im Hintergrund starten (`setsid nohup … &`) und per `until [ -f done ]` warten, sonst killt der OOM-Killer die Tool-Shell.
+
+## Deployment (Synology / Docker, Stand 2026-10-11)
+Hetzner Managed Server (MA80) taugt NICHT (kein Root, Node.js würde PHP der Domain abschalten). Ziel: **Synology Diskstation (x86, 16 GB, feste IP)**
+per Docker. Dateien: `backend/Dockerfile` (+ `docker-entrypoint.sh`: `prisma migrate deploy`), `frontend/Dockerfile` + `nginx.conf` (Frontend, `/api/` → Backend,
+Swagger gesperrt; `VITE_API_BASE_URL=/api`), `deploy/docker-compose.yml` (postgres, backend, web:8085, Profile `tools` = seed, `autoupdate` = Watchtower),
+`deploy/.env.example`, `deploy/backup.sh`, `deploy/README.md` (Schritt-für-Schritt), `.github/workflows/build-images.yml` (Tests → Images nach ghcr.io).
+Lokal geprüft: Images bauen, Stack startet, Seed im Container (`docker compose --profile tools run --rm seed`), PDF/ZUGFeRD/Archiv/Admin per API + UI ok.
+Seed-Passwörter für öffentliche Demo: `SEED_PASSWORD`, `SEED_ADMIN_PASSWORD`. GAEB-Beispiel für den Seed liegt in `backend/assets/gaeb-samples/` (Kopie von `docs/gaeb-samples/`).
+Offen: HTTPS über Synology-Reverse-Proxy + Let's-Encrypt, Router-Portfreigabe 443/80, A-Record der Temp-Domain (Volker).

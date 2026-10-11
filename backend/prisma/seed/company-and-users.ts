@@ -3,7 +3,8 @@ import { CompanyRole, PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
 import { avatarSvg, colorFor, initialsOf, logoSvg, writeSeedImage } from './helpers';
 
-export const DEMO_PASSWORD = 'demo12345';
+// SEED_PASSWORD lets a public demo use its own password instead of the well-known development one.
+export const DEMO_PASSWORD = process.env.SEED_PASSWORD || 'demo12345';
 export const DEMO_OWNER_EMAIL = 'demo@meisterwerk.local';
 
 // Boss + office clerk + four roofers, as in the agreed demo scenario.

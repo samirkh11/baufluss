@@ -7,7 +7,7 @@ import { DEMO_OWNER_EMAIL, DEMO_PASSWORD } from './company-and-users';
 import { SECOND_TENANT_OWNER_EMAIL } from './second-tenant';
 
 export const PLATFORM_ADMIN_EMAIL = 'admin@meisterwerk.local';
-export const PLATFORM_ADMIN_PASSWORD = 'admin12345';
+export const PLATFORM_ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD || 'admin12345';
 
 const DAY = 86400000;
 const daysFromNow = (days: number) => new Date(Date.now() + days * DAY);
