@@ -26,3 +26,5 @@ können; Block 1+2 wurden deshalb nachträglich befüllt.
   committen.
 - Zweiter Mandant (`second-tenant.ts`, Zimmerei Beispiel GmbH) bekommt je Feature 1 Datensatz,
   damit Mandanten-Isolation manuell prüfbar bleibt.
+- Gleiches Prinzip für Tests: neue UI-Features bekommen Prüfungen in `e2e/` (siehe
+  [[project_dev_environment]]).

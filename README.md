@@ -96,3 +96,7 @@ Dachdeckerei Schmidt GmbH (Chef, Bürokraft, 4 Arbeiter), Kunden/Lieferanten/Sub
 Leistungs- und Artikelstamm mit Bildern, Nummernkreise sowie ein zweiter Mandant zum Testen der
 Mandanten-Isolation. Passwort aller Seed-Nutzer: `demo12345`. Jedes neue Feature erweitert den
 Seed (`backend/prisma/seed/`).
+
+## Tests
+
+- Browser-E2E-Tests (Playwright): siehe [`e2e/README.md`](e2e/README.md).

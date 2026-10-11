@@ -43,16 +43,17 @@ Backend/Frontend starten: `cd backend && npm run start` bzw. `start:dev`; `cd fr
 Achtung beim Neustart des Backends: nicht mit `pkill -f` auf Muster killen, das beendet die
 eigene Shell — PID über `ss -ltnp | grep :3000` ermitteln.
 
-## UI-Tests im Browser
+## UI-Tests im Browser (E2E)
 
-Es gibt keinen Browser im Projekt; Claude testet die Oberfläche mit Playwright (Chromium wurde
-2026-10-11 nach `~/.cache/ms-playwright` geladen, Playwright selbst liegt NUR im Scratchpad der
-Session, nicht im Repo). Neu installieren: in einem Scratchpad-Ordner `npm i playwright && npx
-playwright install chromium`. Ein umfassendes Skript (Login, Projekte, Berichte, Fotos, Kontakte,
-Katalog, Nutzer, Arbeiter-Rechte; 25 Checks) lag dort als `e2e.mjs` — bei Bedarf neu schreiben
-oder als `e2e/` ins Repo übernehmen (Rückfrage an Volker). Vor jedem Lauf `npm run seed`.
+`e2e/` im Repo (Playwright, Chromium liegt in `~/.cache/ms-playwright`). Ablauf: Stack läuft →
+`cd backend && npm run seed` → `cd e2e && npm test` (25 Checks: Login, Projekte, Berichte+Fotos,
+Kontakte, Katalog, Nutzer, Arbeiter-Rechte). Einrichtung/Details: `e2e/README.md`.
+**Regel:** Jedes neue Feature erweitert `e2e/smoke.e2e.mjs` (oder eine neue `*.e2e.mjs`) um
+UI-Prüfungen und wird vor dem Push damit getestet (Volker hat das Skript ausdrücklich im Repo
+gewünscht, 2026-10-11).
 Hinweise: antd-`<a onClick>` hat keine Link-Rolle (per `tbody a` selektieren); Dialoge mit dem
-„×" schließen, nicht per Escape, wenn der Fokus im Datei-Input liegt.
+„×" schließen, nicht per Escape, wenn der Fokus im Datei-Input liegt; der Lauf verändert Seed-Daten
+→ danach neu seeden.
 
 ## Push-Workflow
 
