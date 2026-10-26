@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query';
 import { Button, Form, Input, Modal, Select, Space, Table, Tag, message } from 'antd';
+import { StatusTag } from './StatusTag';
 import { PlusOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { createDocument, listDocuments } from '../api/documents';
@@ -152,13 +153,13 @@ export function DocumentsPanel({ type, projectId, allowCreate = true }: Document
               if (document.payment) {
                 const payment = PAYMENT_STATUS[document.payment.status];
                 return (
-                  <Tag color={payment.color}>
+                  <StatusTag tone={payment.tone}>
                     {payment.label}
                     {document.payment.status === 'OVERDUE' ? ` (${document.payment.overdueDays} T.)` : ''}
-                  </Tag>
+                  </StatusTag>
                 );
               }
-              return <Tag color={DOCUMENT_STATUS[value].color}>{DOCUMENT_STATUS[value].label}</Tag>;
+              return <StatusTag tone={DOCUMENT_STATUS[value].tone}>{DOCUMENT_STATUS[value].label}</StatusTag>;
             },
           },
           { title: 'Netto', responsive: ['md'], dataIndex: 'netTotal', align: 'right', render: formatMoney },

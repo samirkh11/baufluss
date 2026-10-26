@@ -1,16 +1,17 @@
 import { CompanyStatus } from './adminApi';
+import { StatusLabel } from '../utils/labels';
 
-export const COMPANY_STATUS: Record<CompanyStatus, { label: string; color: string }> = {
-  TRIAL: { label: 'Testphase', color: 'blue' },
-  ACTIVE: { label: 'Aktiv', color: 'green' },
-  SUSPENDED: { label: 'Gesperrt', color: 'red' },
-  CANCELLED: { label: 'Gekündigt', color: 'default' },
+export const COMPANY_STATUS: Record<CompanyStatus, StatusLabel> = {
+  TRIAL: { label: 'Testphase', tone: 'info' },
+  ACTIVE: { label: 'Aktiv', tone: 'success' },
+  SUSPENDED: { label: 'Gesperrt', tone: 'error' },
+  CANCELLED: { label: 'Gekündigt', tone: 'neutral' },
 };
 
 export const INVOICE_STATUS = {
-  OPEN: { label: 'Offen', color: 'gold' },
-  PAID: { label: 'Bezahlt', color: 'green' },
-  VOID: { label: 'Storniert', color: 'default' },
+  OPEN: { label: 'Offen', tone: 'warning' },
+  PAID: { label: 'Bezahlt', tone: 'success' },
+  VOID: { label: 'Storniert', tone: 'neutral' },
 } as const;
 
 export const ADMIN_ACTIONS: Record<string, string> = {

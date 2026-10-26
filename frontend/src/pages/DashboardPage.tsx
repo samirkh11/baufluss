@@ -5,7 +5,7 @@ import { CloseOutlined } from '@ant-design/icons';
 import GridLayout, { WidthProvider } from 'react-grid-layout';
 import 'react-grid-layout/css/styles.css';
 import 'react-resizable/css/styles.css';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { DashboardItem, getDashboardLayout, resetDashboardLayout, saveDashboardLayout } from '../api/dashboard';
 import { defaultLayout, WIDGETS, widgetsFor } from '../components/dashboard/registry';
 import { useIsPhone } from '../hooks/useMediaQuery';

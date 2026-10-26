@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Checkbox, Space, Statistic, Table, Tag } from 'antd';
+import { StatusTag } from './StatusTag';
 import { Link } from 'react-router-dom';
 import { getReceivables } from '../api/payments';
 import { Receivable } from '../types';
@@ -74,7 +75,7 @@ export function ReceivablesPanel() {
             responsive: ['md'],
             render: (_, row) => (
               <>
-                {row.dunningLevel && <Tag color={DUNNING_LEVEL[row.dunningLevel].color}>{DUNNING_LEVEL[row.dunningLevel].label}</Tag>}
+                {row.dunningLevel && <StatusTag tone={DUNNING_LEVEL[row.dunningLevel].tone}>{DUNNING_LEVEL[row.dunningLevel].label}</StatusTag>}
                 {row.dunningBlocked && <Tag>Mahnsperre</Tag>}
               </>
             ),

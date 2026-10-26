@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { Empty, Statistic, Tag, Typography } from 'antd';
+import { Empty, Statistic, Typography } from 'antd';
+import { StatusTag } from '../StatusTag';
 import { Link } from 'react-router-dom';
 import { listProjects } from '../../api/projects';
 import { listReports } from '../../api/reports';
@@ -49,9 +50,9 @@ export function ProjectsWidget() {
     <WidgetCard title="Projekte" link="/projects" loading={isLoading}>
       <Typography.Text type="secondary">
         {(['PLANNING', 'IN_PROGRESS', 'ON_HOLD', 'COMPLETED'] as const).map((status) => (
-          <Tag key={status} color={PROJECT_STATUS[status].color}>
+          <StatusTag key={status} tone={PROJECT_STATUS[status].tone}>
             {PROJECT_STATUS[status].label}: {projects.filter((project) => project.status === status).length}
-          </Tag>
+          </StatusTag>
         ))}
       </Typography.Text>
       {active.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Keine laufenden Projekte" />}
@@ -76,7 +77,7 @@ export function ReportsWidget() {
       {data?.items.length === 0 && <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="Noch keine Berichte" />}
       {data?.items.map((report) => (
         <div key={report.id} style={{ marginTop: 6 }}>
-          <Tag color={REPORT_TYPE[report.type].color}>{REPORT_TYPE[report.type].label}</Tag>
+          <StatusTag tone={REPORT_TYPE[report.type].tone}>{REPORT_TYPE[report.type].label}</StatusTag>
           {report.title}
           <br />
           <small style={{ color: '#888' }}>{formatDate(report.reportDate)} · {report.project.number} · {report.authorName}</small>

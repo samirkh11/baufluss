@@ -4,7 +4,7 @@ import { Col, Form, Input, InputNumber, Modal, Radio, Row, Select, message } fro
 import { createTimeEntry, TimeEntryPayload, updateTimeEntry } from '../api/timeEntries';
 import { listProjects } from '../api/projects';
 import { listUsers } from '../api/users';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { TimeEntry } from '../types';
 import { apiErrorMessage } from '../utils/assets';
 import { berlinNow } from '../utils/dates';

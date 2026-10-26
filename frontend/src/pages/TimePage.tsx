@@ -12,7 +12,7 @@ import {
 import { useSearchParams } from 'react-router-dom';
 import { deleteTimeEntry, listTimeEntries } from '../api/timeEntries';
 import { listUsers } from '../api/users';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { TimeEntryModal } from '../components/TimeEntryModal';
 import { TimerCard } from '../components/TimerCard';
 import { TimeReport } from '../components/TimeReport';

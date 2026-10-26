@@ -23,7 +23,7 @@ import {
   setUserImage,
   updateUser,
 } from '../api/users';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { downloadUserExport } from '../api/compliance';
 import { ImageUpload } from '../components/ImageUpload';
 import { apiErrorMessage } from '../utils/assets';

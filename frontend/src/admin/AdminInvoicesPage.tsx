@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Card, Input, Popconfirm, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { StatusTag } from '../components/StatusTag';
 import { apiErrorMessage } from '../utils/assets';
 import { formatDate, formatMoney } from '../utils/labels';
 import { AdminInvoice, downloadInvoicePdf, listInvoices, payInvoice, runInvoices, voidInvoice } from './adminApi';
@@ -61,7 +62,7 @@ export function AdminInvoicesPage() {
           { title: 'Zeitraum', responsive: ['md'], render: (_, invoice) => formatDate(invoice.periodStart) },
           { title: 'Brutto', align: 'right', render: (_, invoice) => formatMoney(invoice.gross) },
           { title: 'Fällig', render: (_, invoice) => <span style={{ color: invoice.overdue ? '#cf1322' : undefined }}>{formatDate(invoice.dueDate)}</span> },
-          { title: 'Status', render: (_, invoice) => <Tag color={invoice.overdue ? 'red' : INVOICE_STATUS[invoice.status].color}>{invoice.overdue ? 'Überfällig' : INVOICE_STATUS[invoice.status].label}</Tag> },
+          { title: 'Status', render: (_, invoice) => <StatusTag tone={invoice.overdue ? 'error' : INVOICE_STATUS[invoice.status].tone}>{invoice.overdue ? 'Überfällig' : INVOICE_STATUS[invoice.status].label}</StatusTag> },
           {
             title: '',
             render: (_, invoice) => (

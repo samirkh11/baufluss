@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Space, Statistic, Table, Tag } from 'antd';
+import { StatusTag } from './StatusTag';
 import { Link } from 'react-router-dom';
 import { getDunningProposals } from '../api/dunning';
 import { DunningProposal } from '../types';
@@ -32,7 +33,7 @@ export function DunningProposalsPanel() {
           { title: 'Fällig seit', responsive: ['md'], render: (_, row) => formatDate(row.dueDate) },
           { title: 'Überfällig', render: (_, row) => <Tag color="red">{row.overdueDays} Tage</Tag> },
           { title: 'Bisher', responsive: ['md'], render: (_, row) => (row.lastLevel ? DUNNING_LEVEL[row.lastLevel].label : '–') },
-          { title: 'Nächster Schritt', render: (_, row) => (row.suggestedLevel ? <Tag color={DUNNING_LEVEL[row.suggestedLevel].color}>{DUNNING_LEVEL[row.suggestedLevel].label}</Tag> : <Tag>Inkasso/Anwalt</Tag>) },
+          { title: 'Nächster Schritt', render: (_, row) => (row.suggestedLevel ? <StatusTag tone={DUNNING_LEVEL[row.suggestedLevel].tone}>{DUNNING_LEVEL[row.suggestedLevel].label}</StatusTag> : <Tag>Inkasso/Anwalt</Tag>) },
           { title: 'Gesamtforderung', align: 'right', render: (_, row) => (row.amounts ? <strong>{formatMoney(row.amounts.total)}</strong> : formatMoney(row.open)) },
           {
             title: '',

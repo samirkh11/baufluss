@@ -1,7 +1,32 @@
-/* Global responsive helpers. Layout breakpoints themselves live in the components (useIsPhone / useIsCompact). */
+/* Global styles. Colours, radii and shadows come from the design tokens (theme/tokens.ts) via the
+   --mw-* custom properties set in theme/cssVariables.ts. Layout breakpoints live in the components
+   (useIsPhone / useIsCompact); the media queries below use the same values (768 / 992 px). */
 html,
 body {
   margin: 0;
+}
+
+body {
+  background: var(--mw-color-background, #fafafa);
+  color: var(--mw-color-text, #17233b);
+  font-family: var(--mw-font-family, system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Keyboard focus must always be visible (WCAG 2.4.7). */
+:focus-visible {
+  outline: 2px solid var(--mw-color-brand);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* Long unbroken strings (e-mail addresses, IBANs) must wrap instead of widening the page. */
@@ -10,9 +35,304 @@ body {
   overflow-wrap: anywhere;
 }
 
+/* Table headers as in Figma: bold, small caps-style labels. */
+.ant-table-thead > tr > th {
+  font-weight: 700;
+}
+
+/* Cards: Figma radius 8, soft shadow, light border. */
+.ant-card {
+  box-shadow: var(--mw-shadow-card);
+}
+
 /* Comfortable tap targets for the form fields of modals on touch devices. */
 @media (pointer: coarse) {
   .ant-select-item-option {
     min-height: 40px;
   }
+}
+
+/* ---- Brand ---------------------------------------------------------------------------------- */
+.mw-brand {
+  --mw-brand-icon-fg: #fff;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  color: var(--mw-color-brand);
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.mw-brand--inverse {
+  --mw-brand-icon-fg: var(--mw-color-brand);
+  color: #fff;
+}
+
+.mw-brand-icon {
+  flex: none;
+}
+
+/* ---- Status pill (StatusTag) ------------------------------------------------------------------ */
+.mw-status-tag.ant-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding-inline: 10px;
+  font-weight: 600;
+  line-height: 22px;
+}
+
+.mw-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* ---- App shell -------------------------------------------------------------------------------- */
+.mw-sider.ant-layout-sider {
+  background: linear-gradient(180deg, var(--mw-color-sidebar-from), var(--mw-color-sidebar-to));
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.mw-sider-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.mw-sider-logo {
+  height: 68px;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 0.75px solid rgba(255, 255, 255, 0.6);
+  flex: none;
+}
+
+.mw-sider-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 8px;
+}
+
+.mw-nav.ant-menu-dark {
+  background: transparent;
+  font-weight: 700;
+  border-inline-end: 0;
+}
+
+.mw-nav.ant-menu-dark .ant-menu-item-selected {
+  box-shadow: var(--mw-shadow-raised);
+}
+
+.mw-nav.ant-menu-dark .ant-menu-item a,
+.mw-nav.ant-menu-dark .ant-menu-item a:hover {
+  color: inherit;
+}
+
+.mw-user-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: var(--mw-radius-md);
+  color: var(--mw-color-text);
+  flex: none;
+}
+
+.mw-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--mw-color-brand-subtle);
+  color: var(--mw-color-brand);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  font-size: 12px;
+  flex: none;
+}
+
+.mw-user-text {
+  min-width: 0;
+}
+
+.mw-user-name {
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.mw-user-email {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--mw-color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mw-header.ant-layout-header {
+  display: flex;
+  align-items: center;
+  top: 0;
+  z-index: 10;
+  border-bottom: 1px solid var(--mw-color-border);
+}
+
+.mw-content {
+  margin: 16px;
+  min-width: 0;
+}
+
+.mw-content--phone {
+  margin: 12px;
+  /* Keep the last content row clear of the fixed bottom navigation. */
+  padding-bottom: calc(var(--mw-bottom-nav-height) + env(safe-area-inset-bottom, 0px));
+}
+
+/* Navigation drawer (phone/tablet) uses the same gradient as the desktop sidebar. */
+.mw-nav-drawer .ant-drawer-content {
+  background: linear-gradient(180deg, var(--mw-color-sidebar-from), var(--mw-color-sidebar-to));
+}
+
+.mw-nav-drawer .ant-drawer-header {
+  border-bottom: 0.75px solid rgba(255, 255, 255, 0.6);
+}
+
+.mw-nav-drawer .ant-drawer-body {
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Bottom tab bar (phone only). */
+.mw-bottom-nav {
+  position: fixed;
+  inset: auto 0 0 0;
+  z-index: 20;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  height: var(--mw-bottom-nav-height);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  background: #fff;
+  border-top: 1px solid var(--mw-color-border);
+  box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.mw-bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--mw-touch-target);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--mw-color-text-muted);
+  text-decoration: none;
+}
+
+.mw-bottom-nav-item.is-active {
+  color: var(--mw-color-brand);
+}
+
+.mw-bottom-nav-icon {
+  font-size: 20px;
+  line-height: 1;
+}
+
+/* ---- Auth pages (login / registration) ------------------------------------------------------- */
+.mw-auth {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--mw-color-background);
+}
+
+.mw-auth-brand {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 40px;
+  background: linear-gradient(160deg, var(--mw-color-sidebar-from), var(--mw-color-sidebar-to));
+  color: #fff;
+}
+
+.mw-auth-claim {
+  max-width: 28ch;
+  margin: 0;
+  font-size: 22px;
+  line-height: 28px;
+  font-weight: 600;
+}
+
+.mw-auth-main {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.mw-auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 32px;
+  background: #fff;
+  border: 1px solid var(--mw-color-border);
+  border-radius: var(--mw-radius-lg);
+  box-shadow: var(--mw-shadow-card);
+  box-sizing: border-box;
+}
+
+.mw-auth-logo {
+  display: none;
+  margin-bottom: 24px;
+}
+
+h1.mw-auth-title.ant-typography {
+  margin-bottom: 4px;
+}
+
+@media (max-width: 991.98px) {
+  .mw-auth {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .mw-auth-brand {
+    display: none;
+  }
+
+  .mw-auth-logo {
+    display: block;
+  }
+}
+
+@media (max-width: 767.98px) {
+  .mw-auth-main {
+    align-items: flex-start;
+    padding-top: 32px;
+  }
+
+  .mw-auth-card {
+    padding: 24px 16px;
+    border: 0;
+    box-shadow: none;
+    background: transparent;
+  }
+}
+
+/* ---- Admin back office ------------------------------------------------------------------------ */
+.mw-admin-nav.ant-menu-dark.ant-menu-horizontal {
+  background: transparent;
 }

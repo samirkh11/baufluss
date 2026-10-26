@@ -1,21 +1,7 @@
 import { useState } from 'react';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Button,
-  Col,
-  Form,
-  Input,
-  InputNumber,
-  Modal,
-  Popconfirm,
-  Progress,
-  Row,
-  Select,
-  Space,
-  Table,
-  Tag,
-  message,
-} from 'antd';
+import { Button, Col, Form, Input, InputNumber, Modal, Popconfirm, Progress, Row, Select, Space, Table, message } from 'antd';
+import { StatusTag } from './StatusTag';
 import { PlusOutlined } from '@ant-design/icons';
 import { Link } from 'react-router-dom';
 import {
@@ -28,7 +14,7 @@ import {
   updateReport,
 } from '../api/reports';
 import { listProjects } from '../api/projects';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { Report } from '../types';
 import { apiErrorMessage } from '../utils/assets';
 import { formatDate, optionsOf, REPORT_TYPE, toDateInput, todayDateInput } from '../utils/labels';
@@ -183,7 +169,7 @@ export function ReportsPanel({ projectId }: ReportsPanelProps) {
             title: 'Art',
             dataIndex: 'type',
             render: (type: Report['type']) => (
-              <Tag color={REPORT_TYPE[type].color}>{REPORT_TYPE[type].label}</Tag>
+              <StatusTag tone={REPORT_TYPE[type].tone}>{REPORT_TYPE[type].label}</StatusTag>
             ),
           },
           { title: 'Titel', render: (_, report) => <a onClick={() => openModal(report)}>{report.title}</a> },

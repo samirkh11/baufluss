@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { Card, Col, Empty, List, Row, Statistic, Tag, Typography } from 'antd';
+import { Card, Col, Empty, List, Row, Statistic, Typography } from 'antd';
+import { StatusTag } from '../components/StatusTag';
 import { Link } from 'react-router-dom';
 import { formatDate, formatMoney } from '../utils/labels';
 import { getStats } from './adminApi';
@@ -23,7 +24,7 @@ export function AdminDashboardPage() {
           <Card size="small" title="Mandanten nach Status">
             {(Object.keys(COMPANY_STATUS) as (keyof typeof COMPANY_STATUS)[]).map((status) => (
               <div key={status} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <Tag color={COMPANY_STATUS[status].color}>{COMPANY_STATUS[status].label}</Tag>
+                <StatusTag tone={COMPANY_STATUS[status].tone}>{COMPANY_STATUS[status].label}</StatusTag>
                 <strong>{data.byStatus[status] ?? 0}</strong>
               </div>
             ))}
@@ -54,7 +55,7 @@ export function AdminDashboardPage() {
         </Col>
         <Col xs={24} md={12}>
           <Card size="small" title="Neueste Mandanten">
-            <List size="small" dataSource={data.newest} renderItem={(item) => <List.Item><Link to={`/admin/companies?open=${item.id}`}>{item.name}</Link><Tag color={COMPANY_STATUS[item.status].color}>{COMPANY_STATUS[item.status].label}</Tag></List.Item>} />
+            <List size="small" dataSource={data.newest} renderItem={(item) => <List.Item><Link to={`/admin/companies?open=${item.id}`}>{item.name}</Link><StatusTag tone={COMPANY_STATUS[item.status].tone}>{COMPANY_STATUS[item.status].label}</StatusTag></List.Item>} />
           </Card>
         </Col>
       </Row>

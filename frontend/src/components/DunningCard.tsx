@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Input, Popconfirm, Space, Switch, Table, Tag, message } from 'antd';
+import { Button, Card, Input, Popconfirm, Space, Switch, Table, message } from 'antd';
+import { StatusTag } from './StatusTag';
 import { deleteDunning, listDunnings, openDunningPdf, setDunningBlock } from '../api/dunning';
 import { apiErrorMessage } from '../utils/assets';
 import { DUNNING_LEVEL, formatDate, formatMoney } from '../utils/labels';
@@ -58,7 +59,7 @@ export function DunningCard({ documentId, invoiceNumber, blocked, blockReason, c
         locale={{ emptyText: 'Noch keine Mahnung' }}
         columns={[
           { title: 'Nr.', dataIndex: 'number' },
-          { title: 'Stufe', render: (_, row) => <Tag color={DUNNING_LEVEL[row.level].color}>{DUNNING_LEVEL[row.level].label}</Tag> },
+          { title: 'Stufe', render: (_, row) => <StatusTag tone={DUNNING_LEVEL[row.level].tone}>{DUNNING_LEVEL[row.level].label}</StatusTag> },
           { title: 'Datum', render: (_, row) => formatDate(row.dunningDate) },
           { title: 'Frist', render: (_, row) => formatDate(row.dueDate) },
           { title: 'Gesamt', align: 'right', render: (_, row) => formatMoney(row.totalAmount) },

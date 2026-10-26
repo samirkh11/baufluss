@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Alert, Button, Descriptions, Drawer, Input, Modal, Select, Space, Table, Tag, Typography, message } from 'antd';
+import { Alert, Button, Descriptions, Drawer, Input, Modal, Select, Space, Table, Typography, message } from 'antd';
+import { StatusTag } from '../components/StatusTag';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { useIsPhone } from '../hooks/useMediaQuery';
 import { apiErrorMessage } from '../utils/assets';
 import { formatDate, formatMoney } from '../utils/labels';
@@ -36,7 +37,7 @@ export function AdminCompaniesPage() {
         columns={[
           { title: 'Mandant', render: (_, row: AdminCompanyRow) => <strong>{row.name}</strong> },
           { title: 'Ort', responsive: ['md'], dataIndex: 'city' },
-          { title: 'Status', render: (_, row) => <Tag color={COMPANY_STATUS[row.status].color}>{COMPANY_STATUS[row.status].label}</Tag> },
+          { title: 'Status', render: (_, row) => <StatusTag tone={COMPANY_STATUS[row.status].tone}>{COMPANY_STATUS[row.status].label}</StatusTag> },
           { title: 'Tarif', render: (_, row) => row.plan?.name ?? '–' },
           { title: 'Testphase bis', responsive: ['md'], render: (_, row) => (row.status === 'TRIAL' ? formatDate(row.trialEndsAt) : '') },
           { title: 'Nutzer', responsive: ['md'], dataIndex: 'users', align: 'right' },
@@ -99,7 +100,7 @@ function CompanyDrawer({ id, onClose }: { id: string | null; onClose: () => void
         <Space direction="vertical" size={16} style={{ width: '100%' }}>
           {company.status === 'SUSPENDED' && <Alert type="error" showIcon message={`Gesperrt${company.statusReason ? `: ${company.statusReason}` : ''}`} />}
           <Descriptions size="small" column={{ xs: 1, md: 2 }} bordered>
-            <Descriptions.Item label="Status"><Tag color={COMPANY_STATUS[company.status].color}>{COMPANY_STATUS[company.status].label}</Tag></Descriptions.Item>
+            <Descriptions.Item label="Status"><StatusTag tone={COMPANY_STATUS[company.status].tone}>{COMPANY_STATUS[company.status].label}</StatusTag></Descriptions.Item>
             <Descriptions.Item label="Angelegt">{formatDate(company.createdAt)}</Descriptions.Item>
             <Descriptions.Item label="Testphase bis">{formatDate(company.trialEndsAt) || '–'}</Descriptions.Item>
             <Descriptions.Item label="Zuletzt aktiv">{formatDate(company.lastActivity) || '–'}</Descriptions.Item>
@@ -168,7 +169,7 @@ function CompanyDrawer({ id, onClose }: { id: string | null; onClose: () => void
                 { title: 'Nr.', dataIndex: 'number' },
                 { title: 'Zeitraum', render: (_, invoice) => formatDate(invoice.periodStart) },
                 { title: 'Brutto', align: 'right', render: (_, invoice) => formatMoney(invoice.gross) },
-                { title: 'Status', render: (_, invoice) => <Tag color={INVOICE_STATUS[invoice.status].color}>{INVOICE_STATUS[invoice.status].label}</Tag> },
+                { title: 'Status', render: (_, invoice) => <StatusTag tone={INVOICE_STATUS[invoice.status].tone}>{INVOICE_STATUS[invoice.status].label}</StatusTag> },
               ]}
             />
           </div>

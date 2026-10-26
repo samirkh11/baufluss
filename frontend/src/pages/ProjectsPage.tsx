@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { Avatar, Button, Input, Space, Table, Tabs, Tag, Tooltip } from 'antd';
+import { Avatar, Button, Input, Space, Table, Tabs, Tooltip } from 'antd';
+import { StatusTag } from '../components/StatusTag';
 import { PlusOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
 import { listProjects } from '../api/projects';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { ProjectFormModal } from '../components/ProjectFormModal';
 import { Project, ProjectStatus } from '../types';
 import { assetUrl } from '../utils/assets';
@@ -81,7 +82,7 @@ export function ProjectsPage() {
             title: 'Status',
             dataIndex: 'status',
             render: (value: ProjectStatus) => (
-              <Tag color={PROJECT_STATUS[value].color}>{PROJECT_STATUS[value].label}</Tag>
+              <StatusTag tone={PROJECT_STATUS[value].tone}>{PROJECT_STATUS[value].label}</StatusTag>
             ),
           },
           {

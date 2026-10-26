@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Alert, Button, Col, Form, Input, InputNumber, Modal, Row, Select, Space, Switch, Table, Tag, message } from 'antd';
+import { StatusTag } from './StatusTag';
 import {
   deleteIncomingInvoice,
   fetchIncomingInvoiceFile,
@@ -178,7 +179,7 @@ export function IncomingInvoiceModal({ id, onClose }: { id: string | null; onClo
         invoice ? (
           <Space wrap>
             <span>{invoice.number}</span>
-            <Tag color={INCOMING_STATUS[invoice.status].color}>{INCOMING_STATUS[invoice.status].label}</Tag>
+            <StatusTag tone={INCOMING_STATUS[invoice.status].tone}>{INCOMING_STATUS[invoice.status].label}</StatusTag>
             {invoice.reverseCharge && <Tag>§ 13b</Tag>}
           </Space>
         ) : (

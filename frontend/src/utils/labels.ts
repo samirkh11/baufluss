@@ -1,3 +1,4 @@
+import { Tone } from '../theme/tokens';
 import {
   DocumentStatus,
   DocumentType,
@@ -10,21 +11,24 @@ import {
   ReportType,
 } from '../types';
 
-export const PROJECT_STATUS: Record<ProjectStatus, { label: string; color: string }> = {
-  PLANNING: { label: 'In Planung', color: 'blue' },
-  IN_PROGRESS: { label: 'In Ausführung', color: 'green' },
-  ON_HOLD: { label: 'Pausiert', color: 'orange' },
-  COMPLETED: { label: 'Abgeschlossen', color: 'default' },
-  CANCELLED: { label: 'Abgebrochen', color: 'red' },
+// Label + semantic tone of a status value; rendered with <StatusTag tone={…}>.
+export type StatusLabel = { label: string; tone: Tone };
+
+export const PROJECT_STATUS: Record<ProjectStatus, StatusLabel> = {
+  PLANNING: { label: 'In Planung', tone: 'info' },
+  IN_PROGRESS: { label: 'In Ausführung', tone: 'success' },
+  ON_HOLD: { label: 'Pausiert', tone: 'warning' },
+  COMPLETED: { label: 'Abgeschlossen', tone: 'neutral' },
+  CANCELLED: { label: 'Abgebrochen', tone: 'error' },
 };
 
-export const REPORT_TYPE: Record<ReportType, { label: string; color: string }> = {
-  DAILY: { label: 'Tagesbericht', color: 'blue' },
-  PROGRESS: { label: 'Baufortschritt', color: 'cyan' },
-  DEFECT: { label: 'Mängelbericht', color: 'red' },
-  ACCEPTANCE: { label: 'Abnahme', color: 'green' },
-  INCIDENT: { label: 'Vorkommnis', color: 'volcano' },
-  OTHER: { label: 'Sonstiges', color: 'default' },
+export const REPORT_TYPE: Record<ReportType, StatusLabel> = {
+  DAILY: { label: 'Tagesbericht', tone: 'info' },
+  PROGRESS: { label: 'Baufortschritt', tone: 'info' },
+  DEFECT: { label: 'Mängelbericht', tone: 'error' },
+  ACCEPTANCE: { label: 'Abnahme', tone: 'success' },
+  INCIDENT: { label: 'Vorkommnis', tone: 'warning' },
+  OTHER: { label: 'Sonstiges', tone: 'neutral' },
 };
 
 export function optionsOf(map: Record<string, { label: string }>) {
@@ -58,34 +62,34 @@ export function siteAddress(project: Pick<Project, 'siteStreet' | 'siteZipCode' 
     .join(', ');
 }
 
-export const DOCUMENT_STATUS: Record<DocumentStatus, { label: string; color: string }> = {
-  DRAFT: { label: 'Entwurf', color: 'default' },
-  SENT: { label: 'Ausgestellt', color: 'blue' },
-  ACCEPTED: { label: 'Angenommen', color: 'green' },
-  REJECTED: { label: 'Abgelehnt', color: 'red' },
-  CANCELLED: { label: 'Storniert', color: 'default' },
+export const DOCUMENT_STATUS: Record<DocumentStatus, StatusLabel> = {
+  DRAFT: { label: 'Entwurf', tone: 'neutral' },
+  SENT: { label: 'Ausgestellt', tone: 'info' },
+  ACCEPTED: { label: 'Angenommen', tone: 'success' },
+  REJECTED: { label: 'Abgelehnt', tone: 'error' },
+  CANCELLED: { label: 'Storniert', tone: 'neutral' },
 };
 
-export const PAYMENT_STATUS: Record<PaymentStatus, { label: string; color: string }> = {
-  UNPAID: { label: 'Offen', color: 'blue' },
-  PARTIALLY_PAID: { label: 'Teilweise bezahlt', color: 'gold' },
-  PAID: { label: 'Bezahlt', color: 'green' },
-  OVERDUE: { label: 'Überfällig', color: 'red' },
-  CANCELLED: { label: 'Storniert', color: 'default' },
+export const PAYMENT_STATUS: Record<PaymentStatus, StatusLabel> = {
+  UNPAID: { label: 'Offen', tone: 'info' },
+  PARTIALLY_PAID: { label: 'Teilweise bezahlt', tone: 'warning' },
+  PAID: { label: 'Bezahlt', tone: 'success' },
+  OVERDUE: { label: 'Überfällig', tone: 'error' },
+  CANCELLED: { label: 'Storniert', tone: 'neutral' },
 };
 
-export const DUNNING_LEVEL: Record<DunningLevel, { label: string; color: string }> = {
-  REMINDER: { label: 'Zahlungserinnerung', color: 'blue' },
-  FIRST: { label: '1. Mahnung', color: 'gold' },
-  SECOND: { label: '2. Mahnung', color: 'orange' },
-  FINAL: { label: 'Letzte Mahnung', color: 'red' },
+export const DUNNING_LEVEL: Record<DunningLevel, StatusLabel> = {
+  REMINDER: { label: 'Zahlungserinnerung', tone: 'info' },
+  FIRST: { label: '1. Mahnung', tone: 'warning' },
+  SECOND: { label: '2. Mahnung', tone: 'warning' },
+  FINAL: { label: 'Letzte Mahnung', tone: 'error' },
 };
 
-export const INCOMING_STATUS: Record<IncomingInvoiceStatus, { label: string; color: string }> = {
-  RECEIVED: { label: 'Zu prüfen', color: 'gold' },
-  APPROVED: { label: 'Freigegeben', color: 'blue' },
-  REJECTED: { label: 'Abgelehnt', color: 'red' },
-  PAID: { label: 'Bezahlt', color: 'green' },
+export const INCOMING_STATUS: Record<IncomingInvoiceStatus, StatusLabel> = {
+  RECEIVED: { label: 'Zu prüfen', tone: 'warning' },
+  APPROVED: { label: 'Freigegeben', tone: 'info' },
+  REJECTED: { label: 'Abgelehnt', tone: 'error' },
+  PAID: { label: 'Bezahlt', tone: 'success' },
 };
 
 export const EINVOICE_FORMAT: Record<string, string> = {

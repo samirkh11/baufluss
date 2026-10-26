@@ -6,7 +6,7 @@ import { getOwnCompany, updateOwnCompany, uploadCompanyLogo } from '../api/compa
 import { Company } from '../types';
 import { AuditLogPanel } from '../components/AuditLogPanel';
 import { CompliancePanel } from '../components/CompliancePanel';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { DunningSettingsPanel } from '../components/DunningSettingsPanel';
 import { NumberSequencesPanel } from './NumberSequencesPanel';
 import { assetUrl } from '../utils/assets';

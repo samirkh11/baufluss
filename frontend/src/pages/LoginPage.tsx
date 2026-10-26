@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { Alert, Button, Card, Form, Input, Typography } from 'antd';
+import { Alert, Button, Form, Input, Typography } from 'antd';
+import { AuthShell } from '../components/AuthShell';
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../api/auth';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 
 export function LoginPage() {
   const { signIn } = useAuth();
@@ -27,34 +28,22 @@ export function LoginPage() {
   }
 
   return (
-    <div
-      style={{
-        display: 'flex',
-        justifyContent: 'center',
-        alignItems: 'center',
-        minHeight: '100vh',
-        padding: 16,
-        boxSizing: 'border-box',
-      }}
-    >
-      <Card style={{ width: 400, maxWidth: '100%' }}>
-        <Typography.Title level={3}>Meisterwerk Login</Typography.Title>
-        {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
-        <Form layout="vertical" onFinish={handleFinish}>
-          <Form.Item name="email" label="E-Mail" rules={[{ required: true, type: 'email' }]}>
-            <Input autoComplete="email" />
-          </Form.Item>
-          <Form.Item name="password" label="Passwort" rules={[{ required: true }]}>
-            <Input.Password autoComplete="current-password" />
-          </Form.Item>
-          <Button type="primary" htmlType="submit" loading={loading} block>
-            Anmelden
-          </Button>
-        </Form>
-        <Typography.Paragraph style={{ marginTop: 16, textAlign: 'center' }}>
-          Noch kein Konto? <Link to="/register">Firma registrieren</Link>
-        </Typography.Paragraph>
-      </Card>
-    </div>
+    <AuthShell title="Anmelden" subtitle="Willkommen zurück – bitte melden Sie sich an.">
+      {error && <Alert type="error" message={error} style={{ marginBottom: 16 }} />}
+      <Form layout="vertical" onFinish={handleFinish}>
+        <Form.Item name="email" label="E-Mail" rules={[{ required: true, type: 'email' }]}>
+          <Input autoComplete="email" />
+        </Form.Item>
+        <Form.Item name="password" label="Passwort" rules={[{ required: true }]}>
+          <Input.Password autoComplete="current-password" />
+        </Form.Item>
+        <Button type="primary" htmlType="submit" loading={loading} block>
+          Anmelden
+        </Button>
+      </Form>
+      <Typography.Paragraph style={{ marginTop: 16, textAlign: 'center' }}>
+        Noch kein Konto? <Link to="/register">Firma registrieren</Link>
+      </Typography.Paragraph>
+    </AuthShell>
   );
 }

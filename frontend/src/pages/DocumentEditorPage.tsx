@@ -27,6 +27,7 @@ import {
   Typography,
   message,
 } from 'antd';
+import { StatusTag } from '../components/StatusTag';
 import { EInvoiceButton } from '../components/EInvoiceButton';
 import { DunningCard } from '../components/DunningCard';
 import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined } from '@ant-design/icons';
@@ -724,7 +725,7 @@ export function DocumentEditorPage() {
       <style>{'.document-heading-row td { background: #fafafa; }'}</style>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
         <Typography.Title level={3} style={{ margin: 0 }}>
-          {typeLabel} {numberLabel} <Tag color={status.color}>{status.label}</Tag>
+          {typeLabel} {numberLabel} <StatusTag tone={status.tone}>{status.label}</StatusTag>
         </Typography.Title>
         <Space wrap>
           <Link to={`/projects/${document.projectId}`}>
@@ -872,10 +873,10 @@ export function DocumentEditorPage() {
           <Space wrap size="large" style={{ marginBottom: 12, display: 'flex' }}>
             <span>
               Status:{' '}
-              <Tag color={PAYMENT_STATUS[invoiceSummary.status].color}>
+              <StatusTag tone={PAYMENT_STATUS[invoiceSummary.status].tone}>
                 {PAYMENT_STATUS[invoiceSummary.status].label}
                 {invoiceSummary.status === 'OVERDUE' ? ` (${invoiceSummary.overdueDays} Tage)` : ''}
-              </Tag>
+              </StatusTag>
             </span>
             <span>
               Zahlbetrag: <strong>{formatMoney(invoiceSummary.payable)}</strong>
@@ -978,9 +979,9 @@ export function DocumentEditorPage() {
                     ? 'Schlussrechnung'
                     : 'Rechnung'}{' '}
                 {invoice.number ?? '(Entwurf)'} · {formatMoney(invoice.netTotal)} netto{' '}
-                <Tag color={DOCUMENT_STATUS[invoice.status].color}>
+                <StatusTag tone={DOCUMENT_STATUS[invoice.status].tone}>
                   {DOCUMENT_STATUS[invoice.status].label}
-                </Tag>
+                </StatusTag>
               </Link>
             ))}
           </Space>
@@ -1004,9 +1005,9 @@ export function DocumentEditorPage() {
                 {document.derivedDocuments.map((derived) => (
                   <Link key={derived.id} to={documentPath(derived.type, derived.id)}>
                     {DOCUMENT_TYPE[derived.type]} {derived.number ?? '(Entwurf)'}{' '}
-                    <Tag color={DOCUMENT_STATUS[derived.status].color}>
+                    <StatusTag tone={DOCUMENT_STATUS[derived.status].tone}>
                       {DOCUMENT_STATUS[derived.status].label}
-                    </Tag>
+                    </StatusTag>
                   </Link>
                 ))}
               </Space>

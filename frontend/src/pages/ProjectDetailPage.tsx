@@ -1,22 +1,10 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Avatar,
-  Button,
-  Card,
-  Descriptions,
-  Popconfirm,
-  Result,
-  Space,
-  Tabs,
-  Tag,
-  Tooltip,
-  Typography,
-  message,
-} from 'antd';
+import { Avatar, Button, Card, Descriptions, Popconfirm, Result, Space, Tabs, Tooltip, Typography, message } from 'antd';
+import { StatusTag } from '../components/StatusTag';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteProject, getProject } from '../api/projects';
-import { useAuth } from '../auth/AuthContext';
+import { useAuth } from '../auth/useAuth';
 import { ProjectFormModal } from '../components/ProjectFormModal';
 import { DocumentsPanel } from '../components/DocumentsPanel';
 import { ProjectTimePanel } from '../components/ProjectTimePanel';
@@ -71,7 +59,7 @@ export function ProjectDetailPage() {
     <div>
       <Space style={{ width: '100%', justifyContent: 'space-between', marginBottom: 16 }} wrap>
         <Typography.Title level={3} style={{ margin: 0 }}>
-          {project.number} · {project.name} <Tag color={status.color}>{status.label}</Tag>
+          {project.number} · {project.name} <StatusTag tone={status.tone}>{status.label}</StatusTag>
         </Typography.Title>
         {canManage && (
           <Space>

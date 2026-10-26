@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Button, Card, Col, Input, Row, Select, Space, Statistic, Table, Tag, Typography, Upload, message } from 'antd';
+import { Button, Card, Col, Input, Row, Select, Space, Statistic, Table, Typography, Upload, message } from 'antd';
+import { StatusTag } from '../components/StatusTag';
 import { UploadOutlined } from '@ant-design/icons';
 import { createIncomingInvoice, listIncomingInvoices, uploadIncomingInvoice } from '../api/incomingInvoices';
 import { IncomingInvoiceModal } from '../components/IncomingInvoiceModal';
@@ -86,7 +87,7 @@ export function IncomingInvoicesPage() {
           { title: 'Fällig', render: (_, row) => formatDate(row.dueDate) },
           { title: 'Projekt', responsive: ['md'], render: (_, row) => row.project?.number ?? '' },
           { title: 'Brutto', align: 'right', render: (_, row) => formatMoney(row.grossAmount) },
-          { title: 'Status', render: (_, row) => <Tag color={INCOMING_STATUS[row.status].color}>{INCOMING_STATUS[row.status].label}</Tag> },
+          { title: 'Status', render: (_, row) => <StatusTag tone={INCOMING_STATUS[row.status].tone}>{INCOMING_STATUS[row.status].label}</StatusTag> },
         ]}
       />
       <IncomingInvoiceModal id={openId} onClose={() => setOpenId(null)} />
