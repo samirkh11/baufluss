@@ -1,0 +1,67 @@
+%% Ist-Zustand laut backend/prisma/schema.prisma (Stand 2026-10-26). Nur Schlüssel und Beziehungen.
+erDiagram
+  Company ||--o{ User : "companyId"
+  Plan |o--o{ Company : "planId"
+  Company ||--o{ NumberSequence : "companyId"
+  Company ||--o{ Contact : "companyId"
+  Company ||--o{ CatalogItem : "companyId"
+  CatalogItem ||--o{ CatalogItemImage : "catalogItemId"
+  Company ||--o{ Project : "companyId"
+  Contact |o--o{ Project : "customerId"
+  User |o--o{ Project : "managerId"
+  Project ||--o{ ProjectMember : "projectId"
+  User ||--o{ ProjectMember : "userId"
+  Company ||--o{ Report : "companyId"
+  Project ||--o{ Report : "projectId"
+  User |o--o{ Report : "authorId"
+  Report ||--o{ ReportPhoto : "reportId"
+  Company ||--o{ Document : "companyId"
+  Project ||--o{ Document : "projectId"
+  Document |o--o{ Document : "sourceDocumentId"
+  Contact |o--o{ Document : "recipientContactId"
+  Document ||--o{ DocumentItem : "documentId"
+  CatalogItem |o--o{ DocumentItem : "catalogItemId"
+  Document |o--o{ DocumentItem : "deductsDocumentId"
+  Document ||--o| InvoiceDetails : "documentId"
+  Company ||--o{ TimeEntry : "companyId"
+  User ||--o{ TimeEntry : "userId"
+  Project |o--o{ TimeEntry : "projectId"
+  Company ||--o{ Payment : "companyId"
+  Document ||--o{ Payment : "documentId"
+  Company ||--o| DunningSettings : "companyId"
+  Company ||--o{ Dunning : "companyId"
+  Document ||--o{ Dunning : "documentId"
+  Company ||--o{ IncomingInvoice : "companyId"
+  Contact |o--o{ IncomingInvoice : "supplierId"
+  Project |o--o{ IncomingInvoice : "projectId"
+  User |o--o{ IncomingInvoice : "uploadedById / approvedById"
+  User ||--o| DashboardLayout : "userId"
+  Company ||--o{ ArchivedFile : "companyId"
+  Document |o--o{ ArchivedFile : "documentId"
+  Dunning |o--o{ ArchivedFile : "dunningId"
+  Company ||--o{ AuditLog : "companyId"
+  Company ||--o| ComplianceSettings : "companyId"
+  Company ||--o{ PlatformInvoice : "companyId"
+  PlatformAdmin {
+    string id PK
+  }
+  PlatformSettings {
+    string id PK
+  }
+  PlatformAuditLog {
+    string id PK
+    string adminId "kein FK"
+    string companyId "kein FK"
+  }
+  TimeEntry {
+    string approvedById "kein FK (P2)"
+  }
+  Payment {
+    string createdById "kein FK (P2)"
+  }
+  Dunning {
+    string createdById "kein FK (P2)"
+  }
+  NumberSequence {
+    string documentType "freier String (P2)"
+  }

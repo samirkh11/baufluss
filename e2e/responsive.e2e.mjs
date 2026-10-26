@@ -72,6 +72,14 @@ for (const [tag, viewport, touch] of [['phone', { width: 390, height: 844 }, tru
   await page.waitForSelector('tbody tr.ant-table-row');
   await page.waitForTimeout(400);
   check(`${tag}: drawer closes after navigating`, (await page.locator('.ant-drawer-open').count()) === 0);
+  // phone: bottom tab bar with the four on-site destinations; tablet: drawer only
+  const bottomNav = page.getByRole('navigation', { name: 'Schnellnavigation' });
+  if (tag === 'phone') {
+    check('phone: bottom navigation visible', await bottomNav.isVisible());
+    check('phone: bottom navigation marks Projekte as current', (await bottomNav.locator('[aria-current=page]').innerText()).includes('Projekte'));
+  } else {
+    check('tablet: no bottom navigation', (await bottomNav.count()) === 0);
+  }
   check(`${tag} projects: fits the screen width`, await fitsWidth(page));
   await page.screenshot({ path: shots + `r-${tag}-projects.png` });
   if (tag === 'phone') {

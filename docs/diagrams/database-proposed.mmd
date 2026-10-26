@@ -1,0 +1,49 @@
+%% Vorschlag – NICHT umgesetzt. Nur Änderungen gegenüber database-current.mmd.
+%% Grundlage: docs/database-analysis.md (P1/P2) und Roadmap Block 11.
+erDiagram
+  %% P2: fehlende Fremdschlüssel ergänzen (onDelete: SetNull)
+  User |o--o{ TimeEntry : "approvedById (neu: FK)"
+  User |o--o{ Payment : "createdById (neu: FK)"
+  User |o--o{ Dunning : "createdById (neu: FK)"
+
+  %% P2: Enum statt freiem String
+  NumberSequence {
+    string companyId FK
+    NumberSequenceType documentType "Enum (neu)"
+  }
+
+  %% Block 11 – Urlaub / Abwesenheiten (Datenmodell-Idee aus project_roadmap.md, ergänzt um companyId)
+  Company ||--o{ LeaveBalance : "companyId"
+  User ||--o{ LeaveBalance : "userId"
+  Company ||--o{ LeaveRequest : "companyId"
+  User ||--o{ LeaveRequest : "userId"
+  User |o--o{ LeaveRequest : "decidedById"
+  LeaveBalance {
+    string id PK
+    string companyId FK
+    string userId FK
+    int year "unique(userId, year)"
+    decimal entitlementDays
+    decimal carryOverDays
+    date carryOverExpires
+  }
+  LeaveRequest {
+    string id PK
+    string companyId FK
+    string userId FK
+    date from
+    date to
+    boolean halfDayStart
+    boolean halfDayEnd
+    decimal days
+    LeaveType type "URLAUB, SONDERURLAUB, UNBEZAHLT"
+    LeaveStatus status "BEANTRAGT, GENEHMIGT, ABGELEHNT, STORNIERT"
+    string decidedById FK
+    string decisionNote
+  }
+  PublicHoliday {
+    string id PK
+    string state "Bundesland"
+    date date
+    string name
+  }

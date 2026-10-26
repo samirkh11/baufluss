@@ -1,4 +1,6 @@
-# Meisterwerk
+# Baufluss
+
+> Produktname laut Design (Figma); Repository- und Paketnamen heißen weiterhin `meisterwerk`.
 
 Multiuser-fähige, cloudbasierte Software für Handwerksbetriebe (Vorbild: [Plancraft](https://plancraft.com/de-de)).
 
@@ -13,6 +15,17 @@ Multiuser-fähige, cloudbasierte Software für Handwerksbetriebe (Vorbild: [Plan
 
 Architektur-Entscheidungen, Multi-Tenancy-Strategie und die Roadmap der restlichen Funktionsblöcke
 stehen in [`.claude/memory/`](.claude/memory/).
+
+## Dokumentation
+
+| Thema | Datei |
+| --- | --- |
+| Projektanalyse | [`docs/project-analysis.md`](docs/project-analysis.md) |
+| Frontend-Architektur | [`docs/architecture.md`](docs/architecture.md) |
+| Design-System (Tokens, Komponenten, Kontraste) | [`docs/design-system.md`](docs/design-system.md) |
+| Responsive-Strategie (Desktop/Tablet/Phone) | [`docs/responsive-strategy.md`](docs/responsive-strategy.md) |
+| PWA (Caching, Updates, HTTPS-Voraussetzung) | [`docs/pwa.md`](docs/pwa.md) |
+| Datenbank-Analyse + ER-Diagramme | [`docs/database-analysis.md`](docs/database-analysis.md), [`docs/diagrams/`](docs/diagrams/) |
 
 ## Lokale Entwicklungsumgebung einrichten
 

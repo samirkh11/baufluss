@@ -57,6 +57,10 @@ await page.getByLabel('Passwort').fill('demo12345');
 await page.getByRole('button', { name: 'Anmelden' }).click();
 await page.waitForURL(BASE + '/');
 check('login redirects to dashboard', await page.getByText('Willkommen, Thomas').isVisible());
+// PWA: manifest is linked and served (service worker itself needs HTTPS or localhost, see docs/pwa.md)
+const manifest = await page.evaluate(async () => { const href = document.querySelector('link[rel=manifest]')?.getAttribute('href'); return href ? (await fetch(href)).json() : null; });
+if (manifest) check('PWA manifest linked with app name Baufluss', manifest.name === 'Baufluss');
+else console.log('  (PWA manifest check skipped: dev server has no manifest, run against the production build)');
 for (const item of ['Projekte', 'Berichte', 'Kontakte', 'Leistungen & Artikel', 'Firmenprofil', 'Nutzer & Rollen']) {
   check(`menu item "${item}"`, await page.getByRole('menuitem', { name: item }).isVisible());
 }
